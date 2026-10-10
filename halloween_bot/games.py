@@ -274,11 +274,12 @@ class Games(commands.Cog):
             return await fail(interaction,"Cette aventure est réservée aux joueurs.")
         g,u=interaction.guild.id,interaction.user.id
         status=self.bot.store.trick_status(g,u)
-        if status["wait"]:
-            return await fail(interaction,wait_text(status["wait"]))
         view=TrickOrTreatView(self.bot,g,u)
+        # The cooldown blocks rewards, not browsing the inventory or ranking.
+        # Cooldown-only previews are private to avoid public message spam.
         await interaction.response.send_message(
             view=view,file=view._view_file(),
+            ephemeral=bool(status["wait"]),
             allowed_mentions=discord.AllowedMentions.none(),
         )
         view.message=await interaction.original_response()
