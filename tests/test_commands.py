@@ -15,7 +15,7 @@ class CommandTests(unittest.TestCase):
             async def verify():
                 bot=HalloweenBot()
                 try:
-                    for module in ("economy","games","farming","events","admin","competition"):
+                    for module in ("economy","games","farming","events","admin","competition","rounds","quiz_games"):
                         await bot.load_extension("halloween_bot."+module)
                     actual={command.name for command in bot.tree.get_commands()}
                     required={
@@ -23,9 +23,7 @@ class CommandTests(unittest.TestCase):
                         "pumpkin","quiz","duel","boss","expedition",
                         "farm","leaderboard","profile","shop","inventory",
                         "give","achievements","guide","setup",
-                        "competition","challenge","competition_top",
-                        "competition_rank","tournament_start",
-                        "tournament_close","tournament_audit"
+                        "competition","challenge","film_horreur"
                     }
                     self.assertTrue(required<=actual,required-actual)
                     self.assertEqual(len(actual),len(required))
