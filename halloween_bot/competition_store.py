@@ -411,7 +411,7 @@ class Competition:
             ).fetchone()["n"]
             return {**dict(player), "place": above+1, "participants": count}
 
-    def audit(self, guild_id, limit=5000, now=None):
+    def audit(self, guild_id, limit=100000, now=None):
         """Read-only log for an admin's manual eligibility and abuse review."""
         season = self.season(guild_id, now)
         if not season:
