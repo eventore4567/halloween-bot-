@@ -126,6 +126,14 @@ class RoundStore:
             )
             return "enabled" if not row["enabled"] else "already_enabled"
 
+    def suspend(self, guild_id):
+        """Stop opening new rounds automatically once the season expires."""
+        with self.store.transaction() as c:
+            c.execute(
+                "UPDATE round_config SET enabled=0,next_at=0 WHERE guild_id=?",
+                (guild_id,),
+            )
+
     def all_enabled(self):
         with self.store.lock:
             return [dict(row) for row in self.store.db.execute(
@@ -218,17 +226,14 @@ class RoundStore:
             ).fetchone()
             if not row or row["status"]!="signup" or now >= row["signup_ends_at"]:
                 return "closed"
+            import sqlite3
             try:
                 c.execute(
                     "INSERT INTO round_participants VALUES (?,?,?)",
                     (round_id,user_id,now)
                 )
-            except Exception as exc:
-                # Intentionally catch only unique-constraint collisions.
-                import sqlite3
-                if isinstance(exc, sqlite3.IntegrityError):
-                    return "already_joined"
-                raise
+            except sqlite3.IntegrityError:
+                return "already_joined"
             return "joined"
 
     def count(self, round_id):
