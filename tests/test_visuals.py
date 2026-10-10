@@ -72,7 +72,7 @@ class ThemeTests(unittest.TestCase):
 
     def test_main_hub_buttons_and_guide(self):
         view = self.make_view(HubView, 123)
-        self.assertEqual(len(view.children), 5)
+        self.assertEqual(len(view.children), 6)
         self.assertTrue(all(isinstance(button, discord.ui.Button) for button in view.children))
         self.assertGreaterEqual(len(guide_card().fields), 4)
 
