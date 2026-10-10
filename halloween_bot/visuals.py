@@ -36,45 +36,45 @@ def medal(n):
     return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"`{n:02}`")
 
 def contest_board(bot, guild, user, buttons):
-    """Show an uninterrupted image-based competition scene.
+    """One image plus one native row, WITHOUT Discord's grey Container card.
 
-    Discord doesn't support background images underneath Section/TextDisplay
-    components. The full page, including dynamically painted competition
-    status, rank, score and difficulty cards, is ONE attachment and ONE V2
-    gallery. The only native overlays are the working Discord action buttons,
-    placed directly underneath the artwork inside the same container.
+    Discord does not support interactive controls over pixels in a
+    MediaGallery. Both items are top-level Components V2 siblings instead
+    of being nested in a Container: this removes the large theme-coloured
+    slab, its padding, and the accent bar surrounding the image.
+    The real buttons remain immediately under the image, on one row.
     """
     from .scene import SCENE_URI
 
-    season=bot.competition.season(guild.id)
-    round_info=bot.round_store.current(guild.id)
-    entry=bot.competition.position(guild.id,user.id)
-    state=("Saison non ouverte" if not season
-           else "Saison terminée" if season["status"]!="active"
-           else "Inscriptions ouvertes" if round_info and round_info["status"]=="signup"
-           else "Manche en cours" if round_info and round_info["status"]=="active"
-           else "Entre deux manches")
-    place=f"#{entry['place']}" if entry else "non classé"
-    points=entry["score"] if entry else 0
-    description=(
+    season = bot.competition.season(guild.id)
+    round_info = bot.round_store.current(guild.id)
+    entry = bot.competition.position(guild.id, user.id)
+    state = (
+        "Saison non ouverte" if not season
+        else "Saison terminée" if season["status"] != "active"
+        else "Inscriptions ouvertes"
+        if round_info and round_info["status"] == "signup"
+        else "Manche en cours"
+        if round_info and round_info["status"] == "active"
+        else "Entre deux manches"
+    )
+    place = f"#{entry['place']}" if entry else "non classé"
+    points = entry["score"] if entry else 0
+    description = (
         "CRYPT CUP, le Sanctuaire des Ombres. "
         f"État : {state}. Rang : {place}. Score : {points} points. "
         "Défis : Alchimie 100 points, Mots maudits 130 points, "
         "Code de la crypte 160 points. "
-        "Les boutons Participer, Mes défis, Top 10, Mon rang et Règlement "
-        "restent accessibles sous l'image."
+        "Actions accessibles juste sous l'image : "
+        "Participer, Mes défis, Top 10, Mon rang, Règlement."
     )
-    return container(
+    return (
         discord.ui.MediaGallery(
-            discord.MediaGalleryItem(
-                media=SCENE_URI,
-                description=description,
-            )
+            discord.MediaGalleryItem(media=SCENE_URI, description=description),
         ),
-        discord.ui.ActionRow(*buttons[:3]),
-        discord.ui.ActionRow(*buttons[3:]),
-        accent=VIOLET,
+        discord.ui.ActionRow(*buttons),
     )
+
 
 def podium_board(bot, guild):
     season=bot.competition.season(guild.id)
@@ -143,7 +143,8 @@ class CompetitionHome(discord.ui.LayoutView):
             buttons, (self.register, self.play, self.top, self.rank, self.rules)
         ):
             button.callback = handler
-        self.add_item(contest_board(bot, guild, user, buttons))
+        for component in contest_board(bot, guild, user, buttons):
+            self.add_item(component)
 
     async def register(self, interaction):
         if not interaction.guild or interaction.guild.id != self.guild_id:
