@@ -16,7 +16,7 @@ from PIL import Image
 from halloween_bot.common import ICONS
 from halloween_bot.storage import Store
 from halloween_bot.trick_or_treat import (
-    HEIGHT, WIDTH, TrickOrTreatView, banner_bytes,
+    HEIGHT, WIDTH, TrickOrTreatView, banner_bytes, _font, _fit,
 )
 
 
@@ -97,6 +97,27 @@ class TrickVisualTests(unittest.TestCase):
         self.db.close()
         self.temp.cleanup()
         ICONS.install([])
+
+    def test_unicode_font_contains_actual_french_glyphs(self):
+        """Accents and separators must not become fallback tofu squares."""
+        font=_font(42)
+        self.assertIn("VeraBd.ttf",str(font.path))
+        for symbol in ("É","é","ê","è","à","œ","•","—","×"):
+            mask=bytes(font.getmask(symbol))
+            self.assertGreater(sum(mask),1000,symbol)
+            self.assertNotEqual(mask,bytes(font.getmask("□")),symbol)
+        self.assertLessEqual(_fit("LES LÉGENDES",725,size=61),61)
+
+    def test_inventory_and_legendary_item_render_with_accents(self):
+        for text in ("Citrouille légendaire","Le chêne oublié",
+                     "SÉRIE","LES LÉGENDES"):
+            self.assertGreater(sum(bytes(_font(25).getmask(text))),1000)
+        data=banner_bytes(
+            "inventory",1200,2,inventory=[("Citrouille légendaire",1)]
+        )
+        image=Image.open(io.BytesIO(data))
+        self.assertEqual(image.size,(WIDTH,HEIGHT))
+        self.assertGreater(len(data),10000)
 
     def test_manor_screens_are_landscape_and_render(self):
         outcome={"kind":"jackpot","amount":350,"candies":550,
