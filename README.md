@@ -46,7 +46,11 @@ Le chargement des emojis de l'application nécessite discord.py 2.6 ou plus réc
 Après avoir ajouté des emojis, redémarre simplement le service Railway.
 ### 🪦 `/competition` — Une scène Halloween complète
 
-La commande affiche **une seule image verticale** (1180 × 1560) générée à la
+La commande affiche **une seule image horizontale** (1280 × 840),
+optimisée pour une lecture sur Discord. Les petits paragraphes illisibles ont
+été supprimés au profit de titres et chiffres beaucoup plus grands.
+
+La commande affiche **une seule image horizontale** (1280 × 840) générée à la
 demande, avec tous les textes et valeurs de la compétition dessinés **sur le
 même fond gothique** : château, lune, portail lumineux, brume, cadres anciens,
 titre, compteur des manches, rang, score, division, trois épreuves et prix
