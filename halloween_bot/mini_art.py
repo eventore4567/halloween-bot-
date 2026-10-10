@@ -20,7 +20,7 @@ FILENAME = "halloween-arcade.jpg"
 
 @lru_cache(maxsize=9)
 def banner_bytes(mode: str) -> bytes:
-    if mode not in (*MODES, "menu"):
+    if mode not in (*MODES, "menu", "quiz"):
         raise ValueError(mode)
     base = _base().crop((0, 0, WIDTH, HEIGHT)).convert("RGBA")
     layer = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
@@ -29,9 +29,15 @@ def banner_bytes(mode: str) -> bytes:
                         fill=(12, 8, 28, 198),
                         outline=(222, 135, 169, 176), width=3)
     base.alpha_composite(layer)
-    title = "LE CABINET DES JEUX" if mode == "menu" else MODES[mode][0].upper()
+    title = (
+        "LE CABINET DES JEUX" if mode == "menu"
+        else "LE QUIZ DES TÉNÈBRES" if mode == "quiz"
+        else MODES[mode][0].upper()
+    )
     line = ("SEPT MINI-JEUX • BONBONS VIRTUELS"
-            if mode == "menu" else "L'ÉPREUVE HALLOWEEN A COMMENCÉ")
+            if mode == "menu" else
+            "QUESTIONS • 4 NIVEAUX • BONBONS" if mode == "quiz" else
+            "L'ÉPREUVE HALLOWEEN A COMMENCÉ")
     _lettering(base, (633, 121), "HALLOWEEN • CRYPT CUP",
                28, color=SOFT, anchor="mm")
     _lettering(base, (634, 180), title,
