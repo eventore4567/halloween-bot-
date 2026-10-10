@@ -116,13 +116,9 @@ class HubView(OwnerView):
 
     @discord.ui.button(label="Classement", emoji="🏆", style=discord.ButtonStyle.secondary, row=0)
     async def top(self, interaction, button):
-        rows = interaction.client.store.ranking(interaction.guild.id)
+        from .competition import top_card
         await interaction.response.send_message(
-            embed=card("Top 10 des bonbons",
-                       "🏆 Voici les chasseurs les plus riches du serveur.",
-                       theme="gold", sections=[
-                           ("🍬  CLASSEMENT", format_rank(interaction.guild, rows), False)
-                       ]),
+            embed=top_card(interaction.client, interaction.guild),
             ephemeral=True,
         )
 
@@ -140,6 +136,15 @@ class HubView(OwnerView):
     async def farm(self, interaction, button):
         cog = interaction.client.get_cog("Farming")
         await cog.send_farm(interaction)
+
+    @discord.ui.button(label="Compétition", emoji="💎", style=discord.ButtonStyle.success, row=1)
+    async def tournament(self, interaction, button):
+        from .competition import competition_card, CompetitionView
+        await interaction.response.send_message(
+            embed=competition_card(interaction.client, interaction.guild, interaction.user),
+            view=CompetitionView(),
+            ephemeral=True,
+        )
 
 
 def guide_card():
@@ -162,9 +167,14 @@ def guide_card():
              "/farm — plantation et récoltes\n"
              "/shop — boutique\n"
              "/inventory — tes objets", False),
-            ("🏆  PROGRESSER",
+            ("🏆  HALLOWEEN CUP • COMPÉTITION",
+             "/competition — arène, inscription et règlement\n"
+             "/challenge — trois épreuves de compétence quotidiennes\n"
+             "/competition_top — classement de la saison\n"
+             "/competition_rank — rang et division", False),
+            ("🎒  COLLECTION ET PROGRESSION",
              "/profile — statistiques\n"
-             "/leaderboard — six classements\n"
+             "/leaderboard — classements du serveur\n"
              "/achievements — succès\n"
              "/give — offrir des bonbons", False),
         ],
@@ -183,6 +193,11 @@ class Economy(commands.Cog):
         g, u = interaction.guild.id, interaction.user.id
         p = self.bot.store.profile(g, u)
         rank = self.bot.store.position(g, u)
+        contest_rank = self.bot.competition.position(g, u)
+        contest_name = (
+            f"#{contest_rank['place']} • {contest_rank['score']:,} points"
+            if contest_rank else "Pas encore inscrit"
+        )
         main = card(
             "Bienvenue dans le royaume hanté",
             "La nuit est tombée. Les fantômes rôdent et les citrouilles "
@@ -196,6 +211,9 @@ class Economy(commands.Cog):
                  "Trick or Treat · Chasse · Énigmes · Duels · Boss", False),
                 ("🌾  EXPLORER",
                  "Potager hanté · Maison abandonnée · Collection", False),
+                ("🏆  HALLOWEEN CUP • TA SAISON",
+                 f"**{contest_name}**\n"
+                 "Tes points de compétition ne dépendent pas des bonbons.", False),
             ],
             note="Choisis une rubrique avec les boutons ci-dessous.",
             thumbnail=True,
@@ -234,8 +252,13 @@ class Economy(commands.Cog):
     @app_commands.guild_only()
     async def leaderboard(
         self, interaction: discord.Interaction,
-        categorie: Literal["bonbons", "fantomes", "duels", "total", "ferme", "exploration"] = "bonbons",
+        categorie: Literal["competition", "bonbons", "fantomes", "duels", "total", "ferme", "exploration"] = "competition",
     ):
+        if categorie == "competition":
+            from .competition import top_card
+            return await interaction.response.send_message(
+                embed=top_card(self.bot, interaction.guild)
+            )
         types = {
             "bonbons": ("candies", "🍬", "Bonbons"),
             "fantomes": ("ghosts", "👻", "Fantômes capturés"),
