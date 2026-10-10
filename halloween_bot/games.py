@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import random
 import time
+from typing import Literal
 import discord
 from discord import app_commands
 from discord.ext import commands
