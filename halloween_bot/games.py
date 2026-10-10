@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .common import card,fail,wait_text,OwnerView
+from .common import card, fail, wait_text, OwnerView, themed_view, progress
 from .content import QUIZZES,RIDDLES,HUNTS
 
 
@@ -21,7 +21,7 @@ class QuizView(OwnerView):
         self.finished=False
         self.message=None
         for index,answer in enumerate(answers):
-            button=discord.ui.Button(label=answer[:80],style=discord.ButtonStyle.secondary)
+            button=discord.ui.Button(label=f"{'ABC'[index]} · {answer[:70]}",style=discord.ButtonStyle.secondary)
             async def choose(interaction,i=index):
                 if self.finished:
                     return await fail(interaction,"Cette énigme est déjà terminée.")
@@ -33,7 +33,13 @@ class QuizView(OwnerView):
                     desc="🎉 **Bonne réponse !**\n\n🍬 **+85 bonbons**."
                 else:
                     desc=f"💀 Mauvaise réponse !\n\n🕯️ Réponse : **{self.answers[self.correct]}**."
-                await interaction.response.edit_message(embed=card("ÉNIGME TERMINÉE",desc),view=self)
+                await interaction.response.edit_message(
+                    embed=card("Le verdict des ombres", desc,
+                               theme="success" if i == self.correct else "danger",
+                               sections=[("🧩  RÉSULTAT",
+                                          "Réponse validée." if i == self.correct else "Réessaie plus tard.",
+                                          False)]),
+                    view=self)
                 self.stop()
             button.callback=choose
             self.add_item(button)
@@ -57,6 +63,7 @@ class DuelView(discord.ui.View):
         self.guild_id=guild_id
         self.finished=False
         self.message=None
+        themed_view(self)
 
     async def interaction_check(self,interaction):
         if interaction.user.id!=self.opponent:
@@ -78,10 +85,15 @@ class DuelView(discord.ui.View):
         interaction.client.store.award(self.guild_id,loser,30,duel_losses=1)
         self.disable()
         await interaction.response.edit_message(
-            embed=card("DUEL TERMINÉ",
-                f"⚔️ <@{self.challenger}> contre <@{self.opponent}>\n\n"
-                f"🏆 **<@{winner}> remporte le duel !**\n\n"
-                "🍬 Gagnant : **+120**\n🕯️ Participant : **+30**"),
+            embed=card("Le duel est terminé",
+                f"🏆 **<@{winner}> remporte le duel !**",
+                theme="success",
+                sections=[
+                    ("⚔️  COMBATTANTS",
+                     f"<@{self.challenger}>  contre  <@{self.opponent}>", False),
+                    ("🍬  GAGNANT", "**+120**", True),
+                    ("🕯️  PARTICIPANT", "**+30**", True),
+                ]),
             view=self)
         self.stop()
 
@@ -119,20 +131,34 @@ class BossView(discord.ui.View):
         self.damage={}
         self.finished=False
         self.message=None
+        themed_view(self)
 
-    def description(self):
-        count=max(0,min(10,round(10*self.hp/self.maximum)))
-        bar="🟧"*count+"⬛"*(10-count)
-        leaders=sorted(self.damage.items(),key=lambda x:x[1],reverse=True)[:5]
-        listing="\n".join(f"⚔️ <@{uid}> · **{amount} dégâts**" for uid,amount in leaders)
-        return (
-            "╭────── 💀 ──────╮\n"
-            "**LE ROI DES CITROUILLES**\n"
-            "╰────── 🎃 ──────╯\n\n"
-            f"❤️ **{self.hp}/{self.maximum} PV**\n{bar}\n\n"
-            "⚔️ **3 attaques par joueur**, une toutes les **10 secondes**.\n"
-            "🍬 **150 bonbons** pour chaque participant si le boss tombe.\n\n"
-            f"🦇 **Meilleurs combattants**\n{listing or 'Aucun participant.'}"
+    def panel(self, *, defeated=False):
+        leaders = sorted(self.damage.items(), key=lambda p: p[1], reverse=True)[:5]
+        score = "\n".join(
+            f"⚔️ <@{user}> · **{damage} dégâts**"
+            for user, damage in leaders
+        ) or "🕸️ Aucun combattant pour le moment."
+        hero = (
+            "✨ Le Roi des Citrouilles s'est effondré. Le royaume est sauvé !"
+            if defeated else
+            "💀 Une créature gigantesque a surgi du cimetière."
+        )
+        return card(
+            "Le Roi des Citrouilles" if not defeated else "Boss vaincu",
+            hero,
+            theme="success" if defeated else "danger",
+            sections=[
+                ("❤️  POINTS DE VIE",
+                 f"**{self.hp} / {self.maximum}**\n{progress(self.hp, self.maximum)}", False),
+                ("⚔️  MEILLEURS COMBATTANTS", score, False),
+                ("🍬  BUTIN",
+                 "**150 bonbons par participant** si le boss est vaincu.",
+                 False),
+            ],
+            note="3 attaques maximum par joueur, espacées de 10 secondes."
+            if not defeated else
+            f"{len(self.damage)} participant(s) ont été récompensés.",
         )
 
     @discord.ui.button(label="Attaquer",emoji="⚔️",style=discord.ButtonStyle.danger)
@@ -161,15 +187,12 @@ class BossView(discord.ui.View):
             for component in self.children:
                 component.disabled=True
             await interaction.response.edit_message(
-                embed=card("BOSS VAINCU",
-                           f"🎃 **Le Roi des Citrouilles est vaincu !**\n\n"
-                           f"🏆 **{len(self.damage)} participants récompensés**\n"
-                           "🍬 **+150 bonbons** chacun\n\n"+self.description()),
+                embed=self.panel(defeated=True),
                 view=self)
             self.stop()
         else:
             await interaction.response.edit_message(
-                embed=card("BOSS HALLOWEEN",self.description()),view=self)
+                embed=self.panel(),view=self)
 
     async def on_timeout(self):
         if self.finished:
@@ -209,7 +232,7 @@ class ExpeditionView(OwnerView):
         for child in self.children:
             child.disabled=True
         await interaction.response.edit_message(
-            embed=card("MAISON HANTÉE",text),view=self)
+            embed=card("La maison a parlé",text,theme="success" if amount>0 else "danger",sections=[("🍬  TON BUTIN",f"**{amount:+} bonbons**",False)]),view=self)
         self.stop()
 
     @discord.ui.button(label="La crypte",emoji="💀",style=discord.ButtonStyle.danger)
@@ -319,8 +342,13 @@ class Games(commands.Cog):
         question,answers,correct=random.choice(RIDDLES if mode=="enigmes" else QUIZZES)
         view=QuizView(u,g,answers,correct)
         await interaction.response.send_message(
-            embed=card("ÉNIGME DE LA CRYPTE",
-                       f"🧩 **{question}**\n\n🕯️ Tu as 90 secondes."),
+            embed=card("L'énigme du grimoire",
+                       "🕯️ Une question vient de surgir des ténèbres.",
+                       theme="night",
+                       sections=[
+                           ("🧩  QUESTION", f"**{question}**", False),
+                           ("⏳  TEMPS RESTANT", "**90 secondes**", False),
+                       ]),
             view=view,ephemeral=True)
         view.message=await interaction.original_response()
 
@@ -335,11 +363,15 @@ class Games(commands.Cog):
             return await fail(interaction,wait_text(wait))
         view=DuelView(u,adversaire.id,g)
         await interaction.response.send_message(
-            embed=card("DÉFI HALLOWEEN",
-                       f"⚔️ {interaction.user.mention} défie {adversaire.mention} !\n\n"
-                       "🏆 Victoire : **+120 🍬**\n"
-                       "🕯️ Participation : **+30 🍬**\n\n"
-                       "🎃 Duel amical sans mise."),
+            embed=card("Un duel sous la lune",
+                       f"⚔️ {interaction.user.mention} défie {adversaire.mention} !",
+                       theme="night",
+                       sections=[
+                           ("🏆  VICTOIRE", "**+120 bonbons**", True),
+                           ("🕯️  PARTICIPATION", "**+30 bonbons**", True),
+                           ("🌙  LES RÈGLES",
+                            "Duel amical, sans mise. Le défi expire dans 2 minutes.", False),
+                       ]),
             view=view,allowed_mentions=discord.AllowedMentions(users=[adversaire]))
         view.message=await interaction.original_response()
 
@@ -355,7 +387,7 @@ class Games(commands.Cog):
         view=BossView(self.bot,g)
         self.bot.active_bosses[g]=view
         await interaction.response.send_message(
-            embed=card("BOSS HALLOWEEN",view.description()),view=view)
+            embed=view.panel(),view=view)
         view.message=await interaction.original_response()
 
     @app_commands.command(name="expedition",description="🏚️ Explorer une maison hantée")
@@ -367,12 +399,15 @@ class Games(commands.Cog):
             return await fail(interaction,wait_text(wait))
         view=ExpeditionView(u,g)
         await interaction.response.send_message(
-            embed=card("LA MAISON HANTÉE",
-                "🌫️ Trois portes apparaissent devant toi...\n\n"
-                "💀 **La crypte** — Récompenses élevées, danger élevé\n"
-                "🦇 **Le grenier** — Danger moyen\n"
-                "🕯️ **La cave** — Danger faible\n\n"
-                "🏚️ Choisis ton chemin. Tu as 2 minutes."),
+            embed=card("La maison abandonnée",
+                "🌫️ Trois portes grincent dans l'obscurité...",
+                theme="night",
+                sections=[
+                    ("💀  LA CRYPTE", "Grand trésor, mais pièges dangereux.", False),
+                    ("🦇  LE GRENIER", "Un risque moyen pour des bonbons.", False),
+                    ("🕯️  LA CAVE", "Un chemin plus sûr.", False),
+                ],
+                note="Tu as 2 minutes pour choisir une porte."),
             view=view,ephemeral=True)
         view.message=await interaction.original_response()
 
