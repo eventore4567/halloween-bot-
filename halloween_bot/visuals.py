@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import discord
 
-from .common import fail, icon, progress
+from .common import fail, icon, progress, button_icon
 
 VIOLET = discord.Color(0x7953D2)
 AMBER = discord.Color(0xEB9D40)
@@ -36,139 +36,41 @@ def medal(n):
     return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"`{n:02}`")
 
 def contest_board(bot, guild, user, buttons):
-    """One coherent cathedral-like dashboard with real image-backed sections.
+    """Show an uninterrupted image-based competition scene.
 
-    The violet/copper banner, portal, rank shield and grimoire are Discord
-    attachments. No external image URLs, fake server emojis, second embed or
-    duplicated control box are required. Discord's native Section+Thumbnail
-    components provide visual rhythm without flattening the content to an
-    image: countdowns remain live and the five buttons remain interactive.
+    Discord doesn't support background images underneath Section/TextDisplay
+    components. The full page, including dynamically painted competition
+    status, rank, score and difficulty cards, is ONE attachment and ONE V2
+    gallery. The only native overlays are the working Discord action buttons,
+    placed directly underneath the artwork inside the same container.
     """
-    from .competition_store import division
-    from .ornaments import badge_uri
+    from .scene import SCENE_URI
 
-    season = bot.competition.season(guild.id)
-    current = bot.round_store.current(guild.id)
-    config = bot.round_store.config(guild.id)
-    entry = bot.competition.position(guild.id, user.id)
-    registered = (
-        bot.round_store.count(current["id"]) if current else 0
-    )
-
-    if not season:
-        status = "🔒 **LE PORTAIL EST FERMÉ**"
-        when = "La compétition n'a pas encore commencé."
-        info = "Un organisateur peut ouvrir le royaume depuis **/setup**."
-    elif season["status"] != "active":
-        status = "🕯️ **LE SANCTUAIRE REPOSE**"
-        when = "La saison est terminée."
-        info = "Le classement reste consultable avant validation finale."
-    elif current and current["status"] == "signup":
-        status = "🎟️ **LES INSCRIPTIONS SONT OUVERTES**"
-        when = f"Fermeture du portail <t:{current['signup_ends_at']}:R>."
-        info = f"**{registered} chasseur(s)** déjà inscrit(s). Entre avant la fermeture !"
-    elif current and current["status"] == "active":
-        status = "⚔️ **L'ÉPREUVE A COMMENCÉ**"
-        when = f"La crypte se ferme <t:{current['ends_at']}:R>."
-        info = f"**{registered} combattant(s)**. Réservé aux membres inscrits."
-    else:
-        status = "🌙 **LE SANCTUAIRE SE PRÉPARE**"
-        next_round = config["next_at"]
-        when = (
-            f"Prochaine manche <t:{next_round}:R>."
-            if config["enabled"] and next_round else
-            "La prochaine ouverture sera annoncée dans le salon choisi."
-        )
-        info = "Reste attentif : le rôle configuré sera notifié."
-
-    if entry:
-        grade, next_step, _ = division(entry["score"])
-        place = f"**#{entry['place']}**"
-        points = f"**{entry['score']:,} pts**"
-        tier = f"**{grade}**"
-        remaining = max(0,next_step-entry["score"])
-        advancement = (
-            "✧ **Division suprême atteinte.**" if not remaining else
-            f"Encore **{remaining:,} points** pour progresser."
-        )
-    else:
-        place = "**—**"
-        points = "**0 pt**"
-        tier = "**🥉 Bronze**"
-        advancement = "Ton premier succès inscrira ton nom dans les archives."
-
-    announced_prize = (
-        (season or {}).get("prize_label") or config.get("prize_label")
-    )
-    prize = (
-        f"🎁 Prix annoncé : **{discord.utils.escape_markdown(announced_prize)}**"
-        if announced_prize else
-        "🏆 **La gloire et les points de saison**"
-    )
-    if announced_prize:
-        prize += " (règlement et vérification par l'organisateur)"
-
-    portal = discord.ui.Section(
-        text(
-            "### Ⅰ  ·  LE PORTAIL DES BRUMES\n"
-            f"{status}\n"
-            f"{when}\n"
-            f"-# {info}"
-        ),
-        accessory=discord.ui.Thumbnail(
-            badge_uri("portal"),
-            description="Portail gothique gravé de cuivre, symbole des inscriptions.",
-        ),
-    )
-    rank = discord.ui.Section(
-        text(
-            "### Ⅱ  ·  TON BLASON DE CHASSEUR\n"
-            f"🏅 Rang : {place}　　 ✦ Score : {points}\n"
-            f"🛡️ Division : {tier}\n"
-            f"-# {advancement}"
-        ),
-        accessory=discord.ui.Thumbnail(
-            badge_uri("rank"),
-            description="Blason de bronze gravé de lauriers et d'une couronne.",
-        ),
-    )
-    trials = discord.ui.Section(
-        text(
-            "### Ⅲ  ·  LE GRIMOIRE DES ÉPREUVES\n"
-            "🔮 **Alchimie** : 100 pts　"
-            "📜 **Mots maudits** : 130 pts\n"
-            "🗝️ **Code de la crypte** : 160 pts\n"
-            f"{prize}\n"
-            "-# Points gagnés uniquement par des réponses correctes, "
-            "pas par les bonbons aléatoires."
-        ),
-        accessory=discord.ui.Thumbnail(
-            badge_uri("grimoire"),
-            description="Ancien grimoire ouvert sous une flamme magique.",
-        ),
+    season=bot.competition.season(guild.id)
+    round_info=bot.round_store.current(guild.id)
+    entry=bot.competition.position(guild.id,user.id)
+    state=("Saison non ouverte" if not season
+           else "Saison terminée" if season["status"]!="active"
+           else "Inscriptions ouvertes" if round_info and round_info["status"]=="signup"
+           else "Manche en cours" if round_info and round_info["status"]=="active"
+           else "Entre deux manches")
+    place=f"#{entry['place']}" if entry else "non classé"
+    points=entry["score"] if entry else 0
+    description=(
+        "CRYPT CUP, le Sanctuaire des Ombres. "
+        f"État : {state}. Rang : {place}. Score : {points} points. "
+        "Défis : Alchimie 100 points, Mots maudits 130 points, "
+        "Code de la crypte 160 points. "
+        "Les boutons Participer, Mes défis, Top 10, Mon rang et Règlement "
+        "restent accessibles sous l'image."
     )
     return container(
         discord.ui.MediaGallery(
             discord.MediaGalleryItem(
-                media="attachment://crypt-cup-banner.jpg",
-                description=(
-                    "Bannière originale CRYPT CUP : architecture gothique, "
-                    "lune gravée, cuivre ancien et citrouilles. "
-                    "Le Sanctuaire des Ombres."
-                ),
+                media=SCENE_URI,
+                description=description,
             )
         ),
-        text(
-            "-# ✧  CRYPT CUP　/　HALLOWEEN 2026\n"
-            "### LE SANCTUAIRE DES OMBRES\n"
-            "Trois épreuves. Un classement. Une seule légende."
-        ),
-        divider(),
-        portal,
-        divider(),
-        rank,
-        divider(),
-        trials,
         discord.ui.ActionRow(*buttons[:3]),
         discord.ui.ActionRow(*buttons[3:]),
         accent=VIOLET,
@@ -217,23 +119,23 @@ class CompetitionHome(discord.ui.LayoutView):
         self.guild_id = guild.id
         buttons = [
             discord.ui.Button(
-                label="Participer", emoji="🎟️",
+                label="Participer", emoji=button_icon("key"),
                 style=discord.ButtonStyle.success,
             ),
             discord.ui.Button(
-                label="Mes défis", emoji="🗝️",
+                label="Mes défis", emoji=button_icon("book"),
                 style=discord.ButtonStyle.primary,
             ),
             discord.ui.Button(
-                label="Top 10", emoji="🏆",
+                label="Top 10", emoji=button_icon("trophy"),
                 style=discord.ButtonStyle.secondary,
             ),
             discord.ui.Button(
-                label="Mon rang", emoji="💎",
+                label="Mon rang", emoji=button_icon("crown"),
                 style=discord.ButtonStyle.secondary,
             ),
             discord.ui.Button(
-                label="Règlement", emoji="📜",
+                label="Règlement", emoji=button_icon("book"),
                 style=discord.ButtonStyle.secondary,
             ),
         ]

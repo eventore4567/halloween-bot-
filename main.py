@@ -10,7 +10,7 @@ from discord.ext import commands
 from halloween_bot.storage import Store
 from halloween_bot.competition_store import Competition
 from halloween_bot.round_store import RoundStore
-from halloween_bot.common import load_application_emojis
+from halloween_bot.common import ensure_application_emojis
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -31,7 +31,7 @@ class HalloweenBot(commands.Bot):
         self.active_bosses={}
 
     async def setup_hook(self):
-        await load_application_emojis(self)
+        await ensure_application_emojis(self)
         for module in ("economy","games","farming","events","admin","competition","rounds","quiz_games"):
             await self.load_extension(f"halloween_bot.{module}")
         self.get_cog("Events").restore()

@@ -44,25 +44,33 @@ S'il ne trouve pas un emoji, il affiche un emoji Unicode correspondant sans erre
 
 Le chargement des emojis de l'application nécessite discord.py 2.6 ou plus récent.
 Après avoir ajouté des emojis, redémarre simplement le service Railway.
-### 🪦 Commande 1 refaite : /competition
+### 🪦 `/competition` — Une scène Halloween complète
 
-L'arène CRYPT CUP s'affiche désormais dans **un seul conteneur Discord V2**
-avec une bannière panorama générée par le bot (Pillow), et non dans deux
-panneaux séparés. Le château hanté, la lune, la citrouille, le titre et le
-sous-titre sont intégrés à une image jointe au message. **Aucun hébergement
-d'image externe n'est requis.**
+La commande affiche **une seule image verticale** (1180 × 1560) générée à la
+demande, avec tous les textes et valeurs de la compétition dessinés **sur le
+même fond gothique** : château, lune, portail lumineux, brume, cadres anciens,
+titre, compteur des manches, rang, score, division, trois épreuves et prix
+annoncé. Les cinq boutons Discord natifs sont sous l'image, dans le **même
+conteneur Discord V2** ; ils restent interactifs et accessibles.
 
-Ce grand panneau contient au même endroit :
-- l'état réel des inscriptions ou de la manche et les délais Discord ;
-- le rang, la division et les points du joueur ;
-- les trois épreuves et la récompense annoncée si applicable ;
-- cinq boutons fonctionnels : Participer, Mes défis, Top 10, Mon rang, Règlement.
+**Limite Discord :** il n'est pas possible de placer de vrais boutons ou des
+composants texte au-dessus d'un fond personnalisé. L'image affiche une
+photographie de l'état au moment de la commande : pour mettre à jour le
+compteur, les points et l'état, relancez `/competition`. Les vrais scores
+sont toujours lus en base et ne peuvent pas être modifiés par l'image.
 
-Les interactions restent privées par utilisateur ; la commande principale
-reste visible dans le salon. Les points, les manches, les règles, les achats et
-les sauvegardes précédents sont conservés. Cette étape ne reconstruit
-**que la commande /competition** : les autres commandes seront refaites
-progressivement pour garantir une validation à chaque modification.
+**Pack emoji de l'application :** lors du premier démarrage, le bot utilise
+`discord.py` pour téléverser **10 emojis originaux 128×128** sur la même
+application dans le Discord Developer Portal :
+`pumpkin`, `ghost`, `bat`, `skull`, `trophy`, `key`, `book`,
+`candy`, `crown` et `clock`. Les emojis sont générés localement
+par Pillow, sans copier ceux d'un serveur. Les noms déjà présents ne sont
+jamais écrasés ; un redémarrage est donc sans danger. S'ils ne peuvent pas
+être publiés (permissions/erreur API), le bot continue avec des emojis
+Unicode standard et journalise les erreurs, sans interrompre les commandes.
+
+Aucune donnée de saison, bonbon, compte joueur ou ancienne commande n'est
+supprimée par cette modification.
 
 ## 🏆 CRYPT CUP — la compétition automatique
 
