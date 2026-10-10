@@ -218,7 +218,9 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _door(img, 249, number=0)
         _door(img, 640, number=1)
         _door(img, 1030, number=2)
-        _status(img, candies, streak)
+        _status(img, candies, streak,
+                extra=(f"RETOUR DANS {(remaining+59)//60} MIN"
+                       if remaining else "CHOISIS UNE PORTE"))
     elif stage == "opening":
         _header(img, "LA PORTE S'OUVRE...", "UN BRUIT ETRANGE RESONNE DANS L'OMBRE")
         _door(img, 640, number=selected or 0, chosen=True)
@@ -304,7 +306,9 @@ class TrickOrTreatView(discord.ui.LayoutView):
 
     def _view_file(self):
         candies,streak=self._stats()
-        extra={"selected":self.selected, "result":self.result}
+        extra={"selected":self.selected, "result":self.result,
+               "remaining":self.bot.store.trick_status(
+                   self.guild_id,self.owner_id)["wait"]}
         if self.stage=="inventory":
             from .content import ITEMS
             names={"legendary_pumpkin":RARE_NAME}
@@ -372,6 +376,8 @@ class TrickOrTreatView(discord.ui.LayoutView):
         self.add_item(_gallery())
         buttons=[]
         if self.stage=="intro":
+            ready=self.bot.store.trick_status(
+                self.guild_id,self.owner_id)["wait"]==0
             for i, emoji in enumerate(("key","pumpkin","ghost")):
                 async def choose(interaction, index=i):
                     await self.choose(interaction,index)
@@ -380,7 +386,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
                     (discord.ButtonStyle.primary if i==2
                      else discord.ButtonStyle.success if i==1
                      else discord.ButtonStyle.secondary),
-                    choose,
+                    choose,disabled=not ready,
                 ))
             buttons.extend(self._navigation())
         elif self.stage=="opening":
