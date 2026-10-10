@@ -32,7 +32,7 @@ class HalloweenBot(commands.Bot):
 
     async def setup_hook(self):
         await ensure_application_emojis(self)
-        for module in ("economy","games","farming","events","admin","competition","rounds","quiz_games"):
+        for module in ("economy","games","farming","events","admin","competition","rounds","quiz_games","mini_arcade"):
             await self.load_extension(f"halloween_bot.{module}")
         self.get_cog("Events").restore()
         self.get_cog("Rounds").restore()
