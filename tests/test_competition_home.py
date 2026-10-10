@@ -28,7 +28,7 @@ def all_text(root):
     if isinstance(root, discord.ui.TextDisplay):
         output.append(root.content)
     for child in getattr(root, "children", []):
-        output.extend(all_text(child))
+        output.append(all_text(child))
     return "\n".join(output)
 
 
