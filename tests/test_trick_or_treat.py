@@ -208,6 +208,46 @@ class TrickVisualTests(unittest.TestCase):
         illustration=view._view_file()
         self.assertEqual(illustration.filename,"trickortreat-manoir.jpg")
 
+    def test_four_result_scenes_have_distinct_visuals(self):
+        sample={"amount":145,"candies":530,"streak":2,"rare":False}
+        samples={}
+        for kind in ("treat","jackpot","trick","nothing"):
+            reward={**sample,"kind":kind,"rare":kind=="jackpot"}
+            data=banner_bytes("result",530,2,result=reward,
+                              selected=1,remaining=630)
+            img=Image.open(io.BytesIO(data)).convert("RGB")
+            self.assertEqual(img.size,(WIDTH,HEIGHT))
+            self.assertGreater(len(data),9000)
+            # Each story must have artwork, not the same generic four lines.
+            samples[kind]=img.getpixel((330,420))
+        self.assertEqual(len(set(samples.values())),4)
+
+    def test_collection_presents_existing_items_and_locked_catalogue(self):
+        data=banner_bytes(
+            "inventory",1200,3,
+            inventory=[("legendary_pumpkin","Citrouille légendaire",1),
+                       ("cape","Cape de vampire",2)]
+        )
+        self.assertGreater(len(data),9000)
+        self.assertEqual(Image.open(io.BytesIO(data)).size,(WIDTH,HEIGHT))
+        # Previously generated two-field test fixtures remain supported.
+        legacy=banner_bytes("inventory",100,0,
+                            inventory=[("Citrouille légendaire",1)])
+        self.assertGreater(len(legacy),9000)
+
+    def test_replay_displays_wait_and_checks_current_cooldown(self):
+        self.db.play_trick(1,2,0)
+        view=TrickOrTreatView(self.bot,1,2)
+        view.stage="result"
+        view.result={"kind":"treat","amount":40,"candies":40,
+                     "streak":1,"rare":False}
+        view._draw()
+        buttons=view.children[1].children
+        self.assertIn("Rejouer dans",buttons[0].label)
+        self.assertEqual(buttons[0].style,discord.ButtonStyle.secondary)
+        self.assertEqual(len(buttons),3)
+        self.assertTrue(all(not b.disabled for b in buttons))
+
     def test_double_click_mints_reward_once(self):
         class Response:
             def is_done(self):
