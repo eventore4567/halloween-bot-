@@ -8,8 +8,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ..common import card, fail, format_rank, OwnerView, wait_text
-from ..content import ITEMS, ACHIEVEMENTS
+from .common import card, fail, format_rank, OwnerView, wait_text
+from .content import ITEMS, ACHIEVEMENTS
 
 
 GUIDE = (
