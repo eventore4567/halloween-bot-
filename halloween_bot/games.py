@@ -354,27 +354,6 @@ class Games(commands.Cog):
             ],
         ))
 
-    @app_commands.command(name="quiz",description="🧩 Répondre aux questions d'Halloween")
-    @app_commands.guild_only()
-    async def quiz(self,interaction:discord.Interaction,
-                   mode:Literal["questions","enigmes"]="questions"):
-        g,u=interaction.guild.id,interaction.user.id
-        wait=self.bot.store.cooldown(g,u,"quiz",240)
-        if wait:
-            return await fail(interaction,wait_text(wait))
-        question,answers,correct=random.choice(RIDDLES if mode=="enigmes" else QUIZZES)
-        view=QuizView(u,g,answers,correct)
-        await interaction.response.send_message(
-            embed=card("L'énigme du grimoire",
-                       "🕯️ Une question vient de surgir des ténèbres.",
-                       theme="night",
-                       sections=[
-                           ("🧩  QUESTION", f"**{question}**", False),
-                           ("⏳  TEMPS RESTANT", "**90 secondes**", False),
-                       ]),
-            view=view,ephemeral=True)
-        view.message=await interaction.original_response()
-
     @app_commands.command(name="duel",description="⚔️ Défier un joueur à un duel")
     @app_commands.guild_only()
     async def duel(self,interaction:discord.Interaction,adversaire:discord.Member):
