@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import io
 import time
+import zipfile
 from datetime import datetime, timedelta, timezone
 
 import discord
@@ -639,14 +640,26 @@ class CompetitionCog(commands.Cog):
                 row["started_at"], row["finished_at"] or "",
                 row["outcome"], row["points"],
             ])
-        data = io.BytesIO(output.getvalue().encode("utf-8-sig"))
-        filename = f"halloween-audit-{interaction.guild.id}-{season['season_id']}.csv"
+        archive = io.BytesIO()
+        filename = (
+            f"halloween-audit-{interaction.guild.id}-{season['season_id']}.csv"
+        )
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output_zip:
+            output_zip.writestr(filename, output.getvalue().encode("utf-8-sig"))
+        archive.seek(0)
+        warning = (
+            "⚠️ L'export a atteint la limite de 100 000 lignes. "
+            "Vérifie les autres tentatives directement dans la base.\n"
+            if len(rows) >= 100000 else ""
+        )
         await interaction.followup.send(
-            content=f"📜 **{len(rows)} tentatives exportées** "
-                    "(maximum 5 000 lignes).\n"
-                    "Contrôle les éventuels comptes multiples, les comportements "
-                    "anormaux et les égalités avant toute remise de prix.",
-            file=discord.File(data, filename=filename),
+            content=(
+                f"📜 **{len(rows):,} tentatives exportées (ZIP contenant un CSV).**\n"
+                + warning
+                + "Contrôle les éventuels comptes multiples, les comportements "
+                  "anormaux et les égalités avant toute remise de prix."
+            ),
+            file=discord.File(archive, filename=filename + ".zip"),
             ephemeral=True,
         )
 
