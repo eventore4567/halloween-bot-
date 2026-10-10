@@ -205,7 +205,7 @@ class Economy(commands.Cog):
             theme="pumpkin",
             sections=[
                 ("🍬  TON PANIER", f"**{p['candies']:,}**", True),
-                ("🏆  TON RANG", f"**#{rank or '—'}**", True),
+                ("🍬  RANG BONBONS", f"**#{rank or '—'}**", True),
                 ("👻  CAPTURES", f"**{p['ghosts']}**", True),
                 ("🦇  JOUER",
                  "Trick or Treat · Chasse · Énigmes · Duels · Boss", False),
