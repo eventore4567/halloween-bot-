@@ -23,7 +23,7 @@ from .competition_store import (
 
 def _human(guild, user_id):
     user = guild.get_member(user_id)
-    return discord.utils.escape_markdown(user.display_name) if user else f"Joueur {user_id}"
+    return discord.utils.escape_markdown(user.display_name) if user else f"<@{user_id}>"
 
 
 def _head(season):
