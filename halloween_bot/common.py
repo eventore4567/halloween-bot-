@@ -91,7 +91,7 @@ TITLE_ICONS = (
     (("bonbon", "panier", "trick"), "candy"),
     (("guide",), "book"),
 )
-BRAND = "H A L L O W E E N  •  B O T"
+BRAND = "HALLOWEEN  •  LE ROYAUME HANTÉ"
 FOOTER = "Le royaume hanté  •  Jouez, récoltez, collectionnez"
 
 
