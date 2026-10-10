@@ -44,6 +44,26 @@ S'il ne trouve pas un emoji, il affiche un emoji Unicode correspondant sans erre
 
 Le chargement des emojis de l'application nécessite discord.py 2.6 ou plus récent.
 Après avoir ajouté des emojis, redémarre simplement le service Railway.
+### 🪦 Commande 1 refaite : /competition
+
+L'arène CRYPT CUP s'affiche désormais dans **un seul conteneur Discord V2**
+avec une bannière panorama générée par le bot (Pillow), et non dans deux
+panneaux séparés. Le château hanté, la lune, la citrouille, le titre et le
+sous-titre sont intégrés à une image jointe au message. **Aucun hébergement
+d'image externe n'est requis.**
+
+Ce grand panneau contient au même endroit :
+- l'état réel des inscriptions ou de la manche et les délais Discord ;
+- le rang, la division et les points du joueur ;
+- les trois épreuves et la récompense annoncée si applicable ;
+- cinq boutons fonctionnels : Participer, Mes défis, Top 10, Mon rang, Règlement.
+
+Les interactions restent privées par utilisateur ; la commande principale
+reste visible dans le salon. Les points, les manches, les règles, les achats et
+les sauvegardes précédents sont conservés. Cette étape ne reconstruit
+**que la commande /competition** : les autres commandes seront refaites
+progressivement pour garantir une validation à chaque modification.
+
 ## 🏆 CRYPT CUP — la compétition automatique
 
 **Une interface unique conçue avec les composants Discord V2** : vraie mise en page,
