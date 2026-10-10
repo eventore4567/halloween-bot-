@@ -8,6 +8,7 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 from halloween_bot.storage import Store
+from halloween_bot.competition_store import Competition
 from halloween_bot.common import load_application_emojis
 
 logging.basicConfig(level=logging.INFO,
@@ -24,11 +25,12 @@ class HalloweenBot(commands.Bot):
         data_dir=os.environ.get("DATA_DIR","/data" if Path("/data").is_dir() else "data")
         db_path=os.getenv("DATABASE_PATH",str(Path(data_dir)/"halloween.sqlite3"))
         self.store=Store(db_path)
+        self.competition=Competition(self.store)
         self.active_bosses={}
 
     async def setup_hook(self):
         await load_application_emojis(self)
-        for module in ("economy","games","farming","events","admin"):
+        for module in ("economy","games","farming","events","admin","competition"):
             await self.load_extension(f"halloween_bot.{module}")
         self.get_cog("Events").restore()
         self.tree.on_error=self.command_error
@@ -38,7 +40,7 @@ class HalloweenBot(commands.Bot):
     async def on_ready(self):
         LOG.info("🎃 Connected as %s (%s)",self.user,self.user.id)
         await self.change_presence(
-            activity=discord.Game(name="🎃 Halloween • /halloween"))
+            activity=discord.Game(name="🏆 Halloween Cup • /competition"))
 
     async def command_error(self,interaction,error):
         LOG.error("Slash command error",exc_info=error)
