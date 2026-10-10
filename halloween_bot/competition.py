@@ -472,9 +472,9 @@ class CompetitionCog(commands.Cog):
     )
     @app_commands.guild_only()
     async def competition(self, interaction: discord.Interaction):
+        from .visuals import CompetitionHome
         await interaction.response.send_message(
-            embed=competition_card(self.bot, interaction.guild, interaction.user),
-            view=CompetitionView(),
+            view=CompetitionHome(self.bot, interaction.guild, interaction.user),
         )
 
     @app_commands.command(
