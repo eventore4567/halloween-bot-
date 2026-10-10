@@ -57,8 +57,17 @@ def _background():
     b.ellipse((-160, 350, 650, 880), fill=(133, 51, 89, 70))
     img.alpha_composite(bloom.filter(ImageFilter.GaussianBlur(85)))
     d = ImageDraw.Draw(img)
-    d.ellipse((1049, 63, 1170, 184), fill=(246, 201, 157))
-    d.ellipse((1097, 27, 1200, 165), fill=(22, 18, 43))
+    # A luminous full moon, rather than an opaque black ellipse.
+    glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((1039, 47, 1197, 205), fill=(255, 169, 100, 115))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(27)))
+    d = ImageDraw.Draw(img)
+    d.ellipse((1061, 68, 1179, 186), fill=(255, 223, 178, 255))
+    for x, y, radius in ((1099, 111, 12), (1141, 94, 8),
+                         (1124, 156, 13), (1160, 135, 7)):
+        d.ellipse((x-radius, y-radius, x+radius, y+radius),
+                  fill=(230, 182, 155, 150))
     d.polygon([(0, 300), (78, 262), (115, 295), (165, 210),
                (204, 290), (238, 265), (284, 327), (330, 260),
                (378, 325), (1280, 327), (1280, 700), (0, 700)],
@@ -117,14 +126,15 @@ def _door(img, center, *, number, chosen=False):
 
 
 def _header(img, title, kicker):
-    d=ImageDraw.Draw(img)
-    d.rounded_rectangle((60, 49, 800, 200), radius=26,
-                        fill=(15, 10, 30, 215),
-                        outline=(183, 104, 91, 150), width=3)
-    _write(img, (93, 72), "CRYPT CUP    /    HALLOWEEN", 25, LILAC)
-    sz = _fit(title, 680, size=66, min_size=41, serif=True)
-    _write(img, (91, 112), title, sz, COPPER, glow=5, serif=True)
-    _write(img, (95, 181), kicker, 24, CREAM)
+    """Three separate text baselines, all within one compact header."""
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((60, 49, 876, 217), radius=24,
+                        fill=(15, 10, 30, 233),
+                        outline=(202, 123, 91, 175), width=3)
+    _write(img, (92, 69), "CRYPT CUP    /    HALLOWEEN", 22, LILAC)
+    _write(img, (93, 105), kicker, 20, CREAM)
+    size = _fit(title, 725, size=61, min_size=37, serif=True)
+    _write(img, (89, 137), title, size, COPPER, glow=4, serif=True)
 
 
 def _status(img, candies, streak, *, extra="CHOISIS UNE PORTE"):
@@ -132,22 +142,72 @@ def _status(img, candies, streak, *, extra="CHOISIS UNE PORTE"):
     d.rounded_rectangle((54, 614, 1225, 661), radius=12,
                         fill=(18, 13, 36, 243),
                         outline=(192, 108, 93, 120), width=2)
-    _write(img, (81, 624), f"SAC   {candies:,} BONBONS", 22, BRIGHT)
-    _write(img, (477, 624), f"SERIE   {streak} VICTOIRE(S)", 22, CREAM)
-    _write(img, (845, 624), extra, 21, LILAC)
+    for x in (441, 821):
+        d.line((x, 625, x, 650), fill=(196, 116, 115, 135), width=2)
+    _write(img, (81, 624), f"SAC   {candies:,} BONBONS".replace(",", " "),
+           22, BRIGHT)
+    label = "VICTOIRE" if streak == 1 else "VICTOIRES"
+    _write(img, (467, 624), f"SÉRIE   {streak} {label}", 22, CREAM)
+    _write(img, (841, 624), extra, 21, LILAC)
 
 
 def _information(img, title, lines, *, selected=None, hue=COPPER):
     _header(img, title, "LE MANOIR GARDE SES SECRETS")
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle((71, 239, 1205, 580),radius=22,
-                        fill=(19,12,33,239),outline=(*hue,165),width=3)
-    for j, line in enumerate(lines[:6]):
-        if not line:
-            continue
-        label=str(line)
-        size=_fit(label, 1010, size=42 if j == 0 else 33, min_size=24)
-        _write(img,(110,277+j*50),label,size,hue if j==0 else CREAM)
+    d.rounded_rectangle((71, 239, 1205, 580), radius=22,
+                        fill=(19, 12, 33, 239), outline=(*hue, 165), width=3)
+    visible = [str(line) for line in lines if line][:6] or ["AUCUNE INFORMATION"]
+    slot = 318 // len(visible)
+    height = min(58, slot - 6)
+    for j, label in enumerate(visible):
+        y = 251 + j * slot + (slot - height) // 2
+        d.rounded_rectangle((94, y, 1183, y+height), radius=12,
+                            fill=(36, 23, 49, 230),
+                            outline=(*hue, 90), width=2)
+        d.rounded_rectangle((96, y+8, 102, y+height-8), radius=3,
+                            fill=(*hue, 255))
+        font = _fit(label, 1010, size=36 if j == 0 else 31,
+                    min_size=23)
+        _write(img, (122, y+max(5, (height-font)//3)), label, font,
+               hue if j == 0 else CREAM)
+
+
+def _leaderboard(img, leaders):
+    """Five balanced rows, including reserved places when fewer users play."""
+    _header(img, "LES LÉGENDES", "TOP 5 DES CHASSEURS DU SERVEUR")
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((71, 240, 1205, 583), radius=23,
+                        fill=(15, 10, 31, 242),
+                        outline=(250, 185, 113, 179), width=3)
+    medals = ((255, 189, 88), (187, 196, 221), (210, 137, 96),
+              (150, 128, 192), (150, 128, 192))
+    for i in range(5):
+        y = 256 + i * 63
+        filled = i < len(leaders)
+        tone = medals[i]
+        d.rounded_rectangle((93, y, 1183, y+56), radius=15,
+                            fill=(48, 28, 52, 239) if i == 0 and filled
+                            else (32, 22, 46, 226),
+                            outline=(*tone, 200) if filled else
+                            (104, 84, 117, 90), width=2)
+        d.ellipse((112, y+7, 153, y+48),
+                  fill=(53, 38, 57, 255),
+                  outline=(*tone, 240) if filled else (95, 80, 111, 170),
+                  width=3)
+        _write(img, (121, y+15), f"{i+1:02}", 21,
+               tone if filled else LILAC)
+        if filled:
+            _, name, score = leaders[i]
+            label = str(name).strip()[:28] or f"Chasseur #{i+1}"
+            amount = f"{score:,}".replace(",", " ") + " BONBONS"
+        else:
+            label = "PLACE À PRENDRE"
+            amount = "—"
+        font = _fit(label, 590, size=31, min_size=22)
+        _write(img, (185, y+12), label, font,
+               CREAM if filled else (149, 136, 169))
+        _write(img, (1152, y+16), amount, 25 if filled else 31,
+               BRIGHT if filled else (149, 136, 169), anchor="ra")
 
 
 def banner_bytes(stage, candies, streak, *, selected=None, result=None,
@@ -192,12 +252,7 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _information(img,"LE SAC DU CHASSEUR",lines)
         _status(img,candies,streak,extra="INVENTAIRE")
     elif stage=="leaderboard":
-        lines=["LES 5 MEILLEURS CHASSEURS"]
-        lines += [f"{rank}. {name[:24]}  -  {score:,} BONBONS"
-                  for rank, name, score in leaders[:5]]
-        if not leaders:
-            lines.append("AUCUN JOUEUR CLASSE")
-        _information(img,"LES LEGENDES",lines,hue=BRIGHT)
+        _leaderboard(img, leaders[:5])
         _status(img,candies,streak,extra="CLASSEMENT")
     else:
         _information(img,"PORTES REFERMEES",
@@ -231,6 +286,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
         self.result=None
         self.selected=None
         self.previous="intro"
+        self._leaders=[]
         self._pick_lock=asyncio.Lock()
         self._draw()
 
@@ -259,16 +315,51 @@ class TrickOrTreatView(discord.ui.LayoutView):
                  x["quantity"]) for x in inv
             ]
         elif self.stage=="leaderboard":
-            guild=self.bot.get_guild(self.guild_id)
-            rows=self.bot.store.ranking(self.guild_id,"candies",5)
-            extra["leaders"]=[
-                (n,
-                 guild.get_member(x["user_id"]).display_name
-                 if guild and guild.get_member(x["user_id"])
-                 else f"Joueur {x['user_id']}",
-                 x["score"]) for n,x in enumerate(rows,1)
-            ]
+            extra["leaders"]=self._leaders
         return banner_file(self.stage,candies,streak,**extra)
+
+    async def _resolved_leaders(self, guild):
+        """Resolve Discord display names, including users not in member cache.
+
+        Default bot intents do not populate the full member cache. A bounded
+        REST lookup uses the real server nickname, falling back to account
+        names or an anonymous rank — never showing raw snowflake IDs.
+        """
+        rows=self.bot.store.ranking(self.guild_id,"candies",5)
+
+        async def resolve(index, row):
+            uid=row["user_id"]
+            member=guild.get_member(uid) if guild else None
+            if member is None and guild and hasattr(guild,"fetch_member"):
+                try:
+                    member=await asyncio.wait_for(
+                        guild.fetch_member(uid),timeout=2.5
+                    )
+                except (discord.HTTPException,discord.ClientException,
+                        asyncio.TimeoutError):
+                    pass
+            if member is None and hasattr(self.bot,"fetch_user"):
+                try:
+                    member=await asyncio.wait_for(
+                        self.bot.fetch_user(uid),timeout=2.5
+                    )
+                except (discord.HTTPException,discord.ClientException,
+                        asyncio.TimeoutError):
+                    pass
+            name=getattr(member,"display_name",None) or \
+                 getattr(member,"global_name",None) or \
+                 getattr(member,"name",None)
+            if name:
+                # Avoid newlines, bidirectional/control surprises and mentions
+                # in the PIL canvas while keeping international nicknames.
+                name="".join(ch for ch in str(name)
+                             if ch.isprintable() and ch not in "<>")
+                name=name.strip()[:28]
+            return (index, name or f"Chasseur #{index}", row["score"])
+
+        return list(await asyncio.gather(
+            *(resolve(i, row) for i, row in enumerate(rows,1))
+        ))
 
     def _button(self, title, emoji, style, handler, disabled=False):
         b=discord.ui.Button(label=title, emoji=button_icon(emoji),
@@ -331,10 +422,14 @@ class TrickOrTreatView(discord.ui.LayoutView):
 
     async def _redraw(self,interaction):
         self._draw()
-        await interaction.response.edit_message(
+        kwargs=dict(
             view=self,attachments=[self._view_file()],
             allowed_mentions=discord.AllowedMentions.none(),
         )
+        if interaction.response.is_done():
+            await interaction.edit_original_response(**kwargs)
+        else:
+            await interaction.response.edit_message(**kwargs)
 
     async def show_inventory(self,interaction):
         async with self._pick_lock:
@@ -351,6 +446,9 @@ class TrickOrTreatView(discord.ui.LayoutView):
                 return await fail(interaction,"Une porte est en train de s'ouvrir.")
             if self.stage not in ("inventory","leaderboard"):
                 self.previous=self.stage
+            # Discord needs an acknowledgment before the uncached-name lookups.
+            await interaction.response.defer(thinking=False)
+            self._leaders=await self._resolved_leaders(interaction.guild)
             self.stage="leaderboard"
             await self._redraw(interaction)
 
