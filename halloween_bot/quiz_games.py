@@ -16,6 +16,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from .common import fail, pretty, wait_text
+from .mini_art import banner_file, FILENAME
 from .quiz_content import DIFFICULTIES, generate_question, generate_film
 from .visuals import AMBER, SCARLET, JADE, VIOLET, text, divider, header, container
 
@@ -38,110 +39,67 @@ class MultipleChoice(discord.ui.LayoutView):
         self._build()
 
     def _build(self, outcome=None, winner=None):
+        """Flat arcade layout: no two heavy grey containers, no ALT tag."""
         self.clear_items()
-        data = self.data
-        level = DIFFICULTIES[data["difficulty"]]["label"]
-        title = "L'ÉCRAN MAUDIT" if self.film else "LE GRIMOIRE DES ÉPREUVES"
-        teaser = (
-            "Reconnais l'image avant que le projecteur ne s'éteigne."
-            if self.film else
-            "Quatre réponses, une seule vérité. Le grimoire ne pardonne pas."
+        data=self.data
+        difficulty=DIFFICULTIES[data["difficulty"]]["label"]
+        name="🎬 LE CINÉMA HANTÉ" if self.film else "🧩 LE QUIZ DES TÉNÈBRES"
+        hero = data["image"] if self.film else f"attachment://{FILENAME}"
+        self.add_item(discord.ui.MediaGallery(
+            discord.MediaGalleryItem(media=hero)
+        ))
+        state=(
+            f"🏆 **Bonne réponse de {winner.display_name} !**"
+            if outcome=="win" and winner else
+            "⌛ **TEMPS ÉCOULÉ — FIN DU QUIZ**"
+            if outcome=="timeout" else
+            "Choisis la bonne réponse avant les autres chasseurs."
         )
-        accent = (
-            JADE if outcome == "win"
-            else SCARLET if outcome == "timeout"
-            else VIOLET
+        text=(
+            f"-# ✧ HALLOWEEN • CRYPT CUP\n"
+            f"### {name}\n"
+            f"**{pretty(data['question'])}**\n\n"
+            f"🎯 **{difficulty}**  ·  🍬 **{data['reward']} bonbons**\n"
+            f"⏳ {'Terminé' if outcome else f'<t:{self.deadline}:R>'}\n"
+            f"{state}"
         )
-        heading = (
-            "🎬 SÉANCE CINÉMA" if self.film
-            else "🧩 QUIZ DES TÉNÈBRES"
-        )
-        intro = (
-            f"✅ **Bonne réponse de {winner.mention} !**"
-            if outcome == "win" and winner else
-            "⌛ **TEMPS ÉCOULÉ — LA RÉPONSE EST RÉVÉLÉE !**"
-            if outcome == "timeout" else
-            teaser
-        )
-        parts = [
-            header(heading, title, intro),
-            divider(),
-            text(
-                f"### ❖ LA QUESTION\n"
-                f"**{pretty(data['question'])}**\n\n"
-                f"🎯 **{level}**　 ·　 🍬 **{data['reward']} bonbons**\n"
-                f"⏳ **{'Épreuve terminée' if outcome else f'Fin <t:{self.deadline}:R>'}**"
-            ),
-        ]
-        if self.film and data.get("image"):
-            parts.extend([
-                divider(),
-                discord.ui.MediaGallery(
-                    discord.MediaGalleryItem(
-                        media=data["image"],
-                        description="Photogramme de film d'horreur classique",
-                    )
-                ),
-            ])
         if outcome:
-            answer_index = data["correct"]
-            answer = data["answers"][answer_index]
-            parts.extend([
-                divider(),
-                text(
-                    f"### {'🏆 VICTOIRE' if outcome=='win' else '🕯️ FIN DU TEMPS'}\n"
-                    f"✅ **Réponse {chr(65 + answer_index)} · {answer}**\n"
-                    + (
-                        f"🎁 **+{data['reward']} bonbons** pour {winner.mention}"
-                        if outcome=="win" and winner else
-                        "🌫️ Aucun bonbon remporté."
-                    )
-                ),
-            ])
+            answer_index=data["correct"]
+            text+=(
+                f"\n\n### ✅ LA RÉPONSE\n"
+                f"**{'ABCD'[answer_index]}. {pretty(data['answers'][answer_index])}**"
+            )
+            if outcome=="win" and winner:
+                text+=f"\n🍬 **+{data['reward']} bonbons** distribués."
             if self.film:
-                parts.extend([
-                    divider(),
-                    text(
-                        f"-# 🎬 Film sorti en {data['year']} • "
-                        f"[Source de l'image sur Wikimedia Commons]({data['source']})"
-                    ),
-                ])
+                text+=(
+                    f"\n-# Film de {data['year']} • "
+                    f"[Source Wikimedia Commons]({data['source']})"
+                )
         else:
-            parts.extend([
-                divider(),
-                text("### 🎮 À TOI DE JOUER\n"
-                     "-# Choisis **une seule réponse**. "
-                     "Une mauvaise tentative ne peut pas être rejouée."),
-            ])
-        self.add_item(container(*parts, accent=accent))
-        choices = []
-        for i, option in enumerate(data["answers"]):
-            letter = "ABCD"[i]
-            btn = discord.ui.Button(
-                label=f"{letter}  ·  {option}"[:80],
-                emoji=None,
+            text+="\n-# Une seule proposition par joueur."
+        self.add_item(discord.ui.TextDisplay(text))
+        answers=[]
+        for i,option in enumerate(data["answers"]):
+            is_correct=outcome is not None and i==data["correct"]
+            button=discord.ui.Button(
+                label=f"{'ABCD'[i]} • {option}"[:80],
                 style=(
-                    discord.ButtonStyle.success
-                    if outcome and i == data["correct"]
-                    else discord.ButtonStyle.secondary
-                    if outcome else
-                    discord.ButtonStyle.primary
+                    discord.ButtonStyle.success if is_correct
+                    else discord.ButtonStyle.secondary if outcome
+                    else discord.ButtonStyle.primary
                 ),
-                custom_id=f"crypt:quiz:{letter}:{self.deadline}",
+                custom_id=f"crypt:quiz:{'ABCD'[i]}:{self.deadline}",
                 disabled=bool(outcome),
             )
 
-            async def choose(interaction, selection=i):
-                await self.choose(interaction, selection)
+            async def handler(interaction, selection=i):
+                await self.choose(interaction,selection)
 
-            btn.callback = choose
-            choices.append(btn)
-        self.add_item(container(
-            text("### 🕷️ LES QUATRE PORTES"),
-            discord.ui.ActionRow(*choices[:2]),
-            discord.ui.ActionRow(*choices[2:]),
-            accent=JADE if outcome == "win" else AMBER,
-        ))
+            button.callback=handler
+            answers.append(button)
+        self.add_item(discord.ui.ActionRow(*answers[:2]))
+        self.add_item(discord.ui.ActionRow(*answers[2:]))
 
     async def choose(self, interaction, selected):
         if not interaction.guild or interaction.guild.id != self.guild_id:
@@ -215,7 +173,10 @@ class QuizGames(commands.Cog):
             return await fail(interaction, wait_text(seconds))
         data = generate_question(categorie, difficulte)
         view = MultipleChoice(guild_id, data)
-        await interaction.response.send_message(view=view)
+        await interaction.response.send_message(
+            view=view, file=banner_file("quiz"),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
         view.message = await interaction.original_response()
         asyncio.create_task(view.absolute_timeout())
 
