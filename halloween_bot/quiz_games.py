@@ -173,6 +173,11 @@ class MultipleChoice(discord.ui.LayoutView):
                     await fail(interaction, "Récompense créditée, mais affichage indisponible.")
             self.stop()
 
+    async def absolute_timeout(self):
+        """Reveal the answer at the exact deadline, even during heavy activity."""
+        await asyncio.sleep(max(0, self.deadline - time.time()))
+        await self.on_timeout()
+
     async def on_timeout(self):
         async with self._lock:
             if self.finished:
@@ -212,6 +217,7 @@ class QuizGames(commands.Cog):
         view = MultipleChoice(guild_id, data)
         await interaction.response.send_message(view=view)
         view.message = await interaction.original_response()
+        asyncio.create_task(view.absolute_timeout())
 
     @app_commands.command(
         name="film_horreur", description="🎬 Devine le film d'horreur d'après une image"
@@ -230,6 +236,7 @@ class QuizGames(commands.Cog):
         view = MultipleChoice(guild_id, data, film=True)
         await interaction.response.send_message(view=view)
         view.message = await interaction.original_response()
+        asyncio.create_task(view.absolute_timeout())
 
 
 async def setup(bot):
