@@ -246,54 +246,238 @@ def _leaderboard(img, leaders):
                BRIGHT if filled else (149, 136, 169), anchor="ra")
 
 
-def _inventory(img, items):
-    """Compact collection pane: no oversized gaps between two lines."""
-    _header(img, "LE SAC DU CHASSEUR", "TES OBJETS ET TRÉSORS")
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((71, 239, 1205, 580), radius=23,
-                        fill=(17, 11, 32, 242),
-                        outline=(240, 161, 90, 195), width=3)
-    _write(img, (104, 261), "COLLECTION D'HALLOWEEN", 29, BRIGHT)
-    d.line((107, 317, 785, 317), fill=(201, 124, 114, 170), width=2)
-    shown = list(items[:4])
-    for j, (name, amount) in enumerate(shown):
-        top = 338 + j * 51
-        d.rounded_rectangle((100, top, 790, top+44), radius=12,
-                            fill=(40, 26, 49, 237),
-                            outline=(214, 124, 101, 135), width=2)
-        d.rounded_rectangle((102, top+8, 108, top+36), radius=3,
-                            fill=(*COPPER, 255))
-        label = str(name).strip()[:32] or "Objet mystérieux"
-        font = _fit(label, 525, size=27, min_size=21)
-        _write(img, (127, top+5), label, font, CREAM)
-        _write(img, (762, top+9), f"×{amount}", 25, BRIGHT, anchor="ra")
-    if not shown:
-        _write(img, (127, 361), "Ton sac attend ses premiers trésors.", 26, CREAM)
-    if len(items) > 4:
-        _write(img, (129, 549), f"+ {len(items)-4} objets dans /inventory", 19, LILAC)
+def _sweet(draw, x, y, size, color):
+    """A wrapped caramel — deterministic Pillow artwork, no external images."""
+    r=size
+    draw.polygon([(x-r-18,y-r//2),(x-r+2,y-r//3),
+                  (x-r+1,y+r//3),(x-r-18,y+r//2)],
+                 fill=(*color,220))
+    draw.polygon([(x+r+18,y-r//2),(x+r-2,y-r//3),
+                  (x+r-1,y+r//3),(x+r+18,y+r//2)],
+                 fill=(*color,210))
+    draw.ellipse((x-r,y-r//2,x+r,y+r//2),
+                 fill=(*color,255),outline=(255,222,170,215),width=2)
+    draw.arc((x-r+4,y-r//2+2,x+r-6,y+r//2-3),
+             195,275,fill=(255,242,209,190),width=3)
 
-    # Simple original pumpkin emblem, integrated in the right-hand glass pane.
-    d.rounded_rectangle((824, 259, 1169, 548), radius=24,
-                        fill=(40, 24, 44, 238),
-                        outline=(229, 151, 98, 150), width=3)
-    d.ellipse((869, 309, 1127, 503), fill=(191, 84, 34, 255))
-    d.ellipse((900, 313, 1093, 499), fill=(235, 117, 40, 255))
-    d.ellipse((946, 314, 1049, 497), fill=(255, 159, 65, 255))
-    d.polygon([(988, 314), (976, 281), (998, 268), (1012, 312)],
-              fill=(73, 125, 73, 255))
-    d.polygon([(941, 371), (968, 409), (920, 410)],
-              fill=(40, 21, 35, 255))
-    d.polygon([(1050, 371), (1024, 409), (1072, 410)],
-              fill=(40, 21, 35, 255))
-    d.arc((929, 403, 1062, 473), 6, 175, fill=(40, 21, 35, 255), width=13)
-    _write(img, (997, 517), "MES TRÉSORS", 21, BRIGHT, anchor="mm")
+
+def _visual_prize(img, kind):
+    """Draw one distinctive, full-sized visual outcome on the left."""
+    d=ImageDraw.Draw(img)
+    d.rounded_rectangle((93,258,544,564),radius=21,
+                        fill=(24,16,40,248),
+                        outline=(179,110,116,160),width=2)
+    spotlight={
+        "treat": (125,228,155),
+        "jackpot": (254,174,73),
+        "trick": (184,110,222),
+        "nothing": (124,123,176),
+    }[kind]
+    glow=Image.new("RGBA",img.size,(0,0,0,0))
+    gd=ImageDraw.Draw(glow)
+    gd.ellipse((146,260,506,559),fill=(*spotlight,94))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(44)))
+    d=ImageDraw.Draw(img)
+    d.ellipse((159,519,485,547), fill=(10,8,21,230))
+    if kind in ("treat","jackpot"):
+        # Antique chest with a real illustrated lid, straps, and candy loot.
+        d.rounded_rectangle((181,373,475,465),radius=21,
+                            fill=(83,42,32,255),
+                            outline=(248,181,86,255),width=7)
+        d.arc((194,341,464,431),183,355,fill=(245,181,87,255),width=10)
+        d.rounded_rectangle((193,394,463,460),radius=12,
+                            fill=(29,17,28,255),outline=(254,190,91,255),width=4)
+        rng=random.Random(54 if kind=="treat" else 93)
+        shades=((243,140,72),(162,111,240),(117,208,171),(241,105,163),
+                (250,210,99))
+        # Sweets break the flat rectangle; randomized positions are fixed.
+        for i in range(18 if kind=="jackpot" else 13):
+            x=rng.randint(221,444)
+            y=rng.randint(354,418)
+            _sweet(d,x,y,rng.randint(8,13),shades[i%len(shades)])
+        d.rounded_rectangle((171,439,483,531),radius=13,
+                            fill=(114,56,37,255),
+                            outline=(255,193,103,255),width=7)
+        for x in (225,419):
+            d.rounded_rectangle((x,445,x+18,524),radius=4,
+                                fill=(238,155,76,255))
+        d.rounded_rectangle((315,458,350,495),radius=6,
+                            fill=(254,202,106),outline=(115,65,37),width=4)
+        d.ellipse((330,464,339,477),fill=(88,44,29))
+        if kind=="jackpot":
+            # Legendary pumpkin aura rising out of the chest.
+            d.ellipse((283,267,375,353), fill=(252,179,76,255),
+                      outline=(255,235,139,255),width=4)
+            d.rectangle((322,257,338,274),fill=(83,141,83))
+            d.polygon([(305,293),(321,314),(294,312)],fill=(59,36,34))
+            d.polygon([(350,293),(337,314),(362,312)],fill=(59,36,34))
+            d.arc((306,307,353,341),4,177,fill=(59,36,34),width=6)
+        for (x,y) in ((203,316),(445,322),(368,287),(254,298)):
+            d.line((x-8,y,x+8,y),fill=(255,223,149,210),width=3)
+            d.line((x,y-8,x,y+8),fill=(255,223,149,210),width=3)
+    elif kind=="trick":
+        # Ghost with tapered wavy silhouette and expressive eyes.
+        d.ellipse((218,299,428,495),fill=(226,216,255,244))
+        d.polygon([(224,383),(218,481),(249,466),(285,498),(319,465),
+                   (353,505),(393,468),(430,493),(428,380)],
+                  fill=(226,216,255,244))
+        d.ellipse((270,379,297,418),fill=(31,19,53,255))
+        d.ellipse((350,379,377,418),fill=(31,19,53,255))
+        d.ellipse((309,431,340,455),fill=(53,31,79,255))
+        for x,y in ((170,323),(476,344),(199,493),(449,477)):
+            _sweet(d,x,y,9,(221,97,166))
+    else:
+        # Empty tomb and cobweb, no treasure.
+        d.rounded_rectangle((206,344,430,517),radius=25,
+                            fill=(77,72,104,255),
+                            outline=(156,139,176,235),width=7)
+        d.arc((201,301,438,404),180,360,
+              fill=(173,156,186,255),width=7)
+        _write(img,(318,407),"VIDE",44,LILAC,anchor="mm")
+        d.line((263,477,380,477),fill=(128,118,148,180),width=3)
+        for radius in (45,77,104):
+            d.arc((369-radius,280-radius//2,369+radius,280+radius),
+                  10,170,fill=(192,179,211,170),width=2)
+        for ex,ey in ((405,302),(457,357),(467,408)):
+            d.line((369,280,ex,ey),fill=(192,179,211,145),width=2)
+
+
+def _result_scene(img, result, remaining):
+    """Outcome-specific illustration beside a genuinely readable status panel."""
+    kind=result["kind"]
+    palette={
+        "treat":("BONBONS DÉCOUVERTS","Le manoir t'offre des friandises.",MINT),
+        "jackpot":("TRÉSOR LÉGENDAIRE","Une citrouille rare surgit du coffre !",BRIGHT),
+        "trick":("LE FANTÔME ATTAQUE","Un spectre emporte tes bonbons...",PERIL),
+        "nothing":("LE MANOIR EST VIDE","Les ombres cachent un coffre vide.",LILAC),
+    }
+    title,story,color=palette[kind]
+    _header(img,title,"LE VERDICT DE LA PORTE")
+    d=ImageDraw.Draw(img)
+    d.rounded_rectangle((70,238,1205,586),radius=22,
+                        fill=(16,11,31,235),
+                        outline=(*color,200),width=3)
+    _visual_prize(img,kind)
+    d=ImageDraw.Draw(img)
+    d.rounded_rectangle((559,258,1184,565),radius=20,
+                        fill=(31,20,43,249),
+                        outline=(*color,155),width=2)
+    _write(img,(583,281),"RÉCOMPENSE DU MANOIR",22,LILAC)
+    amount=result["amount"]
+    amount_str=(f"+{amount:,}" if amount>0 else str(amount)).replace(","," ")
+    _write(img,(581,321),f"{amount_str} BONBONS",
+           _fit(f"{amount_str} BONBONS",580,size=52,min_size=33),
+           color,glow=3)
+    d.line((589,397,1151,397),fill=(*color,140),width=2)
+    _write(img,(588,418),story,
+           _fit(story,550,size=25,min_size=19),CREAM)
+    if result.get("rare"):
+        note="OBJET REÇU : CITROUILLE LÉGENDAIRE"
+    elif amount>0:
+        note="BUTIN AJOUTÉ À TON SAC"
+    elif amount<0:
+        note="LES BONBONS RESTANTS SONT PROTÉGÉS"
+    else:
+        note="AUCUNE PERTE DE BONBONS"
+    d.rounded_rectangle((584,471,1155,512),radius=10,
+                        fill=(40,29,55,255),outline=(*color,125),width=2)
+    _write(img,(602,477),note,_fit(note,528,size=21,min_size=17),BRIGHT)
+    wait_note=(f"NOUVELLE PARTIE DANS {(remaining+59)//60} MIN"
+               if remaining else "UNE NOUVELLE PARTIE EST DISPONIBLE")
+    _write(img,(587,529),wait_note,_fit(wait_note,550,size=19,min_size=16),
+           LILAC)
+
+
+def _inventory(img, items):
+    """Six genuine collectible slots, displaying existing items only."""
+    from .content import ITEMS
+    _header(img,"LE SAC DU CHASSEUR","COLLECTION ET RARETÉS")
+    d=ImageDraw.Draw(img)
+    d.rounded_rectangle((71,239,1205,580),radius=23,
+                        fill=(17,11,32,242),
+                        outline=(240,161,90,195),width=3)
+    # Each row derives from SQLite inventory; catalogue slots are previews
+    # only. They DO NOT confer an item, nor claim anything new is obtainable.
+    records={}
+    for item in items:
+        if len(item)==3:
+            key,name,qty=item
+        else:
+            name,qty=item
+            key=next((k for k,(title,*_) in ITEMS.items()
+                      if title.split(" ",1)[-1]==name),name)
+        if qty>0:
+            records[str(key)]=(str(name),int(qty))
+    catalogue={
+        "legendary_pumpkin":"Citrouille légendaire",
+        **{key:label.split(" ",1)[-1] for key,(label,*_) in ITEMS.items()}
+    }
+    showcased=list(records)
+    for key in catalogue:
+        if key not in records:
+            showcased.append(key)
+    grades={
+        "legendary_pumpkin":("LÉGENDAIRE",(244,183,74)),
+        "crown":("ÉPIQUE",(190,143,239)),
+        "cape":("RARE",(146,176,240)),
+        "lantern":("RARE",(146,176,240)),
+        "ring":("RARE",(146,176,240)),
+        "broom":("RARE",(146,176,240)),
+    }
+    for i,key in enumerate(showcased[:6]):
+        col,row=i%2,i//2
+        x=97+col*358
+        y=325+row*74
+        name,qty=records.get(key,(catalogue.get(key,str(key)),0))
+        grade,tone=grades.get(key,("COMMUN",(208,176,137)))
+        d.rounded_rectangle((x,y,x+343,y+64),radius=13,
+                            fill=(43,27,52,246) if qty else (28,22,43,235),
+                            outline=(*tone,190) if qty else (93,77,110,115),
+                            width=2)
+        d.rounded_rectangle((x+8,y+12,x+13,y+51),radius=2,
+                            fill=(*tone,255) if qty else (94,82,113,255))
+        short=name[:21]
+        _write(img,(x+29,y+8),short,
+               _fit(short,248,size=23,min_size=18),
+               CREAM if qty else (164,151,181))
+        _write(img,(x+30,y+38),
+               grade if qty else "NON POSSÉDÉ",15,
+               tone if qty else (126,115,146))
+        _write(img,(x+322,y+35),f"×{qty}" if qty else "—",
+               20,BRIGHT if qty else (122,110,145),anchor="ra")
+
+    d.rounded_rectangle((816,260,1173,555),radius=20,
+                        fill=(40,24,44,240),
+                        outline=(229,151,98,145),width=3)
+    # An original glowing pumpkin keeps the visual identity consistent.
+    glow=Image.new("RGBA",img.size)
+    ImageDraw.Draw(glow).ellipse((849,280,1130,492),fill=(245,143,66,80))
+    img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(30)))
+    d=ImageDraw.Draw(img)
+    d.ellipse((864,303,1126,496),fill=(193,82,31,255))
+    d.ellipse((898,306,1094,495),fill=(236,117,40,255))
+    d.ellipse((942,309,1051,493),fill=(255,155,69,255))
+    d.polygon([(989,309),(977,272),(998,262),(1014,311)],
+              fill=(77,141,77,255))
+    d.polygon([(940,367),(969,407),(921,407)],fill=(46,25,35,255))
+    d.polygon([(1050,366),(1023,407),(1074,408)],fill=(46,25,35,255))
+    d.arc((933,399,1062,473),3,179,fill=(46,25,35,255),width=13)
+    completed=sum(1 for key in catalogue if key in records)
+    total=len(catalogue)
+    _write(img,(996,514),f"{completed} / {total} OBJETS",
+           22,BRIGHT,anchor="mm")
+    # Progress line conveys collection completion without making up prizes.
+    d.rounded_rectangle((880,540,1118,548),radius=4,fill=(67,48,71))
+    d.rounded_rectangle((880,540,
+                         881+round(237*completed/total),548),
+                        radius=4,fill=(*COPPER,255))
 
 
 def banner_bytes(stage, candies, streak, *, selected=None, result=None,
                  inventory=(), leaders=(), remaining=0):
     img = _background()
     if stage == "intro":
-        _header(img, "LE MANOIR HANTE", "TROIS PORTES • UN SEUL DESTIN")
+        _header(img, "LE MANOIR HANTÉ", "TROIS PORTES • UN SEUL DESTIN")
         _door(img, 249, number=0)
         _door(img, 640, number=1)
         _door(img, 1030, number=2)
@@ -306,25 +490,9 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _write(img,(235,477),"QU'Y A-T-IL DERRIERE ?", 34, BRIGHT)
         _status(img, candies, streak, extra="REVELATION...")
     elif stage == "result" and result:
-        kind=result["kind"]
-        data={
-            "treat":("BONBONS DECOUVERTS", "Le manoir t'offre des friandises.",MINT),
-            "jackpot":("TRESOR LEGENDAIRE", "Une citrouille magique t'attend !",BRIGHT),
-            "trick":("UN FANTOME ATTAQUE", "Le spectre s'enfuit avec ton butin.",PERIL),
-            "nothing":("LE MANOIR EST VIDE", "Aucun bonbon cette fois.",LILAC),
-        }
-        title, subtitle, hue=data[kind]
-        amount=result["amount"]
-        amount_text=f"+{amount:,} BONBONS" if amount>0 else (
-            f"{amount:,} BONBONS" if amount<0 else "0 BONBON")
-        lines=[
-            subtitle, amount_text,
-            "OBJET RARE : CITROUILLE LEGENDAIRE" if result["rare"]
-                else "TON AVENTURE EST TERMINEE",
-            f"PROCHAINE PARTIE DISPONIBLE DANS 15 MIN",
-        ]
-        _information(img,title,lines,hue=hue)
-        _status(img,result["candies"],result["streak"],extra=f"PORTE {selected+1}")
+        _result_scene(img,result,remaining)
+        _status(img,result["candies"],result["streak"],
+                extra=f"PORTE {(selected or 0)+1}")
     elif stage=="inventory":
         _inventory(img, inventory)
         _status(img,candies,streak,extra="INVENTAIRE")
@@ -389,7 +557,8 @@ class TrickOrTreatView(discord.ui.LayoutView):
             names={"legendary_pumpkin":RARE_NAME}
             inv=self.bot.store.inventory(self.guild_id,self.owner_id)
             extra["inventory"]=[
-                ((names.get(x["item"]) or ITEMS[x["item"]][0].split(" ",1)[-1])
+                (x["item"],
+                 (names.get(x["item"]) or ITEMS[x["item"]][0].split(" ",1)[-1])
                  if x["item"] in names or x["item"] in ITEMS else x["item"],
                  x["quantity"]) for x in inv
             ]
@@ -470,9 +639,14 @@ class TrickOrTreatView(discord.ui.LayoutView):
                 discord.ButtonStyle.secondary,self._nothing,disabled=True
             ))
         elif self.stage=="result":
+            wait=self.bot.store.trick_status(
+                self.guild_id,self.owner_id)["wait"]
+            label=(f"Rejouer dans {(wait+59)//60} min"
+                   if wait else "Rejouer")
             buttons.extend([
-                self._button("Rejouer","pumpkin",discord.ButtonStyle.success,
-                             self.replay),
+                self._button(label,"clock" if wait else "pumpkin",
+                             discord.ButtonStyle.secondary if wait
+                             else discord.ButtonStyle.success,self.replay),
                 *self._navigation(),
             ])
         elif self.stage in ("inventory","leaderboard"):
