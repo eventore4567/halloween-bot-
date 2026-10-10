@@ -172,6 +172,60 @@ async def load_application_emojis(bot):
     ICONS.install(app_emojis, bot.user)
 
 
+async def ensure_application_emojis(bot):
+    """Publish only missing CRYPT CUP images to this bot's own application.
+
+    The official discord.py create_application_emoji method writes through the
+    application emoji REST API. New emojis appear under Developer Portal >
+    Application > Emojis. Existing names are never overwritten or deleted.
+    Safe to call on every Railway start; missing icons fall back to Unicode.
+    """
+    import asyncio
+    from .emoji_art import EMOJI_NAMES, render_emoji
+
+    try:
+        existing = await bot.fetch_application_emojis()
+    except (discord.HTTPException, discord.ClientException, AttributeError) as exc:
+        LOG.warning("Cannot inspect application emojis; skipping upload: %s", exc)
+        ICONS.install([], getattr(bot, "user", None))
+        return {"created": [], "existing": [], "failed": list(EMOJI_NAMES)}
+
+    by_name = {item.name.lower(): item for item in existing}
+    created, failed = [], []
+    for name in EMOJI_NAMES:
+        if name in by_name:
+            continue
+        try:
+            icon_bytes = render_emoji(name)
+            emoji = await bot.create_application_emoji(name=name, image=icon_bytes)
+        except (discord.HTTPException, discord.ClientException, AttributeError,
+                ValueError, OSError) as exc:
+            failed.append(name)
+            LOG.warning("Cannot create application emoji %s: %s", name, exc)
+            continue
+        created.append(name)
+        by_name[name] = emoji
+        LOG.info("Created application emoji: %s", name)
+        # Keep uploads gentle even if this is the first run on a fresh app.
+        await asyncio.sleep(0.25)
+    all_icons = list(by_name.values())
+    # A new fetch ensures consistent objects and names for all UI modules.
+    if created:
+        try:
+            all_icons = await bot.fetch_application_emojis()
+        except discord.HTTPException as exc:
+            LOG.warning("Emoji refresh failed; using returned emoji objects: %s", exc)
+    ICONS.install(all_icons, getattr(bot, "user", None))
+    LOG.info("App emoji bootstrap: %s created, %s already present, %s failed",
+             len(created), len(EMOJI_NAMES) - len(created) - len(failed),
+             len(failed))
+    return {
+        "created": created,
+        "existing": [name for name in EMOJI_NAMES if name in by_name and name not in created],
+        "failed": failed,
+    }
+
+
 def icon(name):
     return ICONS.icon(name)
 
