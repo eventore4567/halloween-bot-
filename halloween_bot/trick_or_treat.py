@@ -85,11 +85,11 @@ def _background():
 
 def _door(img, center, *, number, chosen=False):
     x = center
-    y = 310
+    y = 340
     _, caption, hue = DOORS[number]
     d = ImageDraw.Draw(img)
     # Carved arch: a pointed roof plus a glowing wooden entrance.
-    frame = (x-126, y-75, x+126, y+246)
+    frame = (x-126, y-75, x+126, y+200)
     if chosen:
         halo = Image.new("RGBA", img.size)
         h = ImageDraw.Draw(halo)
@@ -99,21 +99,21 @@ def _door(img, center, *, number, chosen=False):
     d.rounded_rectangle(frame, radius=42,
                         fill=(39, 21, 37, 255),
                         outline=(*hue, 255), width=9 if chosen else 5)
-    d.polygon([(x-124,y+32), (x,y-160), (x+124,y+32)],
+    d.polygon([(x-124,y+32), (x,y-125), (x+124,y+32)],
               fill=(28, 18, 36), outline=(*hue,255), width=6)
-    d.rounded_rectangle((x-96, y-32, x+96, y+213), radius=23,
+    d.rounded_rectangle((x-96, y-32, x+96, y+175), radius=23,
                         fill=(64, 29, 26) if number!=2 else (39, 26, 78),
                         outline=(*hue, 225), width=3)
-    d.line((x,y-26,x,y+208),fill=(*hue,110),width=3)
-    for yy in (y+17,y+65,y+113,y+163):
+    d.line((x,y-26,x,y+169),fill=(*hue,110),width=3)
+    for yy in (y+17,y+60,y+108,y+153):
         d.line((x-85,yy,x+85,yy),fill=(*hue,45),width=2)
     d.ellipse((x+47,y+90,x+64,y+107),fill=BRIGHT)
     d.ellipse((x+52,y+95,x+59,y+102),fill=(66,38,38))
     for dx in (-89,89):
-        d.ellipse((x+dx-5,y+180,x+dx+5,y+191),fill=(*hue,255))
-    _write(img, (x, y+270), f"PORTE {number+1}", 34, COPPER if chosen else CREAM,
+        d.ellipse((x+dx-5,y+153,x+dx+5,y+164),fill=(*hue,255))
+    _write(img, (x, y+222), f"PORTE {number+1}", 34, COPPER if chosen else CREAM,
            anchor="mm")
-    _write(img, (x, y+311), caption, 24, LILAC, anchor="mm")
+    _write(img, (x, y+260), caption, 24, LILAC, anchor="mm")
 
 
 def _header(img, title, kicker):
@@ -254,7 +254,8 @@ class TrickOrTreatView(discord.ui.LayoutView):
             names={"legendary_pumpkin":RARE_NAME}
             inv=self.bot.store.inventory(self.guild_id,self.owner_id)
             extra["inventory"]=[
-                (names.get(x["item"], ITEMS.get(x["item"],(x["item"],))[0]),
+                ((names.get(x["item"]) or ITEMS[x["item"]][0].split(" ",1)[-1])
+                 if x["item"] in names or x["item"] in ITEMS else x["item"],
                  x["quantity"]) for x in inv
             ]
         elif self.stage=="leaderboard":
@@ -396,8 +397,13 @@ class TrickOrTreatView(discord.ui.LayoutView):
         async with self._pick_lock:
             if self.stage=="opening":
                 return
-            self.stage="expired"
+            if self.stage=="intro":
+                self.stage="expired"
             self._draw()
+            for row in self.children:
+                if isinstance(row, discord.ui.ActionRow):
+                    for button in row.children:
+                        button.disabled=True
             if self.message is not None:
                 try:
                     await self.message.edit(
