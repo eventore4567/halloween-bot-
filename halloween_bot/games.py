@@ -264,37 +264,24 @@ class Games(commands.Cog):
     def __init__(self,bot):
         self.bot=bot
 
-    @app_commands.command(name="trickortreat",description="👻 Un bonbon ou un sort ?")
+    @app_commands.command(name="trickortreat",description="🎃 Explore le manoir hanté et choisis une porte")
     @app_commands.guild_only()
     async def trickortreat(self,interaction:discord.Interaction):
+        from .trick_or_treat import TrickOrTreatView
+        if not interaction.app_permissions.attach_files:
+            return await fail(interaction,"Autorise le bot à joindre des images pour afficher le manoir.")
+        if interaction.user.bot:
+            return await fail(interaction,"Cette aventure est réservée aux joueurs.")
         g,u=interaction.guild.id,interaction.user.id
-        wait=self.bot.store.cooldown(g,u,"trick",900)
-        if wait:
-            return await fail(interaction,wait_text(wait))
-        result=random.choices(["treat","jackpot","trick","nothing"],[58,9,23,10])[0]
-        if result=="treat":
-            amount=random.randint(45,135)
-            message=f"🍬 Une sorcière t'offre **{amount} bonbons** !"
-        elif result=="jackpot":
-            amount=random.randint(200,420)
-            message=f"✨ **JACKPOT !** Tu gagnes **{amount} bonbons** !"
-        elif result=="trick":
-            amount=-random.randint(15,65)
-            message=f"💀 Un fantôme vole jusqu'à **{-amount} bonbons** !"
-        else:
-            amount=0
-            message="🌫️ Ton panier reste vide cette fois..."
-        p=self.bot.store.award(g,u,amount)
-        await interaction.response.send_message(embed=card(
-            "Bonbon ou mauvais sort ?",
-            message,
-            theme="success" if amount>0 else "danger" if amount<0 else "night",
-            sections=[
-                ("🍬  GAIN OU PERTE", f"**{amount:+} bonbons**", True),
-                ("🎒  TON SOLDE", f"**{p['candies']:,}**", True),
-            ],
-            note="Une nouvelle tentative sera disponible dans 15 minutes.",
-        ))
+        status=self.bot.store.trick_status(g,u)
+        if status["wait"]:
+            return await fail(interaction,wait_text(status["wait"]))
+        view=TrickOrTreatView(self.bot,g,u)
+        await interaction.response.send_message(
+            view=view,file=view._view_file(),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        view.message=await interaction.original_response()
 
     @app_commands.command(name="ghosthunt",description="🦇 Partir à la chasse aux fantômes")
     @app_commands.guild_only()
