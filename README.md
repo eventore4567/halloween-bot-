@@ -44,24 +44,25 @@ S'il ne trouve pas un emoji, il affiche un emoji Unicode correspondant sans erre
 
 Le chargement des emojis de l'application nécessite discord.py 2.6 ou plus récent.
 Après avoir ajouté des emojis, redémarre simplement le service Railway.
-### 🪦 `/competition` — Une scène Halloween complète
+### 🪦 `/competition` — une scène Halloween sans cadre gris
 
-La commande affiche **une seule image horizontale** (1280 × 840),
-optimisée pour une lecture sur Discord. Les petits paragraphes illisibles ont
-été supprimés au profit de titres et chiffres beaucoup plus grands.
+La commande présente une image horizontale (1280 × 840), calculée à partir
+des vrais scores et manches. Les cinq boutons **Participer, Mes défis,
+Top 10, Mon rang, Règlement** se trouvent sur une **seule ligne**, directement
+sous le visuel, sans conteneur Discord autour. Cela supprime le fond gris
+supplémentaire, les grosses marges et la barre violette extérieure.
 
-La commande affiche **une seule image horizontale** (1280 × 840) générée à la
-demande, avec tous les textes et valeurs de la compétition dessinés **sur le
-même fond gothique** : château, lune, portail lumineux, brume, cadres anciens,
-titre, compteur des manches, rang, score, division, trois épreuves et prix
-annoncé. Les cinq boutons Discord natifs sont sous l'image, dans le **même
-conteneur Discord V2** ; ils restent interactifs et accessibles.
+La structure envoyée à Discord est : **MediaGallery (type 12) + ActionRow
+(type 1)**. Le message n'utilise plus de `Container` (type 17).
 
-**Limite Discord :** il n'est pas possible de placer de vrais boutons ou des
-composants texte au-dessus d'un fond personnalisé. L'image affiche une
-photographie de l'état au moment de la commande : pour mettre à jour le
-compteur, les points et l'état, relancez `/competition`. Les vrais scores
-sont toujours lus en base et ne peuvent pas être modifiés par l'image.
+**Limite officielle de Discord :** une image ne peut pas avoir de zones
+cliquables arbitraires ni de boutons superposés. Les boutons restent
+authentiquement interactifs et intégrés au même message, mais pas dans
+l'image. Pour un fond entièrement personnalisable avec des boutons
+positionnés librement, il faudrait une interface web.
+
+Les chiffres et compteurs dans l'image sont une photographie au moment de
+`/competition` : il faut relancer la commande pour les actualiser.
 
 **Pack emoji de l'application :** lors du premier démarrage, le bot utilise
 `discord.py` pour téléverser **10 emojis originaux 128×128** sur la même
