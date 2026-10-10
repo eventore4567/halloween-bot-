@@ -1,0 +1,1 @@
+"""🎃 Halloween Bot – playful, server-isolated Discord Halloween economy."""
