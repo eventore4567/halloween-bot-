@@ -116,9 +116,9 @@ class HubView(OwnerView):
 
     @discord.ui.button(label="Classement", emoji="🏆", style=discord.ButtonStyle.secondary, row=0)
     async def top(self, interaction, button):
-        from .competition import top_card
+        from .visuals import PodiumView
         await interaction.response.send_message(
-            embed=top_card(interaction.client, interaction.guild),
+            view=PodiumView(interaction.client, interaction.guild),
             ephemeral=True,
         )
 
@@ -139,10 +139,9 @@ class HubView(OwnerView):
 
     @discord.ui.button(label="Compétition", emoji="💎", style=discord.ButtonStyle.success, row=1)
     async def tournament(self, interaction, button):
-        from .competition import competition_card, CompetitionView
+        from .visuals import CompetitionHome
         await interaction.response.send_message(
-            embed=competition_card(interaction.client, interaction.guild, interaction.user),
-            view=CompetitionView(),
+            view=CompetitionHome(interaction.client, interaction.guild, interaction.user),
             ephemeral=True,
         )
 
@@ -255,9 +254,9 @@ class Economy(commands.Cog):
         categorie: Literal["competition", "bonbons", "fantomes", "duels", "total", "ferme", "exploration"] = "competition",
     ):
         if categorie == "competition":
-            from .competition import top_card
+            from .visuals import PodiumView
             return await interaction.response.send_message(
-                embed=top_card(self.bot, interaction.guild)
+                view=PodiumView(self.bot, interaction.guild)
             )
         types = {
             "bonbons": ("candies", "🍬", "Bonbons"),
