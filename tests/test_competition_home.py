@@ -62,7 +62,7 @@ class CompetitionSceneTests(unittest.TestCase):
         self.assertGreater(WIDTH,HEIGHT)
         self.assertGreaterEqual(WIDTH/HEIGHT,1.45)
         self.assertNotEqual(image.getpixel((140,140)),
-                            image.getpixel((900,1200)))
+                            image.getpixel((900,700)))
         self.assertEqual(SCENE_URI,"attachment://"+SCENE_FILE)
 
     def test_different_competition_states_change_the_image(self):
