@@ -57,7 +57,10 @@ class CompetitionSceneTests(unittest.TestCase):
         image=Image.open(io.BytesIO(art))
         self.assertEqual(image.format,"JPEG")
         self.assertEqual(image.size,(WIDTH,HEIGHT))
-        self.assertGreater(HEIGHT,WIDTH)
+        self.assertLessEqual(HEIGHT,900)
+        self.assertGreaterEqual(WIDTH,1200)
+        self.assertGreater(WIDTH,HEIGHT)
+        self.assertGreaterEqual(WIDTH/HEIGHT,1.45)
         self.assertNotEqual(image.getpixel((140,140)),
                             image.getpixel((900,1200)))
         self.assertEqual(SCENE_URI,"attachment://"+SCENE_FILE)
