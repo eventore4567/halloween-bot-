@@ -128,6 +128,65 @@ class TrickVisualTests(unittest.TestCase):
         self.assertTrue(all(isinstance(x,discord.ui.Button)
                             for x in row.children))
 
+    def test_leaderboard_resolves_uncached_server_nicknames(self):
+        self.db.award(1, 987654321012345678, 120)
+        requested=[]
+        class Guild:
+            id=1
+            def get_member(self, user_id):
+                return None
+            async def fetch_member(self, user_id):
+                requested.append(user_id)
+                return SimpleNamespace(display_name="La Citrouille Dorée")
+        class Response:
+            def __init__(self):
+                self.deferred=False
+            def is_done(self):
+                return self.deferred
+            async def defer(self, *, thinking=False):
+                self.deferred=True
+        async def run():
+            response=Response()
+            edited=[]
+            async def edit_original_response(**kwargs):
+                edited.append(kwargs)
+            view=TrickOrTreatView(self.bot,1,987654321012345678)
+            interaction=SimpleNamespace(
+                guild=Guild(),response=response,
+                edit_original_response=edit_original_response
+            )
+            await view.show_leaderboard(interaction)
+            return view,response,edited
+        view,response,edited=asyncio.run(run())
+        self.assertTrue(response.deferred)
+        self.assertEqual(requested,[987654321012345678])
+        self.assertEqual(view._leaders,[(1,"La Citrouille Dorée",120)])
+        self.assertEqual(view.stage,"leaderboard")
+        self.assertEqual(len(edited),1)
+        self.assertEqual(len(edited[0]["attachments"]),1)
+
+    def test_no_raw_discord_id_when_membership_unavailable(self):
+        self.db.award(1,987654321012345678,55)
+        class Guild:
+            id=1
+            def get_member(self,user_id):
+                return None
+        async def resolve():
+            view=TrickOrTreatView(self.bot,1,2)
+            return await view._resolved_leaders(Guild())
+        rows=asyncio.run(resolve())
+        self.assertEqual(rows,[(1,"Chasseur #1",55)])
+        self.assertNotIn("987654321012345678",str(rows))
+
+    def test_during_cooldown_doors_lock_but_browsing_stays_open(self):
+        self.db.play_trick(1,2,0)
+        view=TrickOrTreatView(self.bot,1,2)
+        buttons=view.children[1].children
+        self.assertTrue(all(button.disabled for button in buttons[:3]))
+        self.assertTrue(all(not button.disabled for button in buttons[3:]))
+        illustration=view._view_file()
+        self.assertEqual(illustration.filename,"trickortreat-manoir.jpg")
+
     def test_double_click_mints_reward_once(self):
         class Response:
             def is_done(self):
