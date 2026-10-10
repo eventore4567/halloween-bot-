@@ -95,6 +95,8 @@ class CompetitionSceneTests(unittest.TestCase):
         image, row=view.children
         self.assertIsInstance(image,discord.ui.MediaGallery)
         self.assertEqual(len(image.items),1)
+        # A description emits the ALT overlay on some Discord clients.
+        self.assertNotIn("description", image.to_component_dict()["items"][0])
         self.assertIsInstance(row,discord.ui.ActionRow)
         self.assertEqual(len(row.children),5)
         self.assertEqual(
