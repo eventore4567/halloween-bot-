@@ -140,10 +140,10 @@ class HubView(OwnerView):
     @discord.ui.button(label="Compétition", emoji="💎", style=discord.ButtonStyle.success, row=1)
     async def tournament(self, interaction, button):
         from .visuals import CompetitionHome
-        from .banner import competition_files
+        from .scene import competition_scene_file
         await interaction.response.send_message(
             view=CompetitionHome(interaction.client, interaction.guild, interaction.user),
-            files=competition_files(),
+            file=competition_scene_file(interaction.client, interaction.guild, interaction.user),
             ephemeral=True,
         )
 
