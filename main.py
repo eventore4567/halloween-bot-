@@ -8,6 +8,7 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 from halloween_bot.storage import Store
+from halloween_bot.common import load_application_emojis
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
@@ -26,6 +27,7 @@ class HalloweenBot(commands.Bot):
         self.active_bosses={}
 
     async def setup_hook(self):
+        await load_application_emojis(self)
         for module in ("economy","games","farming","events","admin"):
             await self.load_extension(f"halloween_bot.{module}")
         self.get_cog("Events").restore()

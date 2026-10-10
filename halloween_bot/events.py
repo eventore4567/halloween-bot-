@@ -6,7 +6,7 @@ import random
 import discord
 from discord.ext import commands,tasks
 
-from .common import card,fail
+from .common import card, fail, themed_view
 from .content import EVENTS
 
 LOG=logging.getLogger(__name__)
@@ -18,11 +18,12 @@ class EventClaim(discord.ui.View):
         self.bot=bot
         self.event_id=event_id
         button=discord.ui.Button(
-            label="Attraper la récompense",emoji="🍬",
+            label="Attraper les bonbons",emoji="🍬",
             style=discord.ButtonStyle.success,
             custom_id=f"halloween:event:{event_id}")
         button.callback=self.claim
         self.add_item(button)
+        themed_view(self)
 
     async def claim(self,interaction:discord.Interaction):
         if not interaction.guild or interaction.user.bot:
@@ -33,10 +34,11 @@ class EventClaim(discord.ui.View):
         for button in self.children:
             button.disabled=True
         await interaction.response.edit_message(
-            embed=card("ÉVÉNEMENT TERMINÉ",
-                       f"🏆 {interaction.user.mention} a remporté la récompense !\n\n"
-                       f"🍬 **+{reward} bonbons**\n\n"
-                       "🕸️ Une autre apparition viendra bientôt."),
+            embed=card("Apparition capturée",
+                       f"🏆 **{interaction.user.mention} remporte cette apparition !**",
+                       theme="success",
+                       sections=[("🍬  BUTIN", f"**+{reward} bonbons**", False)],
+                       note="Une autre créature apparaîtra prochainement."),
             view=self,allowed_mentions=discord.AllowedMentions.none())
         self.stop()
 
@@ -76,10 +78,15 @@ class Events(commands.Cog):
                 continue
             try:
                 message=await channel.send(
-                    embed=card(title,
-                               f"🕸️ {description}\n\n"
-                               f"🍬 Récompense : **{amount} bonbons**\n"
-                               "⏳ **3 minutes** avant sa disparition !"),
+                    embed=card(title, description,
+                               theme="gold" if "BONBONS" in title else "night",
+                               sections=[
+                                   ("🍬  RÉCOMPENSE", f"**{amount} bonbons**", True),
+                                   ("⏳  DURÉE", "**3 minutes**", True),
+                                   ("🦇  COMMENT PARTICIPER",
+                                    "Le premier joueur à utiliser le bouton "
+                                    "récupère toute la récompense.", False),
+                               ]),
                     view=EventClaim(self.bot,event_id),
                     allowed_mentions=discord.AllowedMentions.none())
                 self.bot.store.event_message(event_id,message.id)
@@ -103,8 +110,11 @@ class Events(commands.Cog):
             try:
                 message=await channel.fetch_message(row["message_id"])
                 await message.edit(
-                    embed=card("APPARITION DISPARUE",
-                               "🌫️ Personne n'a attrapé la récompense à temps."),
+                    embed=card("Apparition disparue",
+                               "🌫️ La créature s'est évanouie dans le brouillard.",
+                               theme="night",
+                               sections=[("🕯️  TROP TARD",
+                                          "Personne n'a attrapé le butin à temps.", False)]),
                     view=None)
             except (discord.Forbidden,discord.NotFound,discord.HTTPException):
                 pass

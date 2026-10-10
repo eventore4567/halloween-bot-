@@ -25,6 +25,25 @@ Un bot Halloween **jouable**, avec des bonbons, des classements par serveur, une
 | /guide | Afficher l'aide |
 | /setup | Sélectionner le salon d'événements (Gérer le serveur) |
 
+## 🎨 Décoration et emojis du bot
+
+Le bot affiche des panneaux Discord avec titres, sections, couleurs et boutons uniformes.
+Il peut utiliser **ses propres emojis d'application**, même dans un serveur qui ne possède aucun emoji Halloween.
+
+Dans le **Discord Developer Portal**, ouvre ton application > **Emojis** et ajoute des images pour créer par exemple :
+
+- pumpkin / halloween_pumpkin
+- candy / halloween_candy
+- ghost / halloween_ghost
+- bat / halloween_bat
+- skull / halloween_skull
+- trophy, shop, bag, garden, web, spider, lantern
+
+Le bot les récupère automatiquement au démarrage et les affiche dans ses embeds, ses boutons et ses menus.
+S'il ne trouve pas un emoji, il affiche un emoji Unicode correspondant sans erreur. Aucun réglage n'est nécessaire dans /setup.
+
+Le chargement des emojis de l'application nécessite discord.py 2.5 ou plus récent.
+Après avoir ajouté des emojis, redémarre simplement le service Railway.
 ## 🌾 La ferme de citrouilles
 
 Ouvre **/farm** : trois graines sont proposées, avec différentes durées et récompenses. Récolte quand la plantation est prête, puis améliore ton potager jusqu'au niveau 5 (bonus de rendement). Tout est sauvegardé en SQLite, de manière transactionnelle.
