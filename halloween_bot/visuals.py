@@ -36,126 +36,143 @@ def medal(n):
     return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"`{n:02}`")
 
 def contest_board(bot, guild, user, buttons):
-    """Return one immersive Discord V2 container, not two detached boxes.
+    """One coherent cathedral-like dashboard with real image-backed sections.
 
-    This is the sole layout for /competition. The banner is uploaded by the
-    command as an attachment and referenced inside a MediaGallery in the
-    SAME container as the live status, rules and interactive action rows.
+    The violet/copper banner, portal, rank shield and grimoire are Discord
+    attachments. No external image URLs, fake server emojis, second embed or
+    duplicated control box are required. Discord's native Section+Thumbnail
+    components provide visual rhythm without flattening the content to an
+    image: countdowns remain live and the five buttons remain interactive.
     """
+    from .competition_store import division
+    from .ornaments import badge_uri
+
     season = bot.competition.season(guild.id)
     current = bot.round_store.current(guild.id)
     config = bot.round_store.config(guild.id)
     entry = bot.competition.position(guild.id, user.id)
-    participants = (
+    registered = (
         bot.round_store.count(current["id"]) if current else 0
     )
+
     if not season:
-        state = "🌑 **LE PORTAIL EST FERMÉ**"
-        deadline = (
-            "La prochaine saison sera ouverte par un organisateur "
-            "depuis /setup."
-        )
-        header_color = "🔒 Préparation de l'événement"
-        action = "Les inscriptions commenceront après la configuration."
+        status = "🔒 **LE PORTAIL EST FERMÉ**"
+        when = "La compétition n'a pas encore commencé."
+        info = "Un organisateur peut ouvrir le royaume depuis **/setup**."
     elif season["status"] != "active":
-        state = "🕯️ **SAISON TERMINÉE**"
-        deadline = "Les scores restent consultables. Résultats à vérifier."
-        header_color = "🔒 Classement gelé"
-        action = "La prochaine saison sera annoncée par les organisateurs."
+        status = "🕯️ **LE SANCTUAIRE REPOSE**"
+        when = "La saison est terminée."
+        info = "Le classement reste consultable avant validation finale."
     elif current and current["status"] == "signup":
-        state = "🎟️ **INSCRIPTIONS OUVERTES**"
-        deadline = f"Fermeture <t:{current['signup_ends_at']}:R>."
-        header_color = f"🟢 {participants} participant(s) inscrit(s)"
-        action = "Clique sur **Participer** avant la fermeture du portail."
+        status = "🎟️ **LES INSCRIPTIONS SONT OUVERTES**"
+        when = f"Fermeture du portail <t:{current['signup_ends_at']}:R>."
+        info = f"**{registered} chasseur(s)** déjà inscrit(s). Entre avant la fermeture !"
     elif current and current["status"] == "active":
-        state = "⚔️ **ÉPREUVE EN COURS**"
-        deadline = f"La manche se termine <t:{current['ends_at']}:R>."
-        header_color = f"🔴 {participants} compétiteur(s) en jeu"
-        action = "Seuls les membres inscrits peuvent rejoindre leurs défis."
+        status = "⚔️ **L'ÉPREUVE A COMMENCÉ**"
+        when = f"La crypte se ferme <t:{current['ends_at']}:R>."
+        info = f"**{registered} combattant(s)**. Réservé aux membres inscrits."
     else:
-        state = "🌙 **ENTRE DEUX MANCHES**"
-        next_at = config["next_at"]
-        deadline = (
-            f"Prochain portail <t:{next_at}:R>."
-            if config["enabled"] and next_at else
-            "En attente de la prochaine annonce des organisateurs."
+        status = "🌙 **LE SANCTUAIRE SE PRÉPARE**"
+        next_round = config["next_at"]
+        when = (
+            f"Prochaine manche <t:{next_round}:R>."
+            if config["enabled"] and next_round else
+            "La prochaine ouverture sera annoncée dans le salon choisi."
         )
-        header_color = "🟣 Le royaume prépare ses prochains défis"
-        action = "Prépare tes réponses : les inscriptions rouvriront bientôt."
+        info = "Reste attentif : le rôle configuré sera notifié."
 
     if entry:
-        from .competition_store import division
-        grade, next_grade, _ = division(entry["score"])
-        rank = f"**#{entry['place']}**"
-        score = f"**{entry['score']:,} points**"
-        level = f"**{grade}**"
-        remaining = max(0, next_grade - entry["score"])
-        progression = (
-            f"✨ Division suprême atteinte !"
-            if remaining == 0 else
-            f"Encore **{remaining:,} points** avant le prochain palier."
+        grade, next_step, _ = division(entry["score"])
+        place = f"**#{entry['place']}**"
+        points = f"**{entry['score']:,} pts**"
+        tier = f"**{grade}**"
+        remaining = max(0,next_step-entry["score"])
+        advancement = (
+            "✧ **Division suprême atteinte.**" if not remaining else
+            f"Encore **{remaining:,} points** pour progresser."
         )
     else:
-        rank = "**Non classé**"
-        score = "**0 point**"
-        level = "**🥉 Bronze**"
-        progression = "Ton nom apparaîtra au classement après tes premiers points."
+        place = "**—**"
+        points = "**0 pt**"
+        tier = "**🥉 Bronze**"
+        advancement = "Ton premier succès inscrira ton nom dans les archives."
 
-    prize_label = (
-        season["prize_label"] if season and season["prize_label"]
-        else config["prize_label"]
+    announced_prize = (
+        (season or {}).get("prize_label") or config.get("prize_label")
     )
-    reward = (
-        f"🎁 **{discord.utils.escape_markdown(prize_label)}** — "
-        "prix déclaré par l'organisateur, sous réserve du règlement."
-        if prize_label else
-        "🏆 **Points de saison, divisions et classement** "
-        "(aucun prix réel annoncé)."
+    prize = (
+        f"🎁 Prix annoncé : **{discord.utils.escape_markdown(announced_prize)}**"
+        if announced_prize else
+        "🏆 **La gloire et les points de saison**"
     )
-    description = (
-        "🎃 **L'ARÈNE DES OMBRES**　•　HALLOWEEN 2026\n"
-        "Un seul portail. Trois épreuves. Une place au sommet."
+    if announced_prize:
+        prize += " (règlement et vérification par l'organisateur)"
+
+    portal = discord.ui.Section(
+        text(
+            "### Ⅰ  ·  LE PORTAIL DES BRUMES\n"
+            f"{status}\n"
+            f"{when}\n"
+            f"-# {info}"
+        ),
+        accessory=discord.ui.Thumbnail(
+            badge_uri("portal"),
+            description="Portail gothique gravé de cuivre, symbole des inscriptions.",
+        ),
     )
-    content = [
+    rank = discord.ui.Section(
+        text(
+            "### Ⅱ  ·  TON BLASON DE CHASSEUR\n"
+            f"🏅 Rang : {place}　　 ✦ Score : {points}\n"
+            f"🛡️ Division : {tier}\n"
+            f"-# {advancement}"
+        ),
+        accessory=discord.ui.Thumbnail(
+            badge_uri("rank"),
+            description="Blason de bronze gravé de lauriers et d'une couronne.",
+        ),
+    )
+    trials = discord.ui.Section(
+        text(
+            "### Ⅲ  ·  LE GRIMOIRE DES ÉPREUVES\n"
+            "🔮 **Alchimie** : 100 pts　"
+            "📜 **Mots maudits** : 130 pts\n"
+            "🗝️ **Code de la crypte** : 160 pts\n"
+            f"{prize}\n"
+            "-# Points gagnés uniquement par des réponses correctes, "
+            "pas par les bonbons aléatoires."
+        ),
+        accessory=discord.ui.Thumbnail(
+            badge_uri("grimoire"),
+            description="Ancien grimoire ouvert sous une flamme magique.",
+        ),
+    )
+    return container(
         discord.ui.MediaGallery(
             discord.MediaGalleryItem(
                 media="attachment://crypt-cup-banner.jpg",
                 description=(
-                    "Bannière CRYPT CUP : citrouille lumineuse, lune "
-                    "et château dans un paysage Halloween violet."
+                    "Bannière originale CRYPT CUP : architecture gothique, "
+                    "lune gravée, cuivre ancien et citrouilles. "
+                    "Le Sanctuaire des Ombres."
                 ),
             )
         ),
-        text(description),
-        divider(),
         text(
-            "### 🕯️ LE PORTAIL DU SANCTUAIRE\n"
-            f"{state}　•　{header_color}\n"
-            f"{deadline}\n"
-            f"-# {action}"
+            "-# ✧  CRYPT CUP　/　HALLOWEEN 2026\n"
+            "### LE SANCTUAIRE DES OMBRES\n"
+            "Trois épreuves. Un classement. Une seule légende."
         ),
         divider(),
-        text(
-            "### 🏆 TA PROGRESSION\n"
-            f"**Rang**　{rank}　　 **Score**　{score}\n"
-            f"**Division**　{level}\n"
-            f"-# {progress(entry['score'] if entry else 0, 4500, width=9)}"
-            f"  {progression}"
-        ),
+        portal,
         divider(),
-        text(
-            "### 🔮 LES ÉPREUVES DU ROYAUME\n"
-            "**Alchimie** · 100 pts　　**Grimoire** · 130 pts　　"
-            "**Code de la crypte** · 160 pts\n"
-            "Inscription → Défi → Points → Classement\n\n"
-            f"{reward}\n"
-            "-# Les bonbons, cadeaux et jeux aléatoires n'ajoutent pas "
-            "de points au classement de compétition."
-        ),
+        rank,
+        divider(),
+        trials,
         discord.ui.ActionRow(*buttons[:3]),
         discord.ui.ActionRow(*buttons[3:]),
-    ]
-    return container(*content, accent=VIOLET)
+        accent=VIOLET,
+    )
 
 def podium_board(bot, guild):
     season=bot.competition.season(guild.id)
