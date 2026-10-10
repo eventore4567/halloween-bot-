@@ -190,7 +190,7 @@ class Store:
             previous = c.execute(
                 "SELECT candies FROM players WHERE guild_id=? AND user_id=?",
                 (guild_id, user_id),
-            )["candies"]
+            ).fetchone()["candies"]
             actual = max(-previous, prize)
             c.execute(
                 "UPDATE players SET candies=candies+?, earned=earned+? "
