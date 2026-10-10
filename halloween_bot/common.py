@@ -73,7 +73,7 @@ ALIASES = {
     "bag": ("inventaire",),
 }
 TITLE_ICONS = (
-    (("classement", "top 10", "leaderboard", "rang"), "trophy"),
+    (("classement", "top 10", "leaderboard", "rang", "cup", "compétition", "tournoi", "saison", "défi remporté"), "trophy"),
     (("boutique", "achat"), "shop"),
     (("inventaire", "collection"), "bag"),
     (("profil",), "pumpkin"),
