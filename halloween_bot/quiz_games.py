@@ -1,9 +1,8 @@
-"""Interactive community quiz and classic horror-film recognition.
+"""Halloween quiz arena — original Components V2 game with four responsive buttons.
 
-Four Discord buttons; the first correct answer wins virtual bonbons. Wrong
-answers are one-per-user. Timeouts show the correct option, as in the reference
-screenshot. Film screenshots are sourced from public Commons file pages.
-Neither game awards the real-prize tournament's skill points.
+A proper question card with large typography, difficulty, live deadline,
+optional film still, safe concurrency, and visibly colored right answer after
+completion. No scores are awarded to the cash-prize tournament.
 """
 from __future__ import annotations
 
@@ -16,13 +15,16 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .common import card, fail, themed_view, wait_text
+from .common import fail, pretty, wait_text
 from .quiz_content import DIFFICULTIES, generate_question, generate_film
+from .visuals import AMBER, SCARLET, JADE, VIOLET, text, divider, header, container
 
 LOG = logging.getLogger(__name__)
 
 
-class MultipleChoice(discord.ui.View):
+class MultipleChoice(discord.ui.LayoutView):
+    """One shared room quiz, with first correct answer winning virtual candy."""
+
     def __init__(self, guild_id, data, *, film=False):
         super().__init__(timeout=data["time"])
         self.guild_id = guild_id
@@ -30,121 +32,161 @@ class MultipleChoice(discord.ui.View):
         self.film = film
         self.finished = False
         self.message = None
-        self.attempted = set()
-        self.lock = asyncio.Lock()
+        self.respondents = set()
+        self._lock = asyncio.Lock()
         self.deadline = int(time.time()) + data["time"]
+        self._build()
 
-        for i, choice in enumerate(data["answers"]):
+    def _build(self, outcome=None, winner=None):
+        self.clear_items()
+        data = self.data
+        level = DIFFICULTIES[data["difficulty"]]["label"]
+        title = "L'ÉCRAN MAUDIT" if self.film else "LE GRIMOIRE DES ÉPREUVES"
+        teaser = (
+            "Reconnais l'image avant que le projecteur ne s'éteigne."
+            if self.film else
+            "Quatre réponses, une seule vérité. Le grimoire ne pardonne pas."
+        )
+        accent = (
+            JADE if outcome == "win"
+            else SCARLET if outcome == "timeout"
+            else VIOLET
+        )
+        heading = (
+            "🎬 SÉANCE CINÉMA" if self.film
+            else "🧩 QUIZ DES TÉNÈBRES"
+        )
+        intro = (
+            f"✅ **Bonne réponse de {winner.mention} !**"
+            if outcome == "win" and winner else
+            "⌛ **TEMPS ÉCOULÉ — LA RÉPONSE EST RÉVÉLÉE !**"
+            if outcome == "timeout" else
+            teaser
+        )
+        parts = [
+            header(heading, title, intro),
+            divider(),
+            text(
+                f"### ❖ LA QUESTION\n"
+                f"**{pretty(data['question'])}**\n\n"
+                f"🎯 **{level}**　 ·　 🍬 **{data['reward']} bonbons**\n"
+                f"⏳ **{'Épreuve terminée' if outcome else f'Fin <t:{self.deadline}:R>'}**"
+            ),
+        ]
+        if self.film and data.get("image"):
+            parts.extend([
+                divider(),
+                discord.ui.MediaGallery(
+                    discord.MediaGalleryItem(
+                        media=data["image"],
+                        description="Photogramme de film d'horreur classique",
+                    )
+                ),
+            ])
+        if outcome:
+            answer_index = data["correct"]
+            answer = data["answers"][answer_index]
+            parts.extend([
+                divider(),
+                text(
+                    f"### {'🏆 VICTOIRE' if outcome=='win' else '🕯️ FIN DU TEMPS'}\n"
+                    f"✅ **Réponse {chr(65 + answer_index)} · {answer}**\n"
+                    + (
+                        f"🎁 **+{data['reward']} bonbons** pour {winner.mention}"
+                        if outcome=="win" and winner else
+                        "🌫️ Aucun bonbon remporté."
+                    )
+                ),
+            ])
+            if self.film:
+                parts.extend([
+                    divider(),
+                    text(
+                        f"-# 🎬 Film sorti en {data['year']} • "
+                        f"[Source de l'image sur Wikimedia Commons]({data['source']})"
+                    ),
+                ])
+        else:
+            parts.extend([
+                divider(),
+                text("### 🎮 À TOI DE JOUER\n"
+                     "-# Choisis **une seule réponse**. "
+                     "Une mauvaise tentative ne peut pas être rejouée."),
+            ])
+        self.add_item(container(*parts, accent=accent))
+        choices = []
+        for i, option in enumerate(data["answers"]):
             letter = "ABCD"[i]
-            button = discord.ui.Button(
-                label=f"{letter}  {choice}"[:80],
-                style=discord.ButtonStyle.secondary,
-                custom_id=f"halloween:quiz:{letter}:{self.deadline}",
-                row=0,
+            btn = discord.ui.Button(
+                label=f"{letter}  ·  {option}"[:80],
+                emoji=None,
+                style=(
+                    discord.ButtonStyle.success
+                    if outcome and i == data["correct"]
+                    else discord.ButtonStyle.secondary
+                    if outcome else
+                    discord.ButtonStyle.primary
+                ),
+                custom_id=f"crypt:quiz:{letter}:{self.deadline}",
+                disabled=bool(outcome),
             )
 
-            async def choose(interaction, selected=i):
-                await self.choose(interaction, selected)
+            async def choose(interaction, selection=i):
+                await self.choose(interaction, selection)
 
-            button.callback = choose
-            self.add_item(button)
-        themed_view(self)
-
-    def panel(self, result=None, winner=None):
-        data = self.data
-        title = (
-            "Devine le film d'horreur" if self.film
-            else "Le quiz des ténèbres"
-        )
-        difficulty = DIFFICULTIES[data["difficulty"]]["label"]
-        if result == "timeout":
-            description = "⌛ **Temps écoulé !** La porte du grimoire est fermée."
-            theme = "danger"
-        elif result == "win":
-            description = f"🎉 **Bonne réponse de {winner.mention} !**"
-            theme = "success"
-        else:
-            description = "🦇 **Une question, quatre réponses.** Sois le premier à trouver !"
-            theme = "night"
-        sections = [
-            ("🧩  QUESTION", f"**{data['question']}**", False),
-            ("🎯  DIFFICULTÉ", difficulty, True),
-            ("🍬  RÉCOMPENSE", f"**{data['reward']} bonbons**", True),
-            ("⏳  LIMITE", f"<t:{self.deadline}:R>", False),
-        ]
-        if result is not None:
-            sections.append((
-                "✅  BONNE RÉPONSE",
-                f"**{'ABCD'[data['correct']]}. {data['answers'][data['correct']]}**",
-                False,
-            ))
-            if self.film:
-                sections.append((
-                    "🎬  LE FILM",
-                    f"Sorti en **{data['year']}** • "
-                    f"[Source de l'image (Wikimedia Commons)]({data['source']})",
-                    False,
-                ))
-        out = card(title, description, theme=theme, sections=sections)
-        if self.film:
-            out.set_image(url=data["image"])
-            out.set_footer(text="🎬 Illustration issue de Wikimedia Commons • Bonbons virtuels")
-        return out
-
-    def mark_answers(self):
-        correct = self.data["correct"]
-        for i, button in enumerate(self.children):
-            button.disabled = True
-            if i == correct:
-                button.style = discord.ButtonStyle.success
-            else:
-                button.style = discord.ButtonStyle.danger if i in self.attempted else discord.ButtonStyle.secondary
+            btn.callback = choose
+            choices.append(btn)
+        self.add_item(container(
+            text("### 🕷️ LES QUATRE PORTES"),
+            discord.ui.ActionRow(*choices[:2]),
+            discord.ui.ActionRow(*choices[2:]),
+            accent=JADE if outcome == "win" else AMBER,
+        ))
 
     async def choose(self, interaction, selected):
         if not interaction.guild or interaction.guild.id != self.guild_id:
-            return await fail(interaction, "Ce quiz appartient à un autre serveur.")
+            return await fail(interaction, "Le quiz appartient à un autre serveur.")
         if interaction.user.bot:
-            return await fail(interaction, "Seuls les membres peuvent participer.")
-        async with self.lock:
+            return await fail(interaction, "Réservé aux membres.")
+        async with self._lock:
             if self.finished or int(time.time()) >= self.deadline:
                 return await fail(interaction, "Le quiz est déjà terminé.")
-            if interaction.user.id in self.attempted:
-                return await fail(interaction, "Une seule réponse par joueur !")
-            self.attempted.add(interaction.user.id)
+            if interaction.user.id in self.respondents:
+                return await fail(interaction, "Une seule tentative par joueur.")
+            self.respondents.add(interaction.user.id)
             if selected != self.data["correct"]:
-                return await fail(interaction, "Mauvaise réponse ! Tu ne peux pas réessayer.")
+                return await fail(interaction, "❌ Mauvaise réponse ! Tu es éliminé de ce quiz.")
             self.finished = True
             interaction.client.store.award(
-                self.guild_id, interaction.user.id, self.data["reward"],
-                quizzes=1,
+                self.guild_id, interaction.user.id,
+                self.data["reward"], quizzes=1,
             )
-            self.mark_answers()
+            self._build("win", interaction.user)
             try:
                 await interaction.response.edit_message(
-                    embed=self.panel("win", interaction.user),
                     view=self,
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
             except discord.HTTPException:
-                LOG.exception("Failed to update completed quiz")
+                LOG.exception("Quiz won, but UI edit failed")
                 if not interaction.response.is_done():
-                    await fail(interaction, "Le quiz a été validé, mais l'affichage a échoué.")
+                    await fail(interaction, "Récompense créditée, mais affichage indisponible.")
             self.stop()
 
     async def on_timeout(self):
-        async with self.lock:
+        async with self._lock:
             if self.finished:
                 return
             self.finished = True
-            self.mark_answers()
+            self._build("timeout")
             if self.message:
                 try:
                     await self.message.edit(
-                        embed=self.panel("timeout"), view=self,
+                        view=self,
                         allowed_mentions=discord.AllowedMentions.none(),
                     )
-                except (discord.HTTPException, discord.NotFound):
-                    LOG.warning("Quiz message no longer available")
+                except (discord.HTTPException,discord.NotFound):
+                    LOG.warning("Quiz expired: original message unavailable")
             self.stop()
 
 
@@ -153,7 +195,7 @@ class QuizGames(commands.Cog):
         self.bot = bot
 
     @app_commands.command(
-        name="quiz", description="🧩 Quiz Halloween interactif : 4 catégories, 4 difficultés"
+        name="quiz", description="🧩 Quiz à 4 réponses, catégories et difficultés"
     )
     @app_commands.guild_only()
     async def quiz(
@@ -162,17 +204,17 @@ class QuizGames(commands.Cog):
         categorie: Literal["halloween", "horreur", "science", "culture"] = "halloween",
         difficulte: Literal["facile", "moyen", "difficile", "expert"] = "facile",
     ):
-        g, u = interaction.guild.id, interaction.user.id
-        wait = self.bot.store.cooldown(g, u, "quiz_spawn", 120)
-        if wait:
-            return await fail(interaction, wait_text(wait))
+        guild_id, user_id = interaction.guild.id, interaction.user.id
+        seconds = self.bot.store.cooldown(guild_id, user_id, "quiz_spawn", 120)
+        if seconds:
+            return await fail(interaction, wait_text(seconds))
         data = generate_question(categorie, difficulte)
-        view = MultipleChoice(g, data)
-        await interaction.response.send_message(embed=view.panel(), view=view)
+        view = MultipleChoice(guild_id, data)
+        await interaction.response.send_message(view=view)
         view.message = await interaction.original_response()
 
     @app_commands.command(
-        name="film_horreur", description="🎬 Devine le film d'horreur grâce à une image"
+        name="film_horreur", description="🎬 Devine le film d'horreur d'après une image"
     )
     @app_commands.guild_only()
     async def film_horreur(
@@ -180,13 +222,13 @@ class QuizGames(commands.Cog):
         interaction: discord.Interaction,
         difficulte: Literal["facile", "moyen", "difficile"] = "facile",
     ):
-        g, u = interaction.guild.id, interaction.user.id
-        wait = self.bot.store.cooldown(g, u, "film_spawn", 180)
-        if wait:
-            return await fail(interaction, wait_text(wait))
+        guild_id, user_id = interaction.guild.id, interaction.user.id
+        seconds = self.bot.store.cooldown(guild_id, user_id, "film_spawn", 180)
+        if seconds:
+            return await fail(interaction, wait_text(seconds))
         data = generate_film(difficulte)
-        view = MultipleChoice(g, data, film=True)
-        await interaction.response.send_message(embed=view.panel(), view=view)
+        view = MultipleChoice(guild_id, data, film=True)
+        await interaction.response.send_message(view=view)
         view.message = await interaction.original_response()
 
 
