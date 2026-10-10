@@ -35,48 +35,127 @@ def header(kicker, title, subtitle=""):
 def medal(n):
     return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"`{n:02}`")
 
-def contest_board(bot, guild, user):
-    season=bot.competition.season(guild.id)
-    round_info=bot.round_store.current(guild.id)
-    participants=bot.round_store.count(round_info["id"]) if round_info else 0
-    rank=bot.competition.position(guild.id,user.id)
-    if not season:
-        status="🌫️ **L'arène n'est pas encore ouverte.**"
-        deadline="Un administrateur peut lancer les manches depuis /setup."
-        title="LE SANCTUAIRE ATTEND"
-    else:
-        title="LE SANCTUAIRE DES OMBRES"
-        if round_info and round_info["status"]=="signup":
-            status=f"🎟️ **INSCRIPTIONS EN COURS** • {participants} chasseurs"
-            deadline=f"Le portail se referme <t:{round_info['signup_ends_at']}:R>."
-        elif round_info and round_info["status"]=="active":
-            status=f"⚔️ **LA MANCHE EST EN COURS** • {participants} chasseurs"
-            deadline=f"Fin du combat <t:{round_info['ends_at']}:R>."
-        else:
-            status="🌙 **ENTRE DEUX MANCHES**"
-            deadline="Prépare-toi pour la prochaine annonce."
-    myrank=(f"#{rank['place']} · **{rank['score']:,} pts**"
-            if rank else "Pas encore classé")
-    return container(
-        header("CRYPT CUP • ARÈNE",title,
-               "Un seul portail. Trois épreuves. Une place au sommet."),
-        divider(),
-        text(f"{status}\n{deadline}"),
-        divider(),
-        text("### 🏆 TON PARCOURS\n"
-             f"🦇 **Ton rang** : {myrank}\n"
-             "🔮 Alchimie des nombres  •  📜 Mots maudits  •  🗝️ Code de la crypte"),
-        divider(),
-        text("### 🕯️ LE RITUEL\n"
-             "① **Inscris-toi** lorsque le portail s'ouvre.\n"
-             "② **Attends** le départ automatique.\n"
-             "③ **Résous** une épreuve dans le temps imparti.\n"
-             "④ **Monte** dans le classement de saison.\n\n"
-             "-# Les cadeaux, bonbons et jeux aléatoires ne donnent aucun point "
-             "pour le classement récompensé."),
-        accent=VIOLET
-    )
+def contest_board(bot, guild, user, buttons):
+    """Return one immersive Discord V2 container, not two detached boxes.
 
+    This is the sole layout for /competition. The banner is uploaded by the
+    command as an attachment and referenced inside a MediaGallery in the
+    SAME container as the live status, rules and interactive action rows.
+    """
+    season = bot.competition.season(guild.id)
+    current = bot.round_store.current(guild.id)
+    config = bot.round_store.config(guild.id)
+    entry = bot.competition.position(guild.id, user.id)
+    participants = (
+        bot.round_store.count(current["id"]) if current else 0
+    )
+    if not season:
+        state = "🌑 **LE PORTAIL EST FERMÉ**"
+        deadline = (
+            "La prochaine saison sera ouverte par un organisateur "
+            "depuis /setup."
+        )
+        header_color = "🔒 Préparation de l'événement"
+        action = "Les inscriptions commenceront après la configuration."
+    elif season["status"] != "active":
+        state = "🕯️ **SAISON TERMINÉE**"
+        deadline = "Les scores restent consultables. Résultats à vérifier."
+        header_color = "🔒 Classement gelé"
+        action = "La prochaine saison sera annoncée par les organisateurs."
+    elif current and current["status"] == "signup":
+        state = "🎟️ **INSCRIPTIONS OUVERTES**"
+        deadline = f"Fermeture <t:{current['signup_ends_at']}:R>."
+        header_color = f"🟢 {participants} participant(s) inscrit(s)"
+        action = "Clique sur **Participer** avant la fermeture du portail."
+    elif current and current["status"] == "active":
+        state = "⚔️ **ÉPREUVE EN COURS**"
+        deadline = f"La manche se termine <t:{current['ends_at']}:R>."
+        header_color = f"🔴 {participants} compétiteur(s) en jeu"
+        action = "Seuls les membres inscrits peuvent rejoindre leurs défis."
+    else:
+        state = "🌙 **ENTRE DEUX MANCHES**"
+        next_at = config["next_at"]
+        deadline = (
+            f"Prochain portail <t:{next_at}:R>."
+            if config["enabled"] and next_at else
+            "En attente de la prochaine annonce des organisateurs."
+        )
+        header_color = "🟣 Le royaume prépare ses prochains défis"
+        action = "Prépare tes réponses : les inscriptions rouvriront bientôt."
+
+    if entry:
+        from .competition_store import division
+        grade, next_grade, _ = division(entry["score"])
+        rank = f"**#{entry['place']}**"
+        score = f"**{entry['score']:,} points**"
+        level = f"**{grade}**"
+        remaining = max(0, next_grade - entry["score"])
+        progression = (
+            f"✨ Division suprême atteinte !"
+            if remaining == 0 else
+            f"Encore **{remaining:,} points** avant le prochain palier."
+        )
+    else:
+        rank = "**Non classé**"
+        score = "**0 point**"
+        level = "**🥉 Bronze**"
+        progression = "Ton nom apparaîtra au classement après tes premiers points."
+
+    prize_label = (
+        season["prize_label"] if season and season["prize_label"]
+        else config["prize_label"]
+    )
+    reward = (
+        f"🎁 **{discord.utils.escape_markdown(prize_label)}** — "
+        "prix déclaré par l'organisateur, sous réserve du règlement."
+        if prize_label else
+        "🏆 **Points de saison, divisions et classement** "
+        "(aucun prix réel annoncé)."
+    )
+    description = (
+        "🎃 **L'ARÈNE DES OMBRES**　•　HALLOWEEN 2026\n"
+        "Un seul portail. Trois épreuves. Une place au sommet."
+    )
+    content = [
+        discord.ui.MediaGallery(
+            discord.MediaGalleryItem(
+                media="attachment://crypt-cup-banner.jpg",
+                description=(
+                    "Bannière CRYPT CUP : citrouille lumineuse, lune "
+                    "et château dans un paysage Halloween violet."
+                ),
+            )
+        ),
+        text(description),
+        divider(),
+        text(
+            "### 🕯️ LE PORTAIL DU SANCTUAIRE\n"
+            f"{state}　•　{header_color}\n"
+            f"{deadline}\n"
+            f"-# {action}"
+        ),
+        divider(),
+        text(
+            "### 🏆 TA PROGRESSION\n"
+            f"**Rang**　{rank}　　 **Score**　{score}\n"
+            f"**Division**　{level}\n"
+            f"-# {progress(entry['score'] if entry else 0, 4500, width=9)}"
+            f"  {progression}"
+        ),
+        divider(),
+        text(
+            "### 🔮 LES ÉPREUVES DU ROYAUME\n"
+            "**Alchimie** · 100 pts　　**Grimoire** · 130 pts　　"
+            "**Code de la crypte** · 160 pts\n"
+            "Inscription → Défi → Points → Classement\n\n"
+            f"{reward}\n"
+            "-# Les bonbons, cadeaux et jeux aléatoires n'ajoutent pas "
+            "de points au classement de compétition."
+        ),
+        discord.ui.ActionRow(*buttons[:3]),
+        discord.ui.ActionRow(*buttons[3:]),
+    ]
+    return container(*content, accent=VIOLET)
 
 def podium_board(bot, guild):
     season=bot.competition.season(guild.id)
@@ -113,90 +192,124 @@ def podium_board(bot, guild):
 
 
 class CompetitionHome(discord.ui.LayoutView):
-    """Unique competition dashboard, with two responsive action rows."""
+    """One unified interactive V2 panel with a panoramic uploaded banner."""
+
     def __init__(self, bot, guild, user):
         super().__init__(timeout=300)
-        self.bot=bot
-        self.guild_id=guild.id
-        self.add_item(contest_board(bot,guild,user))
-        top=discord.ui.Button(label="Entrer dans l'arène",emoji="🎟️",
-                              style=discord.ButtonStyle.success)
-        top.callback=self.register
-        play=discord.ui.Button(label="Mes défis",emoji="🗝️",
-                               style=discord.ButtonStyle.primary)
-        play.callback=self.play
-        podium=discord.ui.Button(label="Top 10",emoji="🏆",
-                                 style=discord.ButtonStyle.secondary)
-        podium.callback=self.top
-        rank=discord.ui.Button(label="Mon rang",emoji="💎",
-                               style=discord.ButtonStyle.secondary)
-        rank.callback=self.rank
-        rules=discord.ui.Button(label="Règlement",emoji="📜",
-                                style=discord.ButtonStyle.secondary)
-        rules.callback=self.rules
-        self.add_item(container(
-            text("### 🎮 CENTRE DE COMMANDE\n"
-                 "Choisis ton chemin dans l'arène."),
-            discord.ui.ActionRow(top,play,podium),
-            discord.ui.ActionRow(rank,rules),
-            accent=AMBER
-        ))
+        self.bot = bot
+        self.guild_id = guild.id
+        buttons = [
+            discord.ui.Button(
+                label="Participer", emoji="🎟️",
+                style=discord.ButtonStyle.success,
+            ),
+            discord.ui.Button(
+                label="Mes défis", emoji="🗝️",
+                style=discord.ButtonStyle.primary,
+            ),
+            discord.ui.Button(
+                label="Top 10", emoji="🏆",
+                style=discord.ButtonStyle.secondary,
+            ),
+            discord.ui.Button(
+                label="Mon rang", emoji="💎",
+                style=discord.ButtonStyle.secondary,
+            ),
+            discord.ui.Button(
+                label="Règlement", emoji="📜",
+                style=discord.ButtonStyle.secondary,
+            ),
+        ]
+        for button, handler in zip(
+            buttons, (self.register, self.play, self.top, self.rank, self.rules)
+        ):
+            button.callback = handler
+        self.add_item(contest_board(bot, guild, user, buttons))
 
-    async def register(self,interaction):
-        active=self.bot.round_store.current(interaction.guild.id)
-        if not active or active["status"]!="signup":
-            return await fail(interaction,
-                "Les inscriptions ouvrent automatiquement à chaque manche. "
-                "Attends la prochaine annonce dans le salon configuré.")
-        result=self.bot.round_store.join(active["id"],
-                                          interaction.guild.id,
-                                          interaction.user.id)
-        if result=="joined":
-            self.bot.competition.join(interaction.guild.id,interaction.user.id)
-            await interaction.response.send_message(
-                "🎟️ **Inscription confirmée !** Le défi commencera à la "
-                "fermeture des inscriptions.",ephemeral=True)
-        elif result=="already_joined":
-            await fail(interaction,"Tu es déjà inscrit pour cette manche.")
-        else:
-            await fail(interaction,"Les inscriptions de cette manche sont fermées.")
+    async def register(self, interaction):
+        if not interaction.guild or interaction.guild.id != self.guild_id:
+            return await fail(interaction, "Le portail appartient à un autre serveur.")
+        if interaction.user.bot:
+            return await fail(interaction, "Réservé aux membres du serveur.")
+        round_info = self.bot.round_store.current(self.guild_id)
+        if not round_info or round_info["status"] != "signup":
+            return await fail(
+                interaction,
+                "Les inscriptions ne sont pas ouvertes. "
+                "Attends la prochaine annonce dans le salon configuré.",
+            )
+        result = self.bot.round_store.join(
+            round_info["id"], self.guild_id, interaction.user.id
+        )
+        if result == "joined":
+            self.bot.competition.join(self.guild_id, interaction.user.id)
+            return await interaction.response.send_message(
+                "🎟️ **Ton inscription est confirmée !** "
+                f"Le portail se referme <t:{round_info['signup_ends_at']}:R>.",
+                ephemeral=True,
+            )
+        if result == "already_joined":
+            return await fail(interaction, "Tu es déjà inscrit à cette manche.")
+        await fail(interaction, "Les inscriptions sont terminées.")
 
-    async def play(self,interaction):
-        state,current=self.bot.round_store.check(interaction.guild.id,
-                                                  interaction.user.id)
-        if state!="ready":
-            return await fail(interaction,
-                              "Tu dois être inscrit à une manche en cours pour jouer.")
+    async def play(self, interaction):
+        if not interaction.guild or interaction.guild.id != self.guild_id:
+            return await fail(interaction, "Cette arène appartient à un autre serveur.")
+        state, _ = self.bot.round_store.check(
+            self.guild_id, interaction.user.id
+        )
+        if state != "ready":
+            return await fail(
+                interaction, "Inscris-toi à une manche, "
+                "puis attends le début pour jouer.",
+            )
         from .competition import ChallengeView
         from .competition_store import MODES
-        remaining=self.bot.competition.remaining_modes(interaction.guild.id,
-                                                        interaction.user.id)
+        available = self.bot.competition.remaining_modes(
+            self.guild_id, interaction.user.id
+        )
+        if not available:
+            return await fail(
+                interaction, "Tu as utilisé tes défis du jour. "
+                "Reviens demain à 00:00 UTC.",
+            )
         await interaction.response.send_message(
-            content="🗝️ **Épreuves du sanctuaire**\n"
-                    + ("\n".join(
-                       f"• {MODES[x]['title']} — {MODES[x]['points']} pts"
-                       for x in remaining) if remaining else
-                       "Tu n'as plus d'épreuves disponibles aujourd'hui."),
-            view=ChallengeView(self.bot,interaction.guild.id,
-                               interaction.user.id) if remaining else None,
-            ephemeral=True)
+            content=(
+                "🗝️ **Choisis une épreuve du sanctuaire**\n"
+                + "\n".join(
+                    f"• {MODES[name]['title']} — {MODES[name]['points']} points"
+                    for name in available
+                )
+            ),
+            view=ChallengeView(self.bot, self.guild_id, interaction.user.id),
+            ephemeral=True,
+        )
 
-    async def top(self,interaction):
+    async def top(self, interaction):
+        if not interaction.guild or interaction.guild.id != self.guild_id:
+            return await fail(interaction, "Cette arène appartient à un autre serveur.")
         await interaction.response.send_message(
-            view=PodiumView(self.bot,interaction.guild), ephemeral=True)
+            view=PodiumView(self.bot, interaction.guild),
+            ephemeral=True,
+        )
 
-    async def rank(self,interaction):
+    async def rank(self, interaction):
+        if not interaction.guild or interaction.guild.id != self.guild_id:
+            return await fail(interaction, "Cette arène appartient à un autre serveur.")
         from .competition import rank_card
         await interaction.response.send_message(
-            embed=rank_card(self.bot,interaction.guild,interaction.user),
-            ephemeral=True)
+            embed=rank_card(self.bot, interaction.guild, interaction.user),
+            ephemeral=True,
+        )
 
-    async def rules(self,interaction):
+    async def rules(self, interaction):
+        if not interaction.guild or interaction.guild.id != self.guild_id:
+            return await fail(interaction, "Cette arène appartient à un autre serveur.")
         from .competition import rules_card
         await interaction.response.send_message(
-            embed=rules_card(self.bot.competition.season(interaction.guild.id)),
-            ephemeral=True)
-
+            embed=rules_card(self.bot.competition.season(self.guild_id)),
+            ephemeral=True,
+        )
 
 class PodiumView(discord.ui.LayoutView):
     def __init__(self,bot,guild):
