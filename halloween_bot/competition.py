@@ -473,8 +473,11 @@ class CompetitionCog(commands.Cog):
     @app_commands.guild_only()
     async def competition(self, interaction: discord.Interaction):
         from .visuals import CompetitionHome
+        from .banner import discord_banner
         await interaction.response.send_message(
             view=CompetitionHome(self.bot, interaction.guild, interaction.user),
+            file=discord_banner(),
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @app_commands.command(
