@@ -33,7 +33,7 @@ def header(kicker, title, subtitle=""):
     )
 
 def medal(n):
-    return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"\`{n:02}\`")
+    return {1:"🥇",2:"🥈",3:"🥉"}.get(n, f"`{n:02}`")
 
 def contest_board(bot, guild, user):
     season=bot.competition.season(guild.id)
