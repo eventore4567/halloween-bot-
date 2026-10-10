@@ -292,9 +292,10 @@ class Economy(commands.Cog):
     @app_commands.guild_only()
     async def inventory(self, interaction: discord.Interaction):
         stored = self.bot.store.inventory(interaction.guild.id, interaction.user.id)
+        special = {"legendary_pumpkin": "🎃 Citrouille légendaire"}
         lines = [
-            f"{ITEMS[x['item']][0]}  × **{x['quantity']}**"
-            for x in stored if x["item"] in ITEMS
+            f"{ITEMS[x['item']][0] if x['item'] in ITEMS else special.get(x['item'], x['item'])}  × **{x['quantity']}**"
+            for x in stored
         ]
         panel = card(
             "Ton inventaire",
