@@ -295,6 +295,37 @@ class Competition:
                 (guild_id, season["season_id"], user_id),
             ).fetchone():
                 return {"status": "join_first"}
+            # Round-only points when automatic competition is configured.
+            # Enforced IN THIS TRANSACTION: direct slash commands and replayed
+            # view interactions cannot bypass the registration window.
+            active = None
+            config = c.execute(
+                "SELECT enabled FROM round_config WHERE guild_id=?",
+                (guild_id,),
+            ).fetchone() if c.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='round_config'"
+            ).fetchone() else None
+            if config and config["enabled"]:
+                active = c.execute(
+                    "SELECT * FROM competition_rounds WHERE guild_id=? "
+                    "AND status='active' AND started_at<=? AND ends_at>?",
+                    (guild_id,now,now),
+                ).fetchone()
+                if not active:
+                    return {"status": "not_active_round"}
+                if not c.execute(
+                    "SELECT 1 FROM round_participants "
+                    "WHERE round_id=? AND user_id=?",
+                    (active["id"],user_id),
+                ).fetchone():
+                    return {"status": "round_not_joined"}
+                if c.execute(
+                    "SELECT 1 FROM tournament_attempts WHERE guild_id=? "
+                    "AND user_id=? AND started_at>=? AND started_at<?",
+                    (guild_id,user_id,active["started_at"],active["ends_at"]),
+                ).fetchone():
+                    return {"status": "already_round"}
             if c.execute(
                 "SELECT 1 FROM tournament_attempts "
                 "WHERE guild_id=? AND season_id=? AND user_id=? "
@@ -303,7 +334,8 @@ class Competition:
                  calendar_day(now), mode),
             ).fetchone():
                 return {"status": "already_today"}
-            deadline = min(now + MAX_TIME, season["ends_at"])
+            deadline = min(now + MAX_TIME, season["ends_at"],
+                           active["ends_at"] if active else now + MAX_TIME)
             if deadline <= now:
                 return {"status": "closed"}
             c.execute(
@@ -336,7 +368,7 @@ class Competition:
                 "WHERE guild_id=? AND season_id=?",
                 (guild_id,row["season_id"]),
             ).fetchone()
-            if (now > row["expires_at"] or not season or
+            if (now >= row["expires_at"] or not season or
                 season["status"] != "active" or now >= season["ends_at"]):
                 c.execute(
                     "UPDATE tournament_attempts SET outcome='expired',finished_at=? "

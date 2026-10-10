@@ -137,9 +137,9 @@ def rules_card(season):
              "📜 Mot maudit : **130 points**\n"
              "🗝️ Code de la crypte : **160 points**", False),
             ("⏳  LIMITES",
-             "Une seule tentative de chaque épreuve par jour UTC. "
+             "Un défi par manche, trois maximum par jour UTC. "
              "100 secondes maximum pour répondre. "
-             "Un mauvais résultat ou un abandon consomme la tentative.", False),
+             "Un échec ou abandon consomme la tentative.", False),
             ("🚫  INTERDIT",
              "Automatisation, comptes multiples, manipulation d'API, "
              "exploitation de bugs et achats de points.", False),
@@ -169,8 +169,8 @@ def competition_card(bot, guild, user):
                 ("🦇  POUR LES JOUEURS",
                  "Tous les jeux Halloween classiques restent disponibles.", False),
                 ("⚙️  POUR LES ORGANISATEURS",
-                 "Utilise /tournament_start pour lancer une compétition gratuite "
-                 "avec une date de fin et des règles publiques.", False),
+                 "Le tournoi est lancé automatiquement depuis /setup, "
+                 "avec annonce et rôle configurables.", False),
             ],
         )
     entry = bot.competition.position(guild.id, user.id)
@@ -195,7 +195,8 @@ def competition_card(bot, guild, user):
              "🔮 **Calcul** · 100 pts\n"
              "📜 **Mot maudit** · 130 pts\n"
              "🗝️ **Code de la crypte** · 160 pts\n\n"
-             "Un seul essai par épreuve et par jour.", False),
+             "Inscription requise à chaque manche. "
+             "Une épreuve par manche, trois maximum par jour.", False),
             ("🎁  RÉCOMPENSE ANNONCÉE", _reward(season), False),
         ],
         note="Si un prix réel est proposé, l'organisateur doit vérifier "
@@ -319,6 +320,9 @@ class ChallengeView(discord.ui.View):
                         "closed": "Le tournoi n'est plus ouvert.",
                         "join_first": "Inscris-toi avec /competition avant de jouer.",
                         "already_today": "Ce défi a déjà été tenté aujourd'hui.",
+                        "already_round": "Tu ne peux marquer qu'une fois par manche.",
+                        "not_active_round": "La manche n'a pas encore commencé.",
+                        "round_not_joined": "Tu n'es pas inscrit à cette manche.",
                     }
                     return await fail(interaction, reasons.get(issued["status"],
                                                              "Défi indisponible."))
@@ -366,15 +370,23 @@ class CompetitionView(discord.ui.View):
         label="Participer", emoji="✅", style=discord.ButtonStyle.success, row=0
     )
     async def join(self, interaction, button):
-        result = interaction.client.competition.join(
-            interaction.guild.id, interaction.user.id
+        current = interaction.client.round_store.current(interaction.guild.id)
+        if not current or current["status"] != "signup":
+            return await fail(interaction,
+                              "Attends la prochaine annonce d'inscription.")
+        result = interaction.client.round_store.join(
+            current["id"], interaction.guild.id, interaction.user.id
         )
-        if result == "welcome":
-            text = "✨ **Inscription confirmée !** Tu peux désormais jouer."
-        elif result == "joined":
-            text = "🦇 Tu es déjà inscrit pour cette saison."
+        if result == "joined":
+            interaction.client.competition.join(
+                interaction.guild.id, interaction.user.id
+            )
+            text = "✨ **Tu es inscrit pour cette manche !**"
+        elif result == "already_joined":
+            text = "🦇 Tu es déjà inscrit pour cette manche."
         else:
-            return await fail(interaction, "Les inscriptions ne sont pas ouvertes.")
+            return await fail(interaction,
+                              "Les inscriptions de cette manche sont terminées.")
         await interaction.response.send_message(
             embed=card("Inscription Halloween Cup", text, theme="success",
                        note="Participation gratuite. Une personne par compte ; "
@@ -386,10 +398,12 @@ class CompetitionView(discord.ui.View):
         label="Défis", emoji="🧩", style=discord.ButtonStyle.primary, row=0
     )
     async def challenges(self, interaction, button):
-        if not interaction.client.competition.entry(
+        status, _ = interaction.client.round_store.check(
             interaction.guild.id, interaction.user.id
-        ):
-            return await fail(interaction, "Inscris-toi d'abord avec Participer.")
+        )
+        if status != "ready":
+            return await fail(interaction,
+                "Inscris-toi à une manche et attends son lancement automatique.")
         available = interaction.client.competition.remaining_modes(
             interaction.guild.id, interaction.user.id
         )
@@ -458,9 +472,9 @@ class CompetitionCog(commands.Cog):
     )
     @app_commands.guild_only()
     async def competition(self, interaction: discord.Interaction):
+        from .visuals import CompetitionHome
         await interaction.response.send_message(
-            embed=competition_card(self.bot, interaction.guild, interaction.user),
-            view=CompetitionView(),
+            view=CompetitionHome(self.bot, interaction.guild, interaction.user),
         )
 
     @app_commands.command(
@@ -468,11 +482,13 @@ class CompetitionCog(commands.Cog):
     )
     @app_commands.guild_only()
     async def challenge(self, interaction: discord.Interaction):
-        entry = self.bot.competition.entry(
+        status, _ = self.bot.round_store.check(
             interaction.guild.id, interaction.user.id
         )
-        if entry is None:
-            return await fail(interaction, "Inscris-toi via /competition avant de jouer.")
+        if status != "ready":
+            return await fail(interaction,
+                "Inscris-toi pendant les 10 ou 30 minutes de participation, "
+                "puis attends le lancement automatique.")
         season = self.bot.competition.season(interaction.guild.id)
         if not season or season["status"] != "active":
             return await fail(interaction, "La compétition est actuellement fermée.")
@@ -492,7 +508,7 @@ class CompetitionCog(commands.Cog):
                          for mode, entry in MODES.items()
                      ), False),
                 ],
-                note="Une tentative par épreuve et par jour UTC. "
+                note="Une tentative par manche, trois maximum par jour UTC. "
                      "Lancer le défi consomme la tentative.",
             ),
             view=ChallengeView(
@@ -501,167 +517,6 @@ class CompetitionCog(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.command(
-        name="competition_top", description="🏆 Top 10 de la saison"
-    )
-    @app_commands.guild_only()
-    async def competition_top(self, interaction: discord.Interaction):
-        await interaction.response.send_message(
-            embed=top_card(self.bot, interaction.guild)
-        )
-
-    @app_commands.command(
-        name="competition_rank", description="💎 Ton rang et ta division"
-    )
-    @app_commands.guild_only()
-    async def competition_rank(self, interaction: discord.Interaction,
-                               membre: discord.Member | None = None):
-        await interaction.response.send_message(
-            embed=rank_card(self.bot, interaction.guild, membre or interaction.user)
-        )
-
-    @app_commands.command(
-        name="tournament_start", description="⚙️ Lancer la compétition (organisateurs)"
-    )
-    @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild=True)
-    @app_commands.describe(
-        fin="Dernier jour du tournoi en UTC : AAAA-MM-JJ",
-        prix="Prix annoncé par les organisateurs (facultatif)",
-        reglement="Lien HTTPS du règlement, obligatoire en cas de prix",
-    )
-    async def tournament_start(
-        self,
-        interaction: discord.Interaction,
-        fin: str,
-        prix: str = "",
-        reglement: str = "",
-    ):
-        if not authorized(interaction):
-            return await fail(interaction, "Permission Gérer le serveur requise.")
-        try:
-            ending = datetime.strptime(fin, "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ) + timedelta(days=1)
-        except ValueError:
-            return await fail(interaction, "Format attendu : AAAA-MM-JJ.")
-        outcome = self.bot.competition.start(
-            interaction.guild.id,
-            interaction.user.id,
-            int(ending.timestamp()),
-            prize_label=prix,
-            rules_url=reglement,
-        )
-        if outcome["status"] != "started":
-            reasons = {
-                "bad_date": "Choisis une fin future, entre demain et dans 62 jours.",
-                "rules_required": "Un prix annoncé exige un lien HTTPS vers "
-                                  "le règlement officiel du tournoi.",
-                "already_running": "Un tournoi est déjà en cours sur ce serveur.",
-            }
-            return await fail(interaction, reasons.get(outcome["status"],
-                                                      "Impossible de démarrer."))
-        await interaction.response.send_message(
-            embed=card(
-                "Halloween Cup lancée",
-                "🏆 **La saison est officiellement ouverte !**",
-                theme="success",
-                sections=[
-                    ("⏳  FIN", f"<t:{int(ending.timestamp())}:F>", False),
-                    ("🎁  PRIX",
-                     prix or "Aucun prix réel configuré.", False),
-                    ("🦇  PARTICIPER",
-                     "Les membres utilisent /competition pour rejoindre l'arène.", False),
-                ],
-                note="Les points sont désormais calculés indépendamment des bonbons.",
-            ),
-            ephemeral=True,
-        )
-        channel_id = self.bot.store.configured_channel(interaction.guild.id)
-        channel = interaction.guild.get_channel(channel_id) if channel_id else None
-        if isinstance(channel, discord.TextChannel):
-            try:
-                await channel.send(
-                    embed=competition_card(self.bot, interaction.guild,
-                                           interaction.user),
-                    view=CompetitionView(),
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            except discord.HTTPException:
-                pass
-
-    @app_commands.command(
-        name="tournament_close", description="🔒 Clore la saison (organisateurs)"
-    )
-    @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild=True)
-    async def tournament_close(self, interaction: discord.Interaction):
-        if not authorized(interaction):
-            return await fail(interaction, "Permission Gérer le serveur requise.")
-        if not self.bot.competition.close(interaction.guild.id):
-            return await fail(interaction, "Aucune saison active à clôturer.")
-        await interaction.response.send_message(
-            embed=card(
-                "Saison clôturée",
-                "🔒 **Les classements sont gelés.**",
-                theme="night",
-                sections=[
-                    ("🏆  SUITE",
-                     "Exporte l'historique avec /tournament_audit, "
-                     "contrôle les comptes et départage les égalités avant "
-                     "d'annoncer un gagnant.", False),
-                ],
-                note="La clôture ne déclenche aucun paiement.",
-            ),
-            ephemeral=True,
-        )
-
-    @app_commands.command(
-        name="tournament_audit", description="📜 Exporter les essais de la saison (organisateurs)"
-    )
-    @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild=True)
-    async def tournament_audit(self, interaction: discord.Interaction):
-        if not authorized(interaction):
-            return await fail(interaction, "Permission Gérer le serveur requise.")
-        rows, season = self.bot.competition.audit(interaction.guild.id)
-        if not season:
-            return await fail(interaction, "Aucune saison à auditer.")
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow([
-            "user_id", "epreuve", "jour_utc", "commence_unix",
-            "termine_unix", "resultat", "points",
-        ])
-        for row in rows:
-            writer.writerow([
-                row["user_id"], row["mode"], row["utc_day"],
-                row["started_at"], row["finished_at"] or "",
-                row["outcome"], row["points"],
-            ])
-        archive = io.BytesIO()
-        filename = (
-            f"halloween-audit-{interaction.guild.id}-{season['season_id']}.csv"
-        )
-        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output_zip:
-            output_zip.writestr(filename, output.getvalue().encode("utf-8-sig"))
-        archive.seek(0)
-        warning = (
-            "⚠️ L'export a atteint la limite de 100 000 lignes. "
-            "Vérifie les autres tentatives directement dans la base.\n"
-            if len(rows) >= 100000 else ""
-        )
-        await interaction.followup.send(
-            content=(
-                f"📜 **{len(rows):,} tentatives exportées (ZIP contenant un CSV).**\n"
-                + warning
-                + "Contrôle les éventuels comptes multiples, les comportements "
-                  "anormaux et les égalités avant toute remise de prix."
-            ),
-            file=discord.File(archive, filename=filename + ".zip"),
-            ephemeral=True,
-        )
 
 
 async def setup(bot):

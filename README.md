@@ -11,7 +11,7 @@ Un bot Halloween **jouable**, avec des bonbons, des classements par serveur, une
 | /trickortreat | Bonbon ou mauvais sort (15 min) |
 | /ghosthunt | Capturer des fantômes (5 min) |
 | /pumpkin | Ouvrir une citrouille surprise (10 min) |
-| /quiz | Questions ou énigmes avec boutons (4 min) |
+| /quiz | Quiz des ténèbres (4 catégories, 4 difficultés, 4 réponses) |
 | /duel | Défier quelqu'un (5 min) |
 | /boss | Combat collectif et récompenses (20 min par serveur) |
 | /expedition | Explorer une maison hantée (10 min) |
@@ -23,7 +23,7 @@ Un bot Halloween **jouable**, avec des bonbons, des classements par serveur, une
 | /give | Offrir des bonbons à un membre |
 | /achievements | 11 succès à débloquer |
 | /guide | Afficher l'aide |
-| /setup | Sélectionner le salon d'événements (Gérer le serveur) |
+| /film_horreur | Reconnaître un film d'horreur sur une image publique |\n| /setup | Panneau unique pour salon, rôle, fréquence et inscriptions |
 
 ## 🎨 Décoration et emojis du bot
 
@@ -42,63 +42,76 @@ Dans le **Discord Developer Portal**, ouvre ton application > **Emojis** et ajou
 Le bot les récupère automatiquement au démarrage et les affiche dans ses embeds, ses boutons et ses menus.
 S'il ne trouve pas un emoji, il affiche un emoji Unicode correspondant sans erreur. Aucun réglage n'est nécessaire dans /setup.
 
-Le chargement des emojis de l'application nécessite discord.py 2.5 ou plus récent.
+Le chargement des emojis de l'application nécessite discord.py 2.6 ou plus récent.
 Après avoir ajouté des emojis, redémarre simplement le service Railway.
-## 🏆 Halloween Cup — compétition de saison
+## 🏆 CRYPT CUP — la compétition automatique
 
-Le bot conserve **deux classements distincts** :
+**Une interface unique conçue avec les composants Discord V2** : vraie mise en page,
+sections encadrées, couleurs violet / ambre / jade, tableau d'honneur, boutons.
+La compétition ne reprend pas le style d'autres bots.
 
-1. **Halloween Cup / compétition** : points attribués uniquement à des
-   **défis de réflexion correctement résolus**, avec trois tentatives différentes
-   par jour. Aucun achat, don de bonbons, événement aléatoire, boss ou duel
-   de chance ne modifie ces points.
-2. **Économie Halloween classique** : bonbons, fantômes, récoltes, objets,
-   duels et autres statistiques pour jouer sans enjeu.
+### Lancer en 30 secondes
 
-### Commandes
+1. **/setup** (réservé aux membres qui peuvent Gérer le serveur).
+2. Choisir un **salon textuel** et un **rôle à mentionner**.
+3. Choisir les annonces **toutes les 30, 60 ou 120 minutes**.
+4. Choisir **10 ou 30 minutes pour s'inscrire**.
+5. Cliquer sur **Valider & programmer**.
+
+La saison démarre automatiquement et se termine à Halloween (UTC) ou,
+après Halloween, dans 14 jours. Le bot publie directement une annonce dans
+le salon choisi, **en mentionnant uniquement le rôle configuré**.
+Les membres cliquent sur **INSCRIRE MON NOM**. À la fin des inscriptions,
+la manche démarre automatiquement et dure **10 minutes**. Le podium de manche
+se met à jour une fois le temps écoulé. Tout fonctionne après un redémarrage.
+
+### Commandes utiles (liste réduite)
 
 | Commande | Fonction |
 |---|---|
-| /competition | Arène interactive (inscription, défis, Top 10, rang, règlement) |
-| /challenge | Trois défis individuels, différents chaque jour |
-| /competition_top | Classement officiel par points de saison |
-| /competition_rank | Rang, division Bronze → Légende, progression |
-| /leaderboard | Affiche les scores de compétition par défaut ; autres catégories possibles |
-| /tournament_start | Lancer une saison, réservé aux membres ayant Gérer le serveur |
-| /tournament_close | Clore manuellement la saison |
-| /tournament_audit | Export CSV des essais, réservé aux organisateurs |
+| /competition | Vrai centre de compétition CRYPT CUP, avec inscriptions, défis, Top 10 et règlement |
+| /challenge | Les défis disponibles **pendant une manche**, réservé aux inscrits |
+| /leaderboard | Classement de saison par défaut, autres statistiques accessibles |
+| /quiz | Quiz public à difficultés facile, moyen, difficile, expert |
+| /film_horreur | Reconnaitre un film d'horreur à l'aide d'une image de Wikimedia Commons |
+| /setup | Configuration et **rapport CSV** réservé aux responsables |
 
-Les défis **calcul, mot maudit et code de la crypte** donnent respectivement
-100, 130 et 160 points pour une réponse juste. Un joueur a au maximum
-une tentative de chaque type par **jour UTC** ; le délai est de 100 secondes.
-Chaque membre reçoit une question générée pour lui. Une tentative interrompue,
-incorrecte ou expirée reste consommée jusqu'au lendemain.
+Les **trois épreuves individuelles** rapportent 100, 130 et 160 points.
+Une seule épreuve est comptabilisée par manche, **trois au maximum par jour UTC**.
+Les joueurs disposent de 100 secondes maximum. Il faut s'inscrire pendant
+la fenêtre publique pour pouvoir marquer des points dans la manche.
 
-Il y a **cinq divisions** : Bronze (0+), Argent (350+), Or (950+),
-Diamant (2 200+) et Légende (4 500+). Les égalités sont affichées avec
-le **même rang** et exigent un départage humain.
+Les **bonbons, la ferme, les duels aléatoires, le quiz communautaire et les
+images de films** donnent des récompenses virtuelles mais **aucun point** pour
+le classement réel. Les points officiels sont enregistrés dans une base SQLite
+avec historique des tentatives, contrôles anti-double paiement et score
+réservé aux inscrits.
 
-### Démarrer simplement la compétition
+Les divisions sont **Bronze, Argent, Or, Diamant, Légende**. Les égalités
+obtiennent le même rang. Les résultats restent provisoires jusqu'à validation
+par un organisateur.
 
-1. Compléter puis publier le fichier
-   [TOURNAMENT_RULES_TEMPLATE.md](TOURNAMENT_RULES_TEMPLATE.md)
-   sous forme de page HTTPS accessible à tous les participants.
-2. Dans Discord, un administrateur utilise
-   \`/tournament_start fin:2026-10-31 prix:1 000 € reglement:https://...\`
-   (fin à la fin de la journée UTC).
-3. Les joueurs utilisent **/competition → Participer → Défis**.
-4. À la fin, l'administrateur utilise **/tournament_audit** puis vérifie
-   les comptes, l'éligibilité, les résultats anormaux et les égalités avant
-   d'annoncer un gagnant.
+### 🎬 Devine le film d'horreur
 
-**Important :** aucune somme réelle n'est encaissée, misée ou versée par le
-bot. Le **prix est annoncé et financé par l'organisateur**, pas garanti
-par le logiciel. Une compétition avec enjeu réel nécessite un règlement
-clair, un contrôle de triche, des critères d'âge et de pays admissibles,
-ainsi qu'une vérification de conformité juridique par l'organisateur.
-Les défis du bot seuls ne permettent **pas d'exclure tous les usages
-d'IA, d'automatisation ou de comptes multiples** : pour un prix substantiel,
-prévoyez une finale surveillée par un humain.
+Le bot utilise une sélection de photogrammes de films anciens disponibles sur
+Wikimedia Commons. Les sources sont données dans le message **après** la
+question. Il n'affiche pas les titres ou les liens de source pendant le jeu.
+Le corpus est volontairement limité aux images dont la page de fichier existe,
+avec un niveau facile/moyen/difficile. Les règles de réutilisation et droits
+d'auteur peuvent varier selon les pays.
+
+### 💰 Si un prix de 1 000 € est annoncé
+
+**Le prix est offert par l'organisateur, pas par le bot.** Dans /setup,
+ouvrir **Prix & règles**, remplir le montant annoncé et une URL HTTPS vers
+un règlement officiel. Sans ce règlement, le lancement est bloqué si un
+prix est mentionné. L'organisateur doit vérifier les conditions d'âge,
+l'éligibilité, le traitement des données et la légalité locale, et effectuer
+une finale surveillée avant de verser un prix important.
+
+Le rapport complet est récupérable via le bouton **Rapport final** du /setup :
+il contient les essais et les points. Aucun paiement automatique, mise d'argent
+ou choix définitif du gagnant n'est programmé.
 
 
 ## 🌾 La ferme de citrouilles
@@ -107,7 +120,7 @@ Ouvre **/farm** : trois graines sont proposées, avec différentes durées et r�
 
 ## 🔧 Lancer le bot
 
-Python 3.11+ et discord.py 2.x requis.
+Python 3.11+ et **discord.py 2.6+** requis.
 
 ```sh
 pip install -r requirements.txt
@@ -139,7 +152,7 @@ Le projet comprend des tests de transactions, de classement, de ferme, d'événe
 - `halloween_bot/games.py` : mini-jeux, duels, boss, expéditions.
 - `halloween_bot/farming.py` : panneau interactif de culture et récolte.
 - `halloween_bot/events.py` : apparitions, boutons persistants, expiration.
-- `halloween_bot/admin.py` : configuration unique du salon.
+- `halloween_bot/admin.py` : configuration du salon, rôle, durée, fréquence et rapport des résultats.\n- `halloween_bot/round_store.py` et `halloween_bot/rounds.py` : manches automatiques persistantes.\n- `halloween_bot/quiz_content.py` et `halloween_bot/quiz_games.py` : quiz à difficultés et films.\n- `halloween_bot/visuals.py` : interface originale CRYPT CUP en Discord Components V2.
 - `halloween_bot/content.py` : questions, objets, décors.
 - `halloween_bot/common.py` : messages, mises en forme, composants communs.
 
