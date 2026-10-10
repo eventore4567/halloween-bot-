@@ -49,6 +49,12 @@ class Store:
                 guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
                 item TEXT NOT NULL, quantity INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (guild_id,user_id,item))""")
+
+            c.execute("""CREATE TABLE IF NOT EXISTS trick_progress (
+                guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+                streak INTEGER NOT NULL DEFAULT 0,
+                plays INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (guild_id,user_id))""")
             c.execute("""CREATE TABLE IF NOT EXISTS farms (
                 guild_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
                 level INTEGER NOT NULL DEFAULT 1,
@@ -118,6 +124,107 @@ class Store:
                 ON CONFLICT(guild_id,user_id,action) DO UPDATE SET ready_at=excluded.ready_at""",
                       (guild_id,user_id,action,now+duration))
             return 0
+
+
+    def trick_status(self, guild_id, user_id, now=None):
+        """Read the current trick-or-treat cooldown and winning streak."""
+        now = int(time.time() if now is None else now)
+        with self.lock:
+            row = self.db.execute(
+                "SELECT ready_at FROM cooldowns WHERE guild_id=? AND user_id=? AND action='trick'",
+                (guild_id, user_id),
+            ).fetchone()
+            streak = self.db.execute(
+                "SELECT streak FROM trick_progress WHERE guild_id=? AND user_id=?",
+                (guild_id, user_id),
+            ).fetchone()
+        return {
+            "wait": max(0, int(row["ready_at"]) - now) if row else 0,
+            "streak": int(streak["streak"]) if streak else 0,
+        }
+
+    def play_trick(self, guild_id, user_id, door, now=None):
+        """Settle ONE door atomically, including cooldown, inventory and streak.
+
+        No cooldown is consumed by opening the panel. Concurrent interactions,
+        including interactions from separate bot instances, cannot claim twice.
+        These are virtual sweets, never competition points or cash prizes.
+        """
+        if door not in (0, 1, 2):
+            raise ValueError("Unknown door")
+        now = int(time.time() if now is None else now)
+        # Each door has a distinct risk/reward distribution.
+        weights = (
+            (62, 8, 20, 10),   # the old oak door
+            (48, 20, 23, 9),   # the pumpkin door
+            (35, 27, 33, 5),   # the ghost door
+        )[door]
+        with self.transaction() as c:
+            self.ensure(c, guild_id, user_id)
+            prior = c.execute(
+                "SELECT ready_at FROM cooldowns "
+                "WHERE guild_id=? AND user_id=? AND action='trick'",
+                (guild_id, user_id),
+            ).fetchone()
+            if prior and prior["ready_at"] > now:
+                return {"status": "cooldown", "wait": prior["ready_at"] - now}
+            c.execute(
+                """INSERT INTO cooldowns (guild_id,user_id,action,ready_at)
+                   VALUES (?,?,'trick',?)
+                   ON CONFLICT(guild_id,user_id,action)
+                   DO UPDATE SET ready_at=excluded.ready_at""",
+                (guild_id, user_id, now + 900),
+            )
+            kind = random.choices(
+                ("treat", "jackpot", "trick", "nothing"), weights=weights
+            )[0]
+            if kind == "treat":
+                prize = random.randint(45, 135) + (20 if door == 1 else 0)
+            elif kind == "jackpot":
+                prize = random.randint(250, 420) + (50 if door == 2 else 0)
+            elif kind == "trick":
+                prize = -random.randint(15, 65) - (20 if door == 2 else 0)
+            else:
+                prize = 0
+
+            previous = c.execute(
+                "SELECT candies FROM players WHERE guild_id=? AND user_id=?",
+                (guild_id, user_id),
+            ).fetchone()["candies"]
+            actual = max(-previous, prize)
+            c.execute(
+                "UPDATE players SET candies=candies+?, earned=earned+? "
+                "WHERE guild_id=? AND user_id=?",
+                (actual, max(0, actual), guild_id, user_id),
+            )
+            row = c.execute(
+                "SELECT streak,plays FROM trick_progress "
+                "WHERE guild_id=? AND user_id=?",
+                (guild_id, user_id),
+            ).fetchone()
+            streak = (int(row["streak"]) if row else 0) + 1 if actual > 0 else 0
+            plays = (int(row["plays"]) if row else 0) + 1
+            c.execute(
+                """INSERT INTO trick_progress(guild_id,user_id,streak,plays)
+                   VALUES (?,?,?,?)
+                   ON CONFLICT(guild_id,user_id)
+                   DO UPDATE SET streak=excluded.streak,plays=excluded.plays""",
+                (guild_id, user_id, streak, plays),
+            )
+            rare = kind == "jackpot"
+            if rare:
+                c.execute(
+                    """INSERT INTO inventory (guild_id,user_id,item,quantity)
+                       VALUES (?,?,'legendary_pumpkin',1)
+                       ON CONFLICT(guild_id,user_id,item)
+                       DO UPDATE SET quantity=quantity+1""",
+                    (guild_id, user_id),
+                )
+            return {
+                "status": "ok", "kind": kind, "amount": actual,
+                "candies": previous + actual, "streak": streak,
+                "plays": plays, "rare": rare, "ready_at": now + 900,
+            }
 
     def gift(self, guild_id, sender, target, amount):
         if sender==target or not isinstance(amount,int) or not 1<=amount<=10000:
