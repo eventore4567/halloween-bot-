@@ -24,12 +24,13 @@ Un bot Halloween **jouable**, avec des bonbons, des classements par serveur, une
 | /achievements | 11 succès à débloquer |
 | /guide | Afficher l'aide |
 | /film_horreur | Reconnaître un film d'horreur sur une image publique |
-| /jeux | Cabinet des sept mini-jeux Halloween avec boutons |\n| /setup | Panneau unique pour salon, rôle, fréquence et inscriptions |
+| /jeux | Cabinet de 12 mini-jeux avec 4 difficultés et boutons |\n| /setup | Panneau unique pour salon, rôle, fréquence et inscriptions |
 
 ## 🕹️ Le cabinet des jeux Halloween
 
-**/jeux** ouvre un panneau illustré comme CRYPT CUP, avec **sept mini-jeux**
-disponibles sans multiplier les commandes slash :
+**/jeux** ouvre un panneau illustré comme CRYPT CUP, avec **12 mini-jeux**
+et quatre difficultés (Facile, Moyen, Difficile, Cauchemar), sans multiplier
+les commandes slash :
 
 - 🔮 **Mémoire des runes** : mémorise quatre symboles et reproduis l'ordre après la disparition du modèle.
 - 👻 **Réflexe du fantôme** : attends son apparition puis clique au plus vite.
@@ -38,11 +39,18 @@ disponibles sans multiplier les commandes slash :
 - ⚰️ **Coffres hantés** : choisis un coffre, parfois vide, parfois rempli de bonbons.
 - 🎲 **Dés du démon** : devine si le prochain lancer sera plus haut ou plus bas.
 - 🦇 **Chasse spectrale** : retrouve le fantôme caché derrière une tombe.
+- 🌑 **L'intrus des ombres** : repère le symbole qui brise le rituel.
+- 🕯️ **Bougies de la crypte** : résous trois calculs avant l'extinction.
+- 🧛 **Procès du vampire** : déjoue trois pièges grâce aux indices.
+- 🔮 **Tarot interdit** : prédis la couleur de la prochaine carte.
+- 💀 **Crâne maudit** : bats le gardien dans un duel de symboles.
 
 Chaque partie est individuelle (panneau éphémère), avec 85 secondes maximum,
 des boutons Discord interactifs et une récompense de bonbons virtuels. Une
 protection SQLite limite les répétitions à **une partie toutes les deux
-minutes par jeu**. Les gains sont accordés une seule fois par partie.
+minutes par jeu**. Les gains sont accordés une seule fois par partie. Les
+niveaux plus risqués augmentent uniquement les bonbons virtuels ; ils ne
+modifient jamais les points du tournoi.
 
 **Aucun mini-jeu, hasard ou bonbon ne modifie les points de la compétition
 CRYPT CUP offrant éventuellement un prix réel.** Les scores du tournoi restent

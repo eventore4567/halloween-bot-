@@ -18,7 +18,7 @@ WIDTH, HEIGHT = 1280, 310
 FILENAME = "halloween-arcade.jpg"
 
 
-@lru_cache(maxsize=9)
+@lru_cache(maxsize=16)
 def banner_bytes(mode: str) -> bytes:
     if mode not in (*MODES, "menu", "quiz"):
         raise ValueError(mode)
@@ -34,7 +34,7 @@ def banner_bytes(mode: str) -> bytes:
         else "LE QUIZ DES TÉNÈBRES" if mode == "quiz"
         else MODES[mode][0].upper()
     )
-    line = ("SEPT MINI-JEUX • BONBONS VIRTUELS"
+    line = ("12 MINI-JEUX • 4 DIFFICULTÉS • BONBONS VIRTUELS"
             if mode == "menu" else
             "QUESTIONS • 4 NIVEAUX • BONBONS" if mode == "quiz" else
             "L'ÉPREUVE HALLOWEEN A COMMENCÉ")

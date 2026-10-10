@@ -1,4 +1,4 @@
-"""CRYPT CUP arcade: seven small interactive Discord Components V2 games.
+"""CRYPT CUP arcade: twelve interactive Discord Components V2 games.
 
 All games are reachable from a SINGLE slash command (/jeux) and an existing
 /halloween hub button. Avoids command spam. Visuals use original in-app
@@ -18,19 +18,19 @@ from discord.ext import commands
 
 from .common import button_icon, fail, wait_text
 from .mini_art import FILENAME, banner_file
-from .mini_engine import MODES, MiniSession, TTL_SECONDS
+from .mini_engine import DIFFICULTIES, MODES, MiniSession, TTL_SECONDS
 
 LOG = logging.getLogger(__name__)
 
 INTRO = (
     "### 🕹️ LE CABINET DES JEUX\n"
-    "Sept petites aventures à jouer seul, sans argent ni mise.\n"
+    "Douze aventures à jouer seul, sans argent ni mise.\n"
     "Découvre la bonne porte, fabrique des potions, capture un fantôme ou "
     "affronte le démon. Les récompenses sont des **bonbons virtuels**.\n"
     "-# Aucun de ces jeux ne donne de points pour le concours CRYPT CUP."
 )
 COOLDOWN_SECONDS = 120
-SKILL_MODES = frozenset(("memoire", "labyrinthe", "chaudron"))
+SKILL_MODES = frozenset(("memoire", "labyrinthe", "chaudron", "bougies", "vampire", "ombres"))
 
 
 def _gallery():
@@ -40,13 +40,14 @@ def _gallery():
 
 
 class ArcadeHub(discord.ui.LayoutView):
-    """Seven launch buttons on two balanced rows, with no grey containers."""
+    """Twelve launch buttons on three balanced rows, with no grey containers."""
 
-    def __init__(self, bot, owner_id: int, guild_id: int):
+    def __init__(self, bot, owner_id: int, guild_id: int, difficulty="moyen"):
         super().__init__(timeout=480)
         self.bot = bot
         self.owner_id = owner_id
         self.guild_id = guild_id
+        self.difficulty = difficulty
         self.add_item(_gallery())
         self.add_item(discord.ui.TextDisplay(INTRO))
 
@@ -57,7 +58,7 @@ class ArcadeHub(discord.ui.LayoutView):
                 style=(discord.ButtonStyle.primary
                        if mode in SKILL_MODES else
                        discord.ButtonStyle.secondary),
-                custom_id=f"crypt:arcade:launch:{mode}",
+                custom_id=f"crypt:arcade:launch:{mode}:{difficulty}",
             )
 
             async def click(interaction, chosen=mode):
@@ -66,7 +67,8 @@ class ArcadeHub(discord.ui.LayoutView):
             b.callback=click
             buttons.append(b)
         self.add_item(discord.ui.ActionRow(*buttons[:4]))
-        self.add_item(discord.ui.ActionRow(*buttons[4:]))
+        self.add_item(discord.ui.ActionRow(*buttons[4:8]))
+        self.add_item(discord.ui.ActionRow(*buttons[8:]))
 
     async def interaction_check(self, interaction: discord.Interaction):
         if (not interaction.guild or interaction.guild.id!=self.guild_id
@@ -84,7 +86,9 @@ class ArcadeHub(discord.ui.LayoutView):
         )
         if wait:
             return await fail(interaction,wait_text(wait))
-        game=MiniGameView(self.bot,self.guild_id,self.owner_id,mode)
+        game=MiniGameView(
+            self.bot,self.guild_id,self.owner_id,mode,difficulty=self.difficulty
+        )
         try:
             await interaction.response.send_message(
                 view=game,file=banner_file(mode),ephemeral=True,
@@ -98,12 +102,12 @@ class ArcadeHub(discord.ui.LayoutView):
 
 
 class MiniGameView(discord.ui.LayoutView):
-    def __init__(self,bot,guild_id:int,owner_id:int,mode:str):
+    def __init__(self,bot,guild_id:int,owner_id:int,mode:str,difficulty="moyen"):
         super().__init__(timeout=TTL_SECONDS + 3)
         self.bot=bot
         self.guild_id=guild_id
         self.owner_id=owner_id
-        self.session=MiniSession(mode)
+        self.session=MiniSession(mode,difficulty=difficulty)
         self.message=None
         self._lock=asyncio.Lock()
         self._feedback=""
@@ -122,6 +126,7 @@ class MiniGameView(discord.ui.LayoutView):
         self.clear_items()
         s=self.session
         title,description,max_reward,emoji_key=MODES[s.mode]
+        difficulty_label,multiplier=DIFFICULTIES[s.difficulty]
         remaining=int(time.time()+max(0,s.deadline-time.monotonic()))
         self.add_item(_gallery())
         if s.done:
@@ -140,7 +145,7 @@ class MiniGameView(discord.ui.LayoutView):
                 f"### {title.upper()}\n"
                 f"{description}\n\n"
                 f"{s.prompt()}\n\n"
-                f"🍬 Gain possible : **jusqu'à {max_reward} bonbons** "
+                f"{difficulty_label} • 🍬 Gain possible : **jusqu'à {round(max_reward * multiplier)} bonbons** "
                 f"• ⏳ Fin <t:{remaining}:R>\n"
             )
             if self._feedback:
@@ -248,22 +253,36 @@ class MiniArcade(commands.Cog):
     def __init__(self,bot):
         self.bot=bot
 
-    async def send_hub(self,interaction:discord.Interaction):
+    async def send_hub(self,interaction:discord.Interaction,difficulty="moyen"):
         if not interaction.guild:
             return await fail(interaction,"Les jeux sont disponibles sur un serveur.")
         await interaction.response.send_message(
-            view=ArcadeHub(self.bot,interaction.user.id,interaction.guild.id),
+            view=ArcadeHub(
+                self.bot,interaction.user.id,interaction.guild.id,difficulty
+            ),
             file=banner_file("menu"),ephemeral=True,
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @app_commands.command(
         name="jeux",
-        description="🎃 Sept mini-jeux Halloween dans le cabinet des ombres",
+        description="🎃 Douze mini-jeux Halloween avec quatre difficultés",
     )
     @app_commands.guild_only()
-    async def jeux(self,interaction:discord.Interaction):
-        await self.send_hub(interaction)
+    @app_commands.describe(difficulte="Niveau de risque et de récompense")
+    @app_commands.choices(difficulte=[
+        app_commands.Choice(name="🌱 Facile",value="facile"),
+        app_commands.Choice(name="🔥 Moyen",value="moyen"),
+        app_commands.Choice(name="💀 Difficile",value="difficile"),
+        app_commands.Choice(name="👑 Cauchemar",value="cauchemar"),
+    ])
+    async def jeux(
+        self,interaction:discord.Interaction,
+        difficulte:app_commands.Choice[str] | None=None,
+    ):
+        await self.send_hub(
+            interaction,difficulte.value if difficulte else "moyen"
+        )
 
 
 async def setup(bot):
