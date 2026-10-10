@@ -10,13 +10,14 @@ import asyncio
 import logging
 import random
 import time
+from functools import lru_cache
+from importlib.resources import files
 from io import BytesIO
 
 import discord
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .common import button_icon, fail, wait_text
-from .scene import _lettering, _fit
 
 LOG = logging.getLogger(__name__)
 WIDTH, HEIGHT = 1280, 700
@@ -37,9 +38,43 @@ DOORS = (
 RARE_NAME = "Citrouille légendaire"
 
 
+@lru_cache(maxsize=64)
+def _font(size, *, serif=False, bold=True):
+    """Package-provided font: avoids Railway's missing-glyph/tofu fallback.
+
+    ReportLab bundles Bitstream Vera TrueType, including accented French
+    capitals, lowercase accents, bullet points and dashes. The previous
+    scene renderer could use PIL's minimal fallback on Railway (rendering □).
+    Never silently fall back to fonts lacking these glyphs.
+    """
+    family = "VeraBd.ttf" if bold or serif else "Vera.ttf"
+    path = files("reportlab").joinpath("fonts", family)
+    return ImageFont.truetype(str(path), size=size)
+
+
+def _fit(value, width, *, size=50, min_size=24, serif=False):
+    draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    for step in range(size, min_size - 1, -1):
+        bounds = draw.textbbox((0, 0), str(value),
+                               font=_font(step, serif=serif))
+        if bounds[2] - bounds[0] <= width:
+            return step
+    return min_size
+
+
 def _write(img, xy, value, size, color=CREAM, *, anchor=None, glow=0, serif=False):
-    _lettering(img, xy, str(value), size, color=color, anchor=anchor,
-               glow=glow, serif=serif)
+    value = str(value)
+    font = _font(size, serif=serif)
+    if glow:
+        shine = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        ImageDraw.Draw(shine).text(
+            xy, value, font=font, anchor=anchor,
+            fill=(*color, 175), stroke_width=2, stroke_fill=(*color, 110))
+        img.alpha_composite(shine.filter(ImageFilter.GaussianBlur(glow)))
+    ImageDraw.Draw(img).text(
+        xy, value, font=font, anchor=anchor,
+        fill=(*color, 255), stroke_width=1,
+        stroke_fill=(12, 7, 23, 180))
 
 
 def _background():
@@ -94,7 +129,7 @@ def _background():
 
 def _door(img, center, *, number, chosen=False):
     x = center
-    y = 340
+    y = 354
     _, caption, hue = DOORS[number]
     d = ImageDraw.Draw(img)
     # Carved arch: a pointed roof plus a glowing wooden entrance.
@@ -120,9 +155,10 @@ def _door(img, center, *, number, chosen=False):
     d.ellipse((x+52,y+95,x+59,y+102),fill=(66,38,38))
     for dx in (-89,89):
         d.ellipse((x+dx-5,y+153,x+dx+5,y+164),fill=(*hue,255))
-    _write(img, (x, y+222), f"PORTE {number+1}", 34, COPPER if chosen else CREAM,
-           anchor="mm")
-    _write(img, (x, y+260), caption, 24, LILAC, anchor="mm")
+    # Keep door captions clear of the bottom status bar (starts at y=614).
+    _write(img, (x, y+183), f"PORTE {number+1}", 31,
+           COPPER if chosen else CREAM, anchor="mm")
+    _write(img, (x, y+225), caption, 21, LILAC, anchor="mm")
 
 
 def _header(img, title, kicker):
@@ -210,6 +246,49 @@ def _leaderboard(img, leaders):
                BRIGHT if filled else (149, 136, 169), anchor="ra")
 
 
+def _inventory(img, items):
+    """Compact collection pane: no oversized gaps between two lines."""
+    _header(img, "LE SAC DU CHASSEUR", "TES OBJETS ET TRÉSORS")
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((71, 239, 1205, 580), radius=23,
+                        fill=(17, 11, 32, 242),
+                        outline=(240, 161, 90, 195), width=3)
+    _write(img, (104, 261), "COLLECTION D'HALLOWEEN", 29, BRIGHT)
+    d.line((107, 317, 785, 317), fill=(201, 124, 114, 170), width=2)
+    shown = list(items[:4])
+    for j, (name, amount) in enumerate(shown):
+        top = 338 + j * 51
+        d.rounded_rectangle((100, top, 790, top+44), radius=12,
+                            fill=(40, 26, 49, 237),
+                            outline=(214, 124, 101, 135), width=2)
+        d.rounded_rectangle((102, top+8, 108, top+36), radius=3,
+                            fill=(*COPPER, 255))
+        label = str(name).strip()[:32] or "Objet mystérieux"
+        font = _fit(label, 525, size=27, min_size=21)
+        _write(img, (127, top+5), label, font, CREAM)
+        _write(img, (762, top+9), f"×{amount}", 25, BRIGHT, anchor="ra")
+    if not shown:
+        _write(img, (127, 361), "Ton sac attend ses premiers trésors.", 26, CREAM)
+    if len(items) > 4:
+        _write(img, (129, 549), f"+ {len(items)-4} objets dans /inventory", 19, LILAC)
+
+    # Simple original pumpkin emblem, integrated in the right-hand glass pane.
+    d.rounded_rectangle((824, 259, 1169, 548), radius=24,
+                        fill=(40, 24, 44, 238),
+                        outline=(229, 151, 98, 150), width=3)
+    d.ellipse((869, 309, 1127, 503), fill=(191, 84, 34, 255))
+    d.ellipse((900, 313, 1093, 499), fill=(235, 117, 40, 255))
+    d.ellipse((946, 314, 1049, 497), fill=(255, 159, 65, 255))
+    d.polygon([(988, 314), (976, 281), (998, 268), (1012, 312)],
+              fill=(73, 125, 73, 255))
+    d.polygon([(941, 371), (968, 409), (920, 410)],
+              fill=(40, 21, 35, 255))
+    d.polygon([(1050, 371), (1024, 409), (1072, 410)],
+              fill=(40, 21, 35, 255))
+    d.arc((929, 403, 1062, 473), 6, 175, fill=(40, 21, 35, 255), width=13)
+    _write(img, (997, 517), "MES TRÉSORS", 21, BRIGHT, anchor="mm")
+
+
 def banner_bytes(stage, candies, streak, *, selected=None, result=None,
                  inventory=(), leaders=(), remaining=0):
     img = _background()
@@ -247,11 +326,7 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _information(img,title,lines,hue=hue)
         _status(img,result["candies"],result["streak"],extra=f"PORTE {selected+1}")
     elif stage=="inventory":
-        lines=["TES OBJETS COLLECTIONNES"]
-        lines += [f"{name[:40]}    x{qty}" for name,qty in inventory[:5]]
-        if not inventory:
-            lines.append("AUCUN OBJET POUR LE MOMENT")
-        _information(img,"LE SAC DU CHASSEUR",lines)
+        _inventory(img, inventory)
         _status(img,candies,streak,extra="INVENTAIRE")
     elif stage=="leaderboard":
         _leaderboard(img, leaders[:5])
