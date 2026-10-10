@@ -126,7 +126,7 @@ class CompetitionHomeTests(unittest.TestCase):
             for child in view.children[0].children
         )
         self.assertIn("**#1**", description)
-        self.assertIn("**0 point**", description)
+        self.assertIn("**0 points**", description)
 
 
 if __name__ == "__main__":
