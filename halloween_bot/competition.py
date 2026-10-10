@@ -473,10 +473,10 @@ class CompetitionCog(commands.Cog):
     @app_commands.guild_only()
     async def competition(self, interaction: discord.Interaction):
         from .visuals import CompetitionHome
-        from .banner import competition_files
+        from .scene import competition_scene_file
         await interaction.response.send_message(
             view=CompetitionHome(self.bot, interaction.guild, interaction.user),
-            files=competition_files(),
+            file=competition_scene_file(self.bot, interaction.guild, interaction.user),
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
