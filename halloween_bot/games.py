@@ -286,8 +286,15 @@ class Games(commands.Cog):
             message="🌫️ Ton panier reste vide cette fois..."
         p=self.bot.store.award(g,u,amount)
         await interaction.response.send_message(embed=card(
-            "UN BONBON OU UN SORT ?",message+
-            f"\n\n🎃 Solde : **{p['candies']:,} 🍬**"))
+            "Bonbon ou mauvais sort ?",
+            message,
+            theme="success" if amount>0 else "danger" if amount<0 else "night",
+            sections=[
+                ("🍬  GAIN OU PERTE", f"**{amount:+} bonbons**", True),
+                ("🎒  TON SOLDE", f"**{p['candies']:,}**", True),
+            ],
+            note="Une nouvelle tentative sera disponible dans 15 minutes.",
+        ))
 
     @app_commands.command(name="ghosthunt",description="🦇 Partir à la chasse aux fantômes")
     @app_commands.guild_only()
@@ -296,14 +303,25 @@ class Games(commands.Cog):
         wait=self.bot.store.cooldown(g,u,"hunt",300)
         if wait:
             return await fail(interaction,wait_text(wait))
-        if random.random()<0.28:
-            message="🌫️ Tu traverses le cimetière... le fantôme s'enfuit !\n\n💀 Aucune récompense."
+        amount = 0
+        if random.random() < 0.28:
+            message = "🌫️ Le cimetière est silencieux... Le fantôme t'a échappé."
+            found = "💀 Aucun fantôme capturé."
         else:
-            name,low,high=random.choices(HUNTS,weights=[45,30,20,5])[0]
-            amount=random.randint(low,high)
-            self.bot.store.award(g,u,amount,ghosts=1)
-            message=f"🌙 **Un spectre surgit du brouillard !**\n\n{name} capturé.\n\n👻 +1 fantôme\n🍬 **+{amount} bonbons**"
-        await interaction.response.send_message(embed=card("CHASSE AUX FANTÔMES",message))
+            name, low, high = random.choices(HUNTS, weights=[45, 30, 20, 5])[0]
+            amount = random.randint(low, high)
+            self.bot.store.award(g, u, amount, ghosts=1)
+            message = "🌙 Une silhouette a surgi du brouillard..."
+            found = f"✨ **{name} capturé !**"
+        await interaction.response.send_message(embed=card(
+            "Chasse aux fantômes",
+            message,
+            theme="ghost" if amount else "night",
+            sections=[
+                ("👻  RENCONTRE", found, False),
+                ("🍬  RÉCOMPENSE", f"**+{amount} bonbons**", False),
+            ],
+        ))
 
     @app_commands.command(name="pumpkin",description="🎃 Ouvrir une citrouille mystérieuse")
     @app_commands.guild_only()
@@ -327,9 +345,14 @@ class Games(commands.Cog):
             "empty":"🕸️ Cette citrouille était vide..."
         }
         await interaction.response.send_message(embed=card(
-            "CITROUILLE MYSTÉRIEUSE",
-            f"{descriptions[kind]}\n\n🍬 **+{amount} bonbons**\n"
-            f"🪙 Solde : **{p['candies']:,}**"))
+            "La citrouille mystérieuse",
+            descriptions[kind],
+            theme="gold" if kind=="legendary" else "night" if kind=="empty" else "pumpkin",
+            sections=[
+                ("🍬  RÉCOMPENSE", f"**+{amount} bonbons**", True),
+                ("🎒  TON SOLDE", f"**{p['candies']:,}**", True),
+            ],
+        ))
 
     @app_commands.command(name="quiz",description="🧩 Répondre aux questions d'Halloween")
     @app_commands.guild_only()
