@@ -155,6 +155,8 @@ class ArcadeUiTests(unittest.TestCase):
             view=MiniGameView(self.bot,self.guild,self.owner,"coffres")
             reports=[]
             class Response:
+                def is_done(self):
+                    return False
                 async def send_message(self,content,ephemeral=False):
                     reports.append(content)
             wrong=SimpleNamespace(
