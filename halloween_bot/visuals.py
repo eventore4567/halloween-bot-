@@ -60,17 +60,12 @@ def contest_board(bot, guild, user, buttons):
     )
     place = f"#{entry['place']}" if entry else "non classé"
     points = entry["score"] if entry else 0
-    description = (
-        "CRYPT CUP, le Sanctuaire des Ombres. "
-        f"État : {state}. Rang : {place}. Score : {points} points. "
-        "Défis : Alchimie 100 points, Mots maudits 130 points, "
-        "Code de la crypte 160 points. "
-        "Actions accessibles juste sous l'image : "
-        "Participer, Mes défis, Top 10, Mon rang, Règlement."
-    )
+    # No MediaGalleryItem.description: Discord exposes any supplied alt
+    # description as a visible ALT overlay in some clients. The illustration
+    # is still followed by accessible text-labelled native action buttons.
     return (
         discord.ui.MediaGallery(
-            discord.MediaGalleryItem(media=SCENE_URI, description=description),
+            discord.MediaGalleryItem(media=SCENE_URI),
         ),
         discord.ui.ActionRow(*buttons),
     )
