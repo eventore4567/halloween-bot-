@@ -189,7 +189,11 @@ class ComponentsV2Tests(unittest.TestCase):
                 RoundEndedLayout(row,[])
             ])
             self.assertTrue(all(isinstance(v,discord.ui.LayoutView) for v in views))
+            # The /competition image is deliberately frameless and its
+            # buttons are outside a Container to avoid Discord's grey card.
+            self.assertIsInstance(views[0].children[0],discord.ui.MediaGallery)
+            self.assertIsInstance(views[0].children[1],discord.ui.ActionRow)
             self.assertTrue(all(any(isinstance(c,discord.ui.Container)
-                                    for c in v.children) for v in views))
+                                    for c in v.children) for v in views[1:]))
             self.assertTrue(all(len(v.children)>=1 for v in views))
             s.close()

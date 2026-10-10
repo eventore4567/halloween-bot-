@@ -89,27 +89,27 @@ class CompetitionSceneTests(unittest.TestCase):
             a.close()
             b.close()
 
-    def test_one_continuous_image_and_native_action_rows(self):
+    def test_no_grey_container_and_buttons_flush_under_art(self):
         view=self.make_view(self.bot,self.guild,self.player)
-        self.assertEqual(len(view.children),1)
-        panel=view.children[0]
-        self.assertIsInstance(panel,discord.ui.Container)
-        self.assertEqual(len(panel.children),3)
-        self.assertIsInstance(panel.children[0],discord.ui.MediaGallery)
-        self.assertEqual(len(panel.children[0].items),1)
-        self.assertEqual(len(panel.children[0].items),1)
-        self.assertTrue(all(not isinstance(child,discord.ui.TextDisplay)
-                            for child in panel.children))
-        self.assertTrue(all(not isinstance(child,discord.ui.Section)
-                            for child in panel.children))
-        actions=[child for child in panel.children
-                 if isinstance(child,discord.ui.ActionRow)]
-        self.assertEqual(len(actions),2)
+        self.assertEqual(len(view.children),2)
+        image, row=view.children
+        self.assertIsInstance(image,discord.ui.MediaGallery)
+        self.assertEqual(len(image.items),1)
+        self.assertIsInstance(row,discord.ui.ActionRow)
+        self.assertEqual(len(row.children),5)
         self.assertEqual(
-            [button.label for row in actions for button in row.children],
+            [button.label for button in row.children],
             ["Participer","Mes défis","Top 10","Mon rang","Règlement"],
         )
-        self.assertEqual(sum(len(row.children) for row in actions),5)
+        # The grey surrounding panel comes from Discord Container type 17.
+        self.assertFalse(
+            any(isinstance(item,discord.ui.Container) for item in view.children)
+        )
+        self.assertEqual(
+            [component["type"] for component in view.to_components()],
+            [12,1],
+        )
+
 
 
 class EmojiArtTests(unittest.TestCase):
