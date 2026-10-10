@@ -130,7 +130,10 @@ class HubView(OwnerView):
 
     @discord.ui.button(label="Les jeux", emoji="🦇", style=discord.ButtonStyle.secondary, row=1)
     async def guide(self, interaction, button):
-        await interaction.response.send_message(embed=guide_card(), ephemeral=True)
+        cog = interaction.client.get_cog("MiniArcade")
+        if cog is None:
+            return await fail(interaction, "Le cabinet des jeux est indisponible.")
+        await cog.send_hub(interaction)
 
     @discord.ui.button(label="Ma ferme", emoji="🌾", style=discord.ButtonStyle.secondary, row=1)
     async def farm(self, interaction, button):
