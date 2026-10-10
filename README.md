@@ -23,7 +23,36 @@ Un bot Halloween **jouable**, avec des bonbons, des classements par serveur, une
 | /give | Offrir des bonbons à un membre |
 | /achievements | 11 succès à débloquer |
 | /guide | Afficher l'aide |
-| /film_horreur | Reconnaître un film d'horreur sur une image publique |\n| /setup | Panneau unique pour salon, rôle, fréquence et inscriptions |
+| /film_horreur | Reconnaître un film d'horreur sur une image publique |
+| /jeux | Cabinet des sept mini-jeux Halloween avec boutons |\n| /setup | Panneau unique pour salon, rôle, fréquence et inscriptions |
+
+## 🕹️ Le cabinet des jeux Halloween
+
+**/jeux** ouvre un panneau illustré comme CRYPT CUP, avec **sept mini-jeux**
+disponibles sans multiplier les commandes slash :
+
+- 🔮 **Mémoire des runes** : mémorise quatre symboles et reproduis l'ordre après la disparition du modèle.
+- 👻 **Réflexe du fantôme** : attends son apparition puis clique au plus vite.
+- 🗝️ **Labyrinthe maudit** : trois portes à trouver à l'aide d'indices.
+- 🎃 **Chaudron magique** : trois ingrédients à déduire d'énigmes.
+- ⚰️ **Coffres hantés** : choisis un coffre, parfois vide, parfois rempli de bonbons.
+- 🎲 **Dés du démon** : devine si le prochain lancer sera plus haut ou plus bas.
+- 🦇 **Chasse spectrale** : retrouve le fantôme caché derrière une tombe.
+
+Chaque partie est individuelle (panneau éphémère), avec 85 secondes maximum,
+des boutons Discord interactifs et une récompense de bonbons virtuels. Une
+protection SQLite limite les répétitions à **une partie toutes les deux
+minutes par jeu**. Les gains sont accordés une seule fois par partie.
+
+**Aucun mini-jeu, hasard ou bonbon ne modifie les points de la compétition
+CRYPT CUP offrant éventuellement un prix réel.** Les scores du tournoi restent
+réservés aux épreuves de réflexion individuelles prévues par son règlement.
+
+Le bouton **Les jeux** du panneau /halloween ouvre désormais le même cabinet.
+Les commandes /quiz et /film_horreur ont reçu un affichage plus compact, sans
+double panneau gris ni description d'image provoquant le badge ALT. La
+reconnaissance des films utilise des images Wikimedia Commons dont les
+sources sont affichées après la réponse.
 
 ## 🎨 Décoration et emojis du bot
 
