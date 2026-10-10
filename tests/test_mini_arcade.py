@@ -1,4 +1,4 @@
-"""Regression tests for the seven virtual-candy arcade minigames.
+"""Regression tests for the twelve virtual-candy arcade minigames.
 
 No game must write points to the 1000€ skill-tournament leaderboard.
 Tests cover double-click safety, progression, cooldown, image layout and
@@ -20,7 +20,7 @@ from PIL import Image
 
 from halloween_bot.mini_art import HEIGHT, WIDTH, banner_bytes
 from halloween_bot.mini_engine import (
-    COFFIN_REWARDS, MODES, MiniSession, TTL_SECONDS,
+    COFFIN_REWARDS, DIFFICULTIES, MODES, MiniSession, TTL_SECONDS,
 )
 from halloween_bot.mini_arcade import ArcadeHub, MiniGameView, COOLDOWN_SECONDS
 from halloween_bot.quiz_content import generate_question, generate_film
@@ -31,13 +31,41 @@ from halloween_bot.common import ICONS
 
 
 class EngineTests(unittest.TestCase):
-    def test_all_seven_games_have_unique_rules_and_choices(self):
-        self.assertEqual(len(MODES),7)
+    def test_all_twelve_games_have_rules_and_choices(self):
+        self.assertEqual(len(MODES),12)
         for mode in MODES:
             session=MiniSession(mode,now=5000,rng=random.Random(9))
             self.assertGreaterEqual(len(session.options()),1)
             self.assertFalse(session.done)
             self.assertEqual(session.deadline,5000+TTL_SECONDS)
+
+    def test_four_difficulties_scale_rewards(self):
+        self.assertEqual(len(DIFFICULTIES),4)
+        rewards=[]
+        for difficulty in DIFFICULTIES:
+            session=MiniSession("ombres",difficulty=difficulty,now=100,rng=random.Random(7))
+            rewards.append(session.choose(session.shadow_odd,now=101).reward)
+        self.assertEqual(rewards,sorted(rewards))
+        self.assertEqual(len(set(rewards)),4)
+
+    def test_difficulty_changes_skill_length_and_math_range(self):
+        easy=MiniSession("memoire",difficulty="facile",now=100,rng=random.Random(3))
+        nightmare=MiniSession("memoire",difficulty="cauchemar",now=100,rng=random.Random(3))
+        self.assertEqual((easy.target_steps,nightmare.target_steps),(3,6))
+        easy_math=MiniSession("bougies",difficulty="facile",now=100,rng=random.Random(3))
+        nightmare_math=MiniSession("bougies",difficulty="cauchemar",now=100,rng=random.Random(3))
+        self.assertEqual((easy_math.target_steps,nightmare_math.target_steps),(2,5))
+
+    def test_new_skill_games_require_three_correct_answers(self):
+        candles=MiniSession("bougies",now=100,rng=random.Random(4))
+        vampire=MiniSession("vampire",now=100,rng=random.Random(4))
+        for session in (candles,vampire):
+            for step in range(3):
+                correct=(session.number_puzzles[step][2]
+                         if session.mode=="bougies" else session.puzzles[step][1])
+                result=session.choose(correct,now=101+step)
+            self.assertEqual(result.status,"won")
+            self.assertTrue(session.success)
 
     def test_rune_memory_cannot_cheat_before_reveal(self):
         s=MiniSession("memoire",now=100,rng=random.Random(4))
@@ -121,15 +149,15 @@ class ArcadeUiTests(unittest.TestCase):
             self.assertGreater(WIDTH,HEIGHT)
             self.assertGreater(len(data),6000)
 
-    def test_hub_has_seven_buttons_without_grey_container(self):
+    def test_hub_has_twelve_buttons_without_grey_container(self):
         async def build():
             return ArcadeHub(self.bot,self.owner,self.guild)
         view=asyncio.run(build())
-        self.assertEqual(len(view.children),4)
+        self.assertEqual(len(view.children),5)
         self.assertIsInstance(view.children[0],discord.ui.MediaGallery)
         self.assertEqual(
             [len(row.children) for row in view.children
-             if isinstance(row,discord.ui.ActionRow)], [4,3]
+             if isinstance(row,discord.ui.ActionRow)], [4,4,4]
         )
         self.assertFalse(any(isinstance(c,discord.ui.Container)
                              for c in view.children))
