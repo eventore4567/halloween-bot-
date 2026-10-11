@@ -8,6 +8,10 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
+# Brief anti-spam guard only. Rewards are still settled transactionally.
+TRICK_COOLDOWN_SECONDS = 30
+LEGACY_TRICK_COOLDOWN_SECONDS = 900
+
 STATS = {"ghosts", "quizzes", "duel_wins", "duel_losses", "boss_damage",
          "events_won", "pumpkins", "harvests", "expeditions"}
 CROPS = {
@@ -69,6 +73,22 @@ class Store:
                 message_id INTEGER, kind TEXT NOT NULL,
                 reward INTEGER NOT NULL, expires_at INTEGER NOT NULL,
                 winner_id INTEGER, closed INTEGER NOT NULL DEFAULT 0)""")
+            # One-time upgrade from the historical 15-minute lock. Existing
+            # player balances, rankings and inventories remain untouched.
+            c.execute("""CREATE TABLE IF NOT EXISTS applied_migrations (
+                name TEXT PRIMARY KEY)""")
+            tag = "trick_cooldown_900_to_30_v1"
+            if c.execute(
+                "SELECT 1 FROM applied_migrations WHERE name=?", (tag,)
+            ).fetchone() is None:
+                c.execute(
+                    "UPDATE cooldowns SET ready_at=ready_at-? "
+                    "WHERE action='trick'",
+                    (LEGACY_TRICK_COOLDOWN_SECONDS - TRICK_COOLDOWN_SECONDS,),
+                )
+                c.execute("INSERT INTO applied_migrations(name) VALUES (?)",
+                          (tag,))
+
 
     @contextmanager
     def transaction(self):
@@ -173,7 +193,7 @@ class Store:
                    VALUES (?,?,'trick',?)
                    ON CONFLICT(guild_id,user_id,action)
                    DO UPDATE SET ready_at=excluded.ready_at""",
-                (guild_id, user_id, now + 900),
+                (guild_id, user_id, now + TRICK_COOLDOWN_SECONDS),
             )
             kind = random.choices(
                 ("treat", "jackpot", "trick", "nothing"), weights=weights
@@ -223,7 +243,7 @@ class Store:
             return {
                 "status": "ok", "kind": kind, "amount": actual,
                 "candies": previous + actual, "streak": streak,
-                "plays": plays, "rare": rare, "ready_at": now + 900,
+                "plays": plays, "rare": rare, "ready_at": now + TRICK_COOLDOWN_SECONDS,
             }
 
     def gift(self, guild_id, sender, target, amount):
