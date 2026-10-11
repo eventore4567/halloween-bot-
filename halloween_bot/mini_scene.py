@@ -162,7 +162,7 @@ def _board(img,session,now):
                 d.line((x,336,x,502),fill=(*accent,180),width=3)
                 d.ellipse((x+32,418,x+43,429),fill=AMBER)
             else:
-                _center(img,(x,425),"✓",55,accent)
+                d.line((x-27,424,x-4,445,x+34,396),fill=(*accent,255),width=8)
             _center(img,(x,540),f"PORTE {i+1}",23,MUTED)
         if session.done:
             return ["PARCOURS TERMINÉ",session.last.replace("**","").strip()]
