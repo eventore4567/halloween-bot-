@@ -3,7 +3,7 @@
 All games are reachable from a SINGLE slash command (/jeux) and an existing
 /halloween hub button. Avoids command spam. Visuals use original in-app
 Halloween art, native controls and custom application emojis. One player owns
-each ephemeral session. A SQLite-backed per-mode cooldown prevents farming;
+each public session; other users can launch their own games. A SQLite-backed per-mode cooldown prevents farming;
 rewards are virtual candies only, never cash-prize competition points.
 """
 from __future__ import annotations
@@ -87,7 +87,7 @@ class ArcadeHub(discord.ui.LayoutView):
         game=MiniGameView(self.bot,self.guild_id,self.owner_id,mode)
         try:
             await interaction.response.send_message(
-                view=game,file=banner_file(mode),ephemeral=True,
+                view=game,file=banner_file(mode),ephemeral=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except discord.HTTPException:
@@ -253,7 +253,7 @@ class MiniArcade(commands.Cog):
             return await fail(interaction,"Les jeux sont disponibles sur un serveur.")
         await interaction.response.send_message(
             view=ArcadeHub(self.bot,interaction.user.id,interaction.guild.id),
-            file=banner_file("menu"),ephemeral=True,
+            file=banner_file("menu"),ephemeral=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
