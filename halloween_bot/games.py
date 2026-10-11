@@ -10,7 +10,6 @@ from discord.ext import commands
 
 from .common import card, fail, wait_text, OwnerView, themed_view, progress
 from .content import QUIZZES,RIDDLES,HUNTS
-from .riddle_gate import launch_gate, reward_file
 
 
 class QuizView(OwnerView):
@@ -56,209 +55,9 @@ class QuizView(OwnerView):
                 pass
 
 
-class DuelView(discord.ui.View):
-    def __init__(self,challenger,opponent,guild_id):
-        super().__init__(timeout=120)
-        self.challenger=challenger
-        self.opponent=opponent
-        self.guild_id=guild_id
-        self.finished=False
-        self.message=None
-        themed_view(self)
-
-    async def interaction_check(self,interaction):
-        if interaction.user.id!=self.opponent:
-            await fail(interaction,"Seul le membre défié peut répondre.")
-            return False
-        return True
-
-    def disable(self):
-        for button in self.children:
-            button.disabled=True
-
-    @discord.ui.button(label="Accepter",emoji="⚔️",style=discord.ButtonStyle.success)
-    async def accept(self,interaction,button):
-        if self.finished:
-            return await fail(interaction,"Ce duel est terminé.")
-        self.finished=True
-        winner,loser=random.sample([self.challenger,self.opponent],2)
-        interaction.client.store.award(self.guild_id,winner,120,duel_wins=1)
-        interaction.client.store.award(self.guild_id,loser,30,duel_losses=1)
-        self.disable()
-        await interaction.response.edit_message(
-            embed=card("Le duel est terminé",
-                f"🏆 **<@{winner}> remporte le duel !**",
-                theme="success",
-                sections=[
-                    ("⚔️  COMBATTANTS",
-                     f"<@{self.challenger}>  contre  <@{self.opponent}>", False),
-                    ("🍬  GAGNANT", "**+120**", True),
-                    ("🕯️  PARTICIPANT", "**+30**", True),
-                ]),
-            view=self)
-        self.stop()
-
-    @discord.ui.button(label="Refuser",emoji="🕯️",style=discord.ButtonStyle.secondary)
-    async def refuse(self,interaction,button):
-        if self.finished:
-            return await fail(interaction,"Ce duel est terminé.")
-        self.finished=True
-        self.disable()
-        await interaction.response.edit_message(
-            embed=card("DUEL REFUSÉ","🕯️ Le membre a décliné le défi."),view=self)
-        self.stop()
-
-    async def on_timeout(self):
-        if self.finished:
-            return
-        self.finished=True
-        self.disable()
-        if self.message:
-            try:
-                await self.message.edit(embed=card("DUEL EXPIRÉ","🌫️ Personne n'a accepté le duel."),view=self)
-            except discord.HTTPException:
-                pass
-
-
-class BossView(discord.ui.View):
-    def __init__(self,bot,guild_id):
-        super().__init__(timeout=300)
-        self.bot=bot
-        self.guild_id=guild_id
-        self.hp=450
-        self.maximum=450
-        self.hits={}
-        self.last={}
-        self.damage={}
-        self.finished=False
-        self.message=None
-        themed_view(self)
-
-    def panel(self, *, defeated=False):
-        leaders = sorted(self.damage.items(), key=lambda p: p[1], reverse=True)[:5]
-        score = "\n".join(
-            f"⚔️ <@{user}> · **{damage} dégâts**"
-            for user, damage in leaders
-        ) or "🕸️ Aucun combattant pour le moment."
-        hero = (
-            "✨ Le Roi des Citrouilles s'est effondré. Le royaume est sauvé !"
-            if defeated else
-            "💀 Une créature gigantesque a surgi du cimetière."
-        )
-        return card(
-            "Le Roi des Citrouilles" if not defeated else "Boss vaincu",
-            hero,
-            theme="success" if defeated else "danger",
-            sections=[
-                ("❤️  POINTS DE VIE",
-                 f"**{self.hp} / {self.maximum}**\n{progress(self.hp, self.maximum)}", False),
-                ("⚔️  MEILLEURS COMBATTANTS", score, False),
-                ("🍬  BUTIN",
-                 "**150 bonbons par participant** si le boss est vaincu.",
-                 False),
-            ],
-            note="3 attaques maximum par joueur, espacées de 10 secondes."
-            if not defeated else
-            f"{len(self.damage)} participant(s) ont été récompensés.",
-        )
-
-    @discord.ui.button(label="Attaquer",emoji="⚔️",style=discord.ButtonStyle.danger)
-    async def attack(self,interaction,button):
-        if self.finished:
-            return await fail(interaction,"Ce boss a déjà disparu.")
-        uid=interaction.user.id
-        if interaction.user.bot:
-            return await fail(interaction,"Réservé aux joueurs.")
-        now=time.monotonic()
-        if self.hits.get(uid,0)>=3:
-            return await fail(interaction,"Tu as déjà utilisé tes trois attaques.")
-        if now-self.last.get(uid,0)<10:
-            return await fail(interaction,"Attends dix secondes entre deux attaques.")
-        hit=min(self.hp,random.randint(25,65))
-        self.hp-=hit
-        self.last[uid]=now
-        self.hits[uid]=self.hits.get(uid,0)+1
-        self.damage[uid]=self.damage.get(uid,0)+hit
-        self.bot.store.award(self.guild_id,uid,boss_damage=hit)
-        if self.hp==0:
-            self.finished=True
-            for member_id in self.damage:
-                self.bot.store.award(self.guild_id,member_id,150)
-            self.bot.active_bosses.pop(self.guild_id,None)
-            for component in self.children:
-                component.disabled=True
-            await interaction.response.edit_message(
-                embed=self.panel(defeated=True),
-                view=self)
-            self.stop()
-        else:
-            await interaction.response.edit_message(
-                embed=self.panel(),view=self)
-
-    async def on_timeout(self):
-        if self.finished:
-            return
-        self.finished=True
-        self.bot.active_bosses.pop(self.guild_id,None)
-        for child in self.children:
-            child.disabled=True
-        if self.message:
-            try:
-                await self.message.edit(
-                    embed=card("BOSS DISPARU","🌫️ Le Roi des Citrouilles a pris la fuite !"),
-                    view=self)
-            except discord.HTTPException:
-                pass
-
-
-class ExpeditionView(OwnerView):
-    def __init__(self,owner_id,guild_id):
-        super().__init__(owner_id,timeout=120)
-        self.guild_id=guild_id
-        self.finished=False
-        self.message=None
-
-    async def explore(self,interaction,door):
-        if self.finished:
-            return await fail(interaction,"L'expédition est terminée.")
-        self.finished=True
-        danger={"crypte":0.30,"grenier":0.20,"cave":0.12}[door]
-        if random.random()<danger:
-            amount=-random.randint(10,40)
-            text=f"💀 Un piège se referme !\n\n🍬 Tu perds jusqu'à **{-amount} bonbons**."
-        else:
-            amount=random.randint(70,160) + (40 if door=="crypte" else 0)
-            text=f"✨ **Un coffre ancien !**\n\n🍬 Tu trouves **{amount} bonbons**."
-        interaction.client.store.award(self.guild_id,self.owner_id,amount,expeditions=1)
-        for child in self.children:
-            child.disabled=True
-        await interaction.response.edit_message(
-            embed=card("La maison a parlé",text,theme="success" if amount>0 else "danger",sections=[("🍬  TON BUTIN",f"**{amount:+} bonbons**",False)]),view=self)
-        self.stop()
-
-    @discord.ui.button(label="La crypte",emoji="💀",style=discord.ButtonStyle.danger)
-    async def crypt(self,interaction,button):
-        await self.explore(interaction,"crypte")
-
-    @discord.ui.button(label="Le grenier",emoji="🦇",style=discord.ButtonStyle.primary)
-    async def attic(self,interaction,button):
-        await self.explore(interaction,"grenier")
-
-    @discord.ui.button(label="La cave",emoji="🕯️",style=discord.ButtonStyle.secondary)
-    async def cellar(self,interaction,button):
-        await self.explore(interaction,"cave")
-
-    async def on_timeout(self):
-        self.finished=True
-        for button in self.children:
-            button.disabled=True
-        if self.message:
-            try:
-                await self.message.edit(
-                    embed=card("EXPLORATION EXPIRÉE","🌫️ Les portes se sont refermées."),
-                    view=self)
-            except discord.HTTPException:
-                pass
+from .adventure_games import (
+    GhostHuntView, PumpkinView, ExpeditionView, DuelView, BossView, send_adventure,
+)
 
 
 class Games(commands.Cog):
@@ -284,163 +83,52 @@ class Games(commands.Cog):
         )
         view.message=await interaction.original_response()
 
-    @app_commands.command(name="ghosthunt",description="🦇 Résoudre une énigme pour chasser les fantômes")
+    @app_commands.command(name="ghosthunt",description="👻 Traquer un fantôme caché dans le cimetière")
     @app_commands.guild_only()
     async def ghosthunt(self,interaction:discord.Interaction):
-        g,u=interaction.guild.id,interaction.user.id
+        view=GhostHuntView(self.bot,interaction.guild.id,interaction.user.id)
+        await send_adventure(interaction,view)
 
-        async def unlock(click):
-            wait=self.bot.store.cooldown(g,u,"hunt",300)
-            if wait:
-                await fail(click,wait_text(wait))
-                return None
-            amount=0
-            if random.random()<0.28:
-                message="🌫️ Le cimetière est silencieux... Le fantôme t'a échappé."
-                found="💀 Aucun fantôme capturé."
-            else:
-                name,low,high=random.choices(HUNTS,weights=[45,30,20,5])[0]
-                amount=random.randint(low,high)
-                self.bot.store.award(g,u,amount,ghosts=1)
-                message="🌙 Une silhouette a surgi du brouillard..."
-                found=f"✨ **{name} capturé !**"
-            panel=card(
-                "Chasse aux fantômes — Le verdict",message,
-                theme="ghost" if amount else "night",
-                sections=[
-                    ("👻 RENCONTRE",found,False),
-                    ("🍬 RÉCOMPENSE",f"**+{amount} bonbons**",False),
-                ],
-            )
-            kind="trick" if amount else "nothing"
-            return (panel,None,reward_file(
-                "Chasse aux fantômes",kind,amount,found.replace("**",""),
-                balance=self.bot.store.profile(g,u)["candies"],
-                cooldown_minutes=5,
-            ))
-
-        await launch_gate(interaction,"Chasse aux fantômes",unlock)
-
-    @app_commands.command(name="pumpkin",description="🎃 Déchiffrer la citrouille mystérieuse")
+    @app_commands.command(name="pumpkin",description="🎃 Choisir et ouvrir une citrouille mystérieuse")
     @app_commands.guild_only()
     async def pumpkin(self,interaction:discord.Interaction):
-        g,u=interaction.guild.id,interaction.user.id
+        view=PumpkinView(self.bot,interaction.guild.id,interaction.user.id)
+        await send_adventure(interaction,view)
 
-        async def unlock(click):
-            wait=self.bot.store.cooldown(g,u,"pumpkin",600)
-            if wait:
-                await fail(click,wait_text(wait))
-                return None
-            kind=random.choices(["simple","rare","legendary","empty"],
-                                [56,31,5,8])[0]
-            amount={
-                "simple":random.randint(30,90),
-                "rare":random.randint(100,220),
-                "legendary":random.randint(350,650),
-                "empty":0,
-            }[kind]
-            player=self.bot.store.award(g,u,amount,pumpkins=1)
-            descriptions={
-                "simple":"🎃 Une citrouille pleine de sucreries !",
-                "rare":"🦇 **CITROUILLE RARE !**",
-                "legendary":"✨ **CITROUILLE LÉGENDAIRE !**",
-                "empty":"🕸️ Cette citrouille était vide...",
-            }
-            panel=card(
-                "Citrouille mystérieuse — Révélée",descriptions[kind],
-                theme="gold" if kind=="legendary" else
-                      "night" if kind=="empty" else "pumpkin",
-                sections=[
-                    ("🍬 RÉCOMPENSE",f"**+{amount} bonbons**",True),
-                    ("🎒 TON SOLDE",f"**{player['candies']:,}**",True),
-                ],
-            )
-            scene=("jackpot" if kind=="legendary" else "nothing"
-                   if kind=="empty" else "treat")
-            return (panel,None,reward_file(
-                "La citrouille mystérieuse",scene,amount,
-                descriptions[kind].replace("**",""),
-                balance=player["candies"],cooldown_minutes=10,
-            ))
-
-        await launch_gate(interaction,"La citrouille mystérieuse",unlock)
-
-    @app_commands.command(name="duel",description="⚔️ Résoudre l'énigme puis défier un joueur")
+    @app_commands.command(name="duel",description="⚔️ Défier un joueur au combat tour par tour")
     @app_commands.guild_only()
     async def duel(self,interaction:discord.Interaction,adversaire:discord.Member):
         if adversaire.bot or adversaire.id==interaction.user.id:
             return await fail(interaction,"Choisis un autre joueur humain.")
-        g,u=interaction.guild.id,interaction.user.id
+        guild_id,user_id=interaction.guild.id,interaction.user.id
+        wait=self.bot.store.cooldown(guild_id,user_id,"duel",300)
+        if wait:return await fail(interaction,wait_text(wait))
+        view=DuelView(self.bot,guild_id,user_id,adversaire.id,
+                      (interaction.user.display_name,adversaire.display_name))
+        await send_adventure(interaction,view,mention_user=adversaire)
 
-        async def unlock(click):
-            wait=self.bot.store.cooldown(g,u,"duel",300)
-            if wait:
-                await fail(click,wait_text(wait))
-                return None
-            view=DuelView(u,adversaire.id,g)
-            return (card(
-                "Un duel sous la lune",
-                f"⚔️ {interaction.user.mention} défie {adversaire.mention} !",
-                theme="night",
-                sections=[
-                    ("🏆 VICTOIRE","**+120 bonbons**",True),
-                    ("🕯️ PARTICIPATION","**+30 bonbons**",True),
-                    ("🌙 LES RÈGLES",
-                     "Duel amical, sans mise. Le défi expire dans 2 minutes.",False),
-                ],
-            ),view)
-
-        await launch_gate(interaction,"Le duel des ombres",unlock,
-                          mention_user=adversaire)
-
-    @app_commands.command(name="boss",description="💀 Déverrouiller le boss communautaire")
+    @app_commands.command(name="boss",description="💀 Combattre le Roi des Citrouilles ensemble")
     @app_commands.guild_only()
     async def boss(self,interaction:discord.Interaction):
-        g=interaction.guild.id
-        if g in self.bot.active_bosses:
-            return await fail(interaction,"Un boss est déjà présent !")
+        guild_id=interaction.guild.id
+        if guild_id in self.bot.active_bosses:
+            return await fail(interaction,"Un boss combat déjà sur le serveur.")
+        wait=self.bot.store.cooldown(guild_id,0,"boss_global",1200)
+        if wait:return await fail(interaction,wait_text(wait))
+        view=BossView(self.bot,guild_id)
+        self.bot.active_bosses[guild_id]=view
+        try:
+            await send_adventure(interaction,view)
+        except Exception:
+            self.bot.active_bosses.pop(guild_id,None)
+            raise
 
-        async def unlock(click):
-            # Gate must not reserve the global boss cooldown prematurely.
-            if g in self.bot.active_bosses:
-                await fail(click,"Un boss est déjà présent !")
-                return None
-            wait=self.bot.store.cooldown(g,0,"boss_global",1200)
-            if wait:
-                await fail(click,wait_text(wait))
-                return None
-            view=BossView(self.bot,g)
-            self.bot.active_bosses[g]=view
-            return view.panel(),view
-
-        await launch_gate(interaction,"Le Roi des Citrouilles",unlock)
-
-    @app_commands.command(name="expedition",description="🏚️ Résoudre l'énigme et explorer le manoir")
+    @app_commands.command(name="expedition",description="🏚️ Choisir ton chemin dans une expédition hantée")
     @app_commands.guild_only()
     async def expedition(self,interaction:discord.Interaction):
-        g,u=interaction.guild.id,interaction.user.id
+        view=ExpeditionView(self.bot,interaction.guild.id,interaction.user.id)
+        await send_adventure(interaction,view)
 
-        async def unlock(click):
-            wait=self.bot.store.cooldown(g,u,"expedition",600)
-            if wait:
-                await fail(click,wait_text(wait))
-                return None
-            view=ExpeditionView(u,g)
-            return (card(
-                "La maison abandonnée",
-                "🌫️ Tu as résolu l'énigme ! Trois passages grincent dans l'obscurité...",
-                theme="night",
-                sections=[
-                    ("💀 LA CRYPTE",
-                     "Grand trésor, mais pièges dangereux.",False),
-                    ("🦇 LE GRENIER",
-                     "Un risque moyen pour des bonbons.",False),
-                    ("🕯️ LA CAVE","Un chemin plus sûr.",False),
-                ],
-                note="Choisis un passage pour découvrir ton sort.",
-            ),view)
-
-        await launch_gate(interaction,"L'expédition hantée",unlock)
 
 
 
