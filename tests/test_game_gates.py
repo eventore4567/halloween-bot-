@@ -217,6 +217,29 @@ class GamesTests(unittest.TestCase):
                 self.assertLessEqual(view.hits[uid],3)
         asyncio.run(run())
 
+    def test_missed_boss_attack_does_not_claim_victory_reward(self):
+        async def run():
+            view=await self.launch("boss")
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=0.0):
+                await view.attack(self.interaction(uid=55),"risk")
+            self.assertEqual(view.hits[55],1)
+            self.assertNotIn(55,view.damage)
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=.95), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=82):
+                for uid in range(60,68):
+                    if view.finished:
+                        break
+                    await view.attack(self.interaction(uid=uid),"risk")
+            self.assertTrue(view.finished)
+            self.assertEqual(self.store.profile(7,55)["candies"],0)
+            self.assertFalse(55 in view.damage)
+            self.assertEqual(sum(self.store.profile(7,u)["candies"]
+                                 for u in view.damage),150*len(view.damage))
+        asyncio.run(run())
+
     def test_non_owner_solo_cannot_press_buttons(self):
         async def run():
             view=await self.launch("pumpkin")
