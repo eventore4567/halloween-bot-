@@ -37,6 +37,36 @@ DOORS = (
 )
 RARE_NAME = "Citrouille légendaire"
 
+# A door now has to be unlocked with a real three-choice riddle before
+# the store is called. The correct index is not included in the Discord
+# image or button labels; only this server-side view keeps the answer.
+DOOR_RIDDLES = (
+    ("Je disparais dès que tu prononces mon nom. Qui suis-je ?",
+     ("Un fantôme", "Le silence", "Une ombre"), 1),
+    ("J'ai des dents, mais je ne mords jamais. Qui suis-je ?",
+     ("Un vampire", "Un peigne", "Une citrouille"), 1),
+    ("Plus tu m'enlèves de matière, plus je grandis. Qui suis-je ?",
+     ("Un trou", "Un château", "Un chaudron"), 0),
+    ("Je suis à toi, mais les autres m'utilisent davantage. Qui suis-je ?",
+     ("Ton trésor", "Ton ombre", "Ton prénom"), 2),
+    ("Je te suis au soleil et je disparais dans le noir. Qui suis-je ?",
+     ("Une chauve-souris", "Ton ombre", "Un spectre"), 1),
+    ("Je n'ai pas de jambes, pourtant je peux courir. Qui suis-je ?",
+     ("Une rivière", "Un squelette", "Une sorcière"), 0),
+    ("Je possède un cou, mais pas de tête. Qui suis-je ?",
+     ("Une bouteille", "Une citrouille", "Une clé"), 0),
+    ("Je peux remplir une pièce sans prendre de place. Qui suis-je ?",
+     ("Une potion", "La lumière", "La fumée"), 1),
+    ("On me casse avant de m'utiliser. Qui suis-je ?",
+     ("Un miroir", "Un œuf", "Un grimoire"), 1),
+    ("Je monte et je descends sans jamais bouger. Qui suis-je ?",
+     ("Un escalier", "Un nuage", "Un balai"), 0),
+    ("Je suis invisible et tu m'entends revenir après un cri. Qui suis-je ?",
+     ("L'écho", "La nuit", "Un chat"), 0),
+    ("Je peux être courte ou longue, mais jamais touchée. Qui suis-je ?",
+     ("Une énigme", "Une journée", "Une citrouille"), 1),
+)
+
 
 @lru_cache(maxsize=64)
 def _font(size, *, serif=False, bold=True):
@@ -473,8 +503,57 @@ def _inventory(img, items):
                         radius=4,fill=(*COPPER,255))
 
 
+def _riddle_scene(img, riddle, selected, wrong_attempts):
+    """Decorated door guardian. Answers remain real buttons below the image."""
+    _header(img, "L'ÉNIGME DU GARDIEN", "RÉPONDS POUR OUVRIR LA PORTE")
+    d=ImageDraw.Draw(img)
+    d.rounded_rectangle((70,239,1205,582),radius=22,
+                        fill=(17,10,32,245),
+                        outline=(197,147,241,210),width=4)
+    d.rounded_rectangle((102,262,1172,316),radius=13,
+                        fill=(46,28,67,245),
+                        outline=(184,133,235,160),width=2)
+    _write(img,(129,275),"LE DÉFI DU GARDIEN",27,LILAC)
+    _write(img,(1156,278),f"PORTE {(selected or 0)+1}",
+           23,BRIGHT,anchor="ra")
+    # Fit by actual font metrics, never let a long French question overflow.
+    question=riddle[0]
+    words=question.split()
+    lines=[]
+    candidate=""
+    measure=ImageDraw.Draw(img)
+    for word in words:
+        next_line=(candidate+" "+word).strip()
+        width=measure.textbbox((0,0),next_line,font=_font(37))[2]
+        if width>990 and candidate:
+            lines.append(candidate)
+            candidate=word
+        else:
+            candidate=next_line
+    if candidate:
+        lines.append(candidate)
+    if len(lines)>3:
+        # Defensive fallback for future localized riddles.
+        lines=[" ".join(words[:len(words)//2])," ".join(words[len(words)//2:])]
+    offset=374 if len(lines)==1 else 350 if len(lines)==2 else 336
+    for j,line in enumerate(lines):
+        font_size=_fit(line,1000,size=37,min_size=24)
+        _write(img,(637,offset+j*56),line,font_size,CREAM,anchor="mm")
+    d.line((137,483,1136,483),fill=(197,135,239,150),width=2)
+    if wrong_attempts:
+        feedback="MAUVAISE RÉPONSE · ESSAIE ENCORE"
+        color=PERIL
+    else:
+        feedback="CHOISIS LA BONNE RÉPONSE CI-DESSOUS"
+        color=BRIGHT
+    _write(img,(637,511),feedback,25,color,anchor="mm")
+    _write(img,(637,552),"LE TRÉSOR ATTEND DERRIÈRE LA PORTE",18,LILAC,
+           anchor="mm")
+
+
 def banner_bytes(stage, candies, streak, *, selected=None, result=None,
-                 inventory=(), leaders=(), remaining=0):
+                 inventory=(), leaders=(), remaining=0,
+                 riddle=None, wrong_attempts=0):
     img = _background()
     if stage == "intro":
         _header(img, "LE MANOIR HANTÉ", "TROIS PORTES • UN SEUL DESTIN")
@@ -484,6 +563,9 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _status(img, candies, streak,
                 extra=(f"RETOUR DANS {remaining} S"
                        if remaining else "CHOISIS UNE PORTE"))
+    elif stage == "riddle" and riddle:
+        _riddle_scene(img,riddle,selected,wrong_attempts)
+        _status(img,candies,streak,extra="RÉSOUS L'ÉNIGME")
     elif stage == "opening":
         _header(img, "LA PORTE S'OUVRE...", "UN BRUIT ETRANGE RESONNE DANS L'OMBRE")
         _door(img, 640, number=selected or 0, chosen=True)
@@ -530,6 +612,8 @@ class TrickOrTreatView(discord.ui.LayoutView):
         self.stage="intro"
         self.result=None
         self.selected=None
+        self.riddle=None
+        self.wrong_attempts=0
         self.previous="intro"
         self._leaders=[]
         self._pick_lock=asyncio.Lock()
@@ -550,6 +634,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
     def _view_file(self):
         candies,streak=self._stats()
         extra={"selected":self.selected, "result":self.result,
+               "riddle":self.riddle, "wrong_attempts":self.wrong_attempts,
                "remaining":self.bot.store.trick_status(
                    self.guild_id,self.owner_id)["wait"]}
         if self.stage=="inventory":
@@ -633,6 +718,20 @@ class TrickOrTreatView(discord.ui.LayoutView):
                     choose,
                 ))
             buttons.extend(self._navigation())
+        elif self.stage=="riddle":
+            for i, answer in enumerate(self.riddle[1]):
+                async def select(interaction, index=i):
+                    await self.answer(interaction,index)
+                buttons.append(self._button(
+                    f"{'ABC'[i]} · {answer}", "key",
+                    discord.ButtonStyle.primary if i==0
+                    else discord.ButtonStyle.secondary,
+                    select,
+                ))
+            buttons.append(self._button(
+                "Changer de porte","ghost",discord.ButtonStyle.secondary,
+                self.cancel_riddle,
+            ))
         elif self.stage=="opening":
             buttons.append(self._button(
                 "La porte s'ouvre...", "clock",
@@ -722,16 +821,55 @@ class TrickOrTreatView(discord.ui.LayoutView):
             await self._redraw(interaction)
 
     async def choose(self,interaction,door):
+        """Select a door; answering its riddle is required before any reward."""
         async with self._pick_lock:
             if self.stage!="intro":
-                return await fail(interaction,"Cette porte est déjà fermée.")
+                return await fail(interaction,"Une porte est déjà choisie.")
+            if door not in (0,1,2):
+                return await fail(interaction,"Cette porte n'existe pas.")
+            state=self.bot.store.trick_status(self.guild_id,self.owner_id)
+            if state["wait"]:
+                return await fail(
+                    interaction,
+                    f"⏳ Encore {state['wait']} s avant la prochaine aventure."
+                )
+            self.selected=door
+            self.riddle=random.choice(DOOR_RIDDLES)
+            self.wrong_attempts=0
+            self.stage="riddle"
+            await self._redraw(interaction)
+
+    async def cancel_riddle(self,interaction):
+        """Let the player choose another door without consuming candy/cooldown."""
+        async with self._pick_lock:
+            if self.stage!="riddle":
+                return await fail(interaction,"Cette énigme n'est plus active.")
+            self.riddle=None
+            self.wrong_attempts=0
+            self.selected=None
+            self.stage="intro"
+            await self._redraw(interaction)
+
+    async def answer(self,interaction,index):
+        """Only a correct answer settles the reward, once, in SQLite."""
+        async with self._pick_lock:
+            if self.stage!="riddle" or self.riddle is None:
+                return await fail(interaction,"Cette énigme est déjà terminée.")
+            if index not in range(3):
+                return await fail(interaction,"Réponse inconnue.")
+            if index != self.riddle[2]:
+                self.wrong_attempts+=1
+                # Keep the same Discord message and the options alive.
+                return await self._redraw(interaction)
             outcome=self.bot.store.play_trick(
-                self.guild_id,self.owner_id,door
+                self.guild_id,self.owner_id,self.selected
             )
             if outcome["status"]=="cooldown":
-                return await fail(interaction,f"⏳ Encore {outcome['wait']} s avant la prochaine porte.")
+                return await fail(
+                    interaction,
+                    f"⏳ Encore {outcome['wait']} s avant la prochaine aventure."
+                )
             self.result=outcome
-            self.selected=door
             self.stage="opening"
             await self._redraw(interaction)
             await asyncio.sleep(1.3)
