@@ -17,7 +17,8 @@ from PIL import ImageDraw
 from .common import card, fail
 from .trick_or_treat import (
     DOOR_RIDDLES, _background, _fit, _font, _write,
-    COPPER, CREAM, BRIGHT, LILAC, PERIL, WIDTH, HEIGHT,
+    COPPER, CREAM, BRIGHT, LILAC, PERIL, MINT, WIDTH, HEIGHT,
+    _visual_prize,
 )
 
 LOG = logging.getLogger(__name__)
@@ -70,6 +71,62 @@ def make_gate_art(game, question):
     return out.getvalue()
 
 
+def make_reward_art(game, outcome, amount, note=""):
+    """Distinct visual reward scene from the same CRYPT CUP art language."""
+    if outcome not in ("treat","jackpot","trick","nothing"):
+        raise ValueError("Unsupported Halloween reward illustration")
+    image=_background()
+    draw=ImageDraw.Draw(image)
+    theme={
+        "treat":MINT, "jackpot":BRIGHT, "trick":PERIL, "nothing":LILAC
+    }[outcome]
+    _write(image,(88,62),"CRYPT CUP   /   LE VERDICT HALLOWEEN",23,LILAC)
+    title=game.upper()
+    _write(image,(83,105),title,_fit(title,950,size=62,min_size=36),
+           COPPER,glow=3)
+    draw.rounded_rectangle((66,234,1206,586),radius=22,
+                           fill=(16,11,31,231),outline=(*theme,208),width=4)
+    _visual_prize(image,outcome)
+    draw=ImageDraw.Draw(image)
+    draw.rounded_rectangle((568,259,1181,567),radius=22,
+                           fill=(32,22,47,248),
+                           outline=(*theme,170),width=3)
+    amount_label=(f"+{amount}" if amount>0 else str(amount))+" BONBONS"
+    _write(image,(602,297),"RÉCOMPENSE DU DÉFI",27,LILAC)
+    _write(image,(591,356),amount_label,
+           _fit(amount_label,555,size=48,min_size=28),theme,glow=3)
+    draw.line((599,426,1151,426),fill=(*theme,150),width=2)
+    short=note.strip().replace("\n"," ")[:80] or "Le manoir a décidé de ton sort."
+    # Keep result caption readable on desktop/mobile.
+    words=short.split()
+    parts=[]
+    candidate=""
+    measure=ImageDraw.Draw(image)
+    for word in words:
+        combo=(candidate+" "+word).strip()
+        if measure.textbbox((0,0),combo,font=_font(24))[2]>530 and candidate:
+            parts.append(candidate)
+            candidate=word
+        else:
+            candidate=combo
+    if candidate:
+        parts.append(candidate)
+    for index,line in enumerate(parts[:3]):
+        _write(image,(604,458+index*33),line,
+               _fit(line,520,size=24,min_size=18),CREAM)
+    _write(image,(615,635),"PROCHAINE ÉTAPE : RELANCE LE JEU",
+           21,BRIGHT)
+    stream=BytesIO()
+    image.convert("RGB").save(stream,"JPEG",quality=87,optimize=True)
+    return stream.getvalue()
+
+
+def reward_file(game,outcome,amount,note=""):
+    return discord.File(
+        BytesIO(make_reward_art(game,outcome,amount,note)),filename=FILENAME
+    )
+
+
 class RiddleGate(discord.ui.View):
     """One owner, three native buttons, one reward-bearing continuation.
 
@@ -77,12 +134,14 @@ class RiddleGate(discord.ui.View):
     return (embed, replacement_view) or None after responding with a
     transient error; cooldowns are checked inside the continuation.
     """
-    def __init__(self, game, owner_id, guild_id, continuation, *, timeout=110):
+    def __init__(self, game, owner_id, guild_id, continuation, *,
+                 mention_user=None, timeout=110):
         super().__init__(timeout=timeout)
         self.game=game
         self.owner_id=owner_id
         self.guild_id=guild_id
         self.continuation=continuation
+        self.mention_user=mention_user
         self.riddle=random.choice(DOOR_RIDDLES)
         self.attempts=0
         self.finished=False
@@ -157,7 +216,10 @@ class RiddleGate(discord.ui.View):
                 # Usually a transient cooldown conflict with another panel.
                 self.finished=False
                 return
-            embed, next_view=result
+            embed, next_view = result[:2]
+            new_art = result[2] if len(result)>2 else None
+            if new_art is not None:
+                embed.set_image(url=f"attachment://{FILENAME}")
             if next_view is not None and hasattr(next_view,"message"):
                 next_view.message=interaction.message
             for btn in self.children:
@@ -165,8 +227,14 @@ class RiddleGate(discord.ui.View):
             # Standard discord.ui.View is intentionally used here, not
             # LayoutView: it can hand off to the existing embed/view games.
             await interaction.response.edit_message(
-                embed=embed,view=next_view,attachments=[],
-                allowed_mentions=discord.AllowedMentions.none(),
+                embed=embed,view=next_view,
+                attachments=[new_art] if new_art is not None else [],
+                allowed_mentions=(
+                    discord.AllowedMentions(users=[self.mention_user],
+                                            roles=False,everyone=False)
+                    if self.mention_user is not None else
+                    discord.AllowedMentions.none()
+                ),
             )
             self.stop()
 
@@ -190,9 +258,10 @@ class RiddleGate(discord.ui.View):
                     LOG.debug("Expired Halloween gate message no longer available")
 
 
-async def launch_gate(interaction, game, continuation):
+async def launch_gate(interaction, game, continuation, *, mention_user=None):
     """Send one public message and reuse it for riddle, game and outcome."""
-    gate=RiddleGate(game,interaction.user.id,interaction.guild.id,continuation)
+    gate=RiddleGate(game,interaction.user.id,interaction.guild.id,
+                    continuation,mention_user=mention_user)
     if getattr(interaction.app_permissions,"attach_files",False):
         await interaction.response.send_message(
             embed=gate.panel(),view=gate,file=gate.art(),
