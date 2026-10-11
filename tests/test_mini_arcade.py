@@ -19,6 +19,7 @@ import discord
 from PIL import Image
 
 from halloween_bot.mini_art import HEIGHT, WIDTH, banner_bytes
+from halloween_bot.mini_scene import game_file, W, H, FILENAME as GAME_FILE
 from halloween_bot.mini_engine import (
     COFFIN_REWARDS, MODES, MiniSession, TTL_SECONDS,
 )
@@ -123,6 +124,76 @@ class ArcadeUiTests(unittest.TestCase):
             self.assertGreater(WIDTH,HEIGHT)
             self.assertGreater(len(data),6000)
 
+    def test_seven_live_game_scenes_are_large_and_distinct(self):
+        data=[]
+        for index, mode in enumerate(MODES):
+            session=MiniSession(mode,now=100,rng=random.Random(index+20))
+            screenshot=game_file(session,now=100)
+            self.assertEqual(screenshot.filename,GAME_FILE)
+            img=Image.open(screenshot.fp).convert("RGB")
+            self.assertEqual(img.size,(W,H))
+            self.assertGreater(len(screenshot.fp.getvalue()),11000)
+            # Seven real palettes AND unique scenes, not one old fixed banner.
+            data.append(img.getpixel((395,350)))
+        self.assertGreaterEqual(len(set(data)),5)
+
+    def test_memory_scene_does_not_leave_rune_sequence_visible(self):
+        session=MiniSession("memoire",now=200,rng=random.Random(4))
+        before=game_file(session,now=201).fp.getvalue()
+        after=game_file(session,now=207).fp.getvalue()
+        self.assertNotEqual(before,after)
+        self.assertEqual(session.step,0)
+        self.assertFalse(session.done)
+
+    def test_dice_exact_tie_is_a_real_third_choice(self):
+        s=MiniSession("des",now=100,rng=random.Random(7))
+        self.assertEqual(len(s.options()),3)
+        with unittest.mock.patch.object(s.rng,"randint",return_value=s.demon_die):
+            result=s.choose(2,now=102)
+        self.assertEqual(result.status,"won")
+        self.assertEqual(result.reward,125)
+        self.assertEqual(s.last_roll,s.demon_die)
+        self.assertEqual(s.last_pick,2)
+        self.assertEqual(s.choose(2,now=103).status,"used")
+
+    def test_grave_clue_narrows_search_to_correct_pair(self):
+        for seed in range(12):
+            s=MiniSession("fantomes",now=100,rng=random.Random(seed))
+            hint=s.prompt(now=100)
+            self.assertIn("tombes I et II" if s.hidden_ghost<2
+                          else "tombes III et IV",hint)
+
+    def test_result_scene_replaces_buttons_and_attachments(self):
+        async def run():
+            view=MiniGameView(self.bot,self.guild,self.owner,"coffres")
+            class Response:
+                def __init__(self):
+                    self.changes=[]
+                def is_done(self):
+                    return False
+                async def edit_message(self,**kw):
+                    self.changes.append(kw)
+                async def send_message(self,*args,**kw):
+                    raise AssertionError("Must edit the same public panel")
+            choice=next(j for j,n in enumerate(view.session.chest_rewards)
+                        if n>0)
+            response=Response()
+            i=SimpleNamespace(
+                guild=SimpleNamespace(id=self.guild),
+                user=SimpleNamespace(id=self.owner,bot=False),
+                response=response)
+            await view.pick(i,choice)
+            self.assertTrue(view.session.done)
+            self.assertEqual(len(response.changes),1)
+            self.assertEqual(len(view.children),1)
+            self.assertIsInstance(view.children[0],discord.ui.MediaGallery)
+            self.assertEqual(response.changes[0]["attachments"][0].filename,
+                             GAME_FILE)
+            self.assertEqual(self.db.profile(self.guild,self.owner)["candies"],
+                             view._earned)
+            self.assertIsNone(self.bot.competition.season(self.guild))
+        asyncio.run(run())
+
     def test_every_mode_has_its_own_slash_command(self):
         """Discord discovers seven direct slash commands, not only /jeux."""
         names=("memoire","reflexe","labyrinthe","chaudron",
@@ -168,7 +239,7 @@ class ArcadeUiTests(unittest.TestCase):
                 self.assertEqual(game.owner_id,uid)
                 self.assertEqual(game.guild_id,self.guild)
                 self.assertEqual(game.message.id,700+uid)
-                self.assertEqual(kwargs["file"].filename,"halloween-arcade.jpg")
+                self.assertEqual(kwargs["file"].filename,GAME_FILE)
                 self.assertIsInstance(game.children[0],discord.ui.MediaGallery)
                 self.assertGreater(len(game.children[-1].children),0)
                 self.assertFalse(any(isinstance(c,discord.ui.Container)
@@ -268,7 +339,7 @@ class ArcadeUiTests(unittest.TestCase):
                     for mode in MODES}
         views=asyncio.run(build())
         for mode,view in views.items():
-            self.assertEqual(len(view.children),3)
+            self.assertEqual(len(view.children),2)
             self.assertIsInstance(view.children[0],discord.ui.MediaGallery)
             buttons=view.children[-1].children
             self.assertEqual(len(buttons),len(view.session.options()))
