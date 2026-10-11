@@ -116,7 +116,7 @@ class Farming(commands.Cog):
         await interaction.response.send_message(
             embed=farm_card(self.bot, interaction.guild.id, interaction.user.id),
             view=FarmView(interaction.user.id),
-            ephemeral=True,
+            ephemeral=False,
         )
 
     @app_commands.command(name="farm", description="🌾 Cultiver et récolter des citrouilles")
