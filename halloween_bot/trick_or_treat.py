@@ -382,7 +382,7 @@ def _result_scene(img, result, remaining):
     d.rounded_rectangle((584,471,1155,512),radius=10,
                         fill=(40,29,55,255),outline=(*color,125),width=2)
     _write(img,(602,477),note,_fit(note,528,size=21,min_size=17),BRIGHT)
-    wait_note=(f"NOUVELLE PARTIE DANS {(remaining+59)//60} MIN"
+    wait_note=(f"NOUVELLE PARTIE DANS {remaining} S"
                if remaining else "UNE NOUVELLE PARTIE EST DISPONIBLE")
     _write(img,(587,529),wait_note,_fit(wait_note,550,size=19,min_size=16),
            LILAC)
@@ -482,7 +482,7 @@ def banner_bytes(stage, candies, streak, *, selected=None, result=None,
         _door(img, 640, number=1)
         _door(img, 1030, number=2)
         _status(img, candies, streak,
-                extra=(f"RETOUR DANS {(remaining+59)//60} MIN"
+                extra=(f"RETOUR DANS {remaining} S"
                        if remaining else "CHOISIS UNE PORTE"))
     elif stage == "opening":
         _header(img, "LA PORTE S'OUVRE...", "UN BRUIT ETRANGE RESONNE DANS L'OMBRE")
@@ -538,7 +538,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
     async def interaction_check(self, interaction):
         if (not interaction.guild or interaction.guild.id!=self.guild_id or
                 interaction.user.id!=self.owner_id or interaction.user.bot):
-            await fail(interaction,"Ce manoir appartient à un autre joueur.")
+            await fail(interaction,"Cette partie est à un autre joueur. Lance /trickortreat pour jouer la tienne.")
             return False
         return True
 
@@ -620,8 +620,8 @@ class TrickOrTreatView(discord.ui.LayoutView):
         self.add_item(_gallery())
         buttons=[]
         if self.stage=="intro":
-            ready=self.bot.store.trick_status(
-                self.guild_id,self.owner_id)["wait"]==0
+            # Buttons must stay clickable; SQLite enforces any short cooldown
+            # when the player actually chooses a door.
             for i, emoji in enumerate(("key","pumpkin","ghost")):
                 async def choose(interaction, index=i):
                     await self.choose(interaction,index)
@@ -630,7 +630,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
                     (discord.ButtonStyle.primary if i==2
                      else discord.ButtonStyle.success if i==1
                      else discord.ButtonStyle.secondary),
-                    choose,disabled=not ready,
+                    choose,
                 ))
             buttons.extend(self._navigation())
         elif self.stage=="opening":
@@ -641,8 +641,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
         elif self.stage=="result":
             wait=self.bot.store.trick_status(
                 self.guild_id,self.owner_id)["wait"]
-            label=(f"Rejouer dans {(wait+59)//60} min"
-                   if wait else "Rejouer")
+            label=(f"Rejouer ({wait} s)" if wait else "Rejouer")
             buttons.extend([
                 self._button(label,"clock" if wait else "pumpkin",
                              discord.ButtonStyle.secondary if wait
@@ -716,7 +715,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
         async with self._pick_lock:
             state=self.bot.store.trick_status(self.guild_id,self.owner_id)
             if state["wait"]:
-                return await fail(interaction,wait_text(state["wait"]))
+                return await fail(interaction,f"⏳ Encore {state['wait']} s avant la prochaine porte.")
             self.stage="intro"
             self.result=None
             self.selected=None
@@ -730,7 +729,7 @@ class TrickOrTreatView(discord.ui.LayoutView):
                 self.guild_id,self.owner_id,door
             )
             if outcome["status"]=="cooldown":
-                return await fail(interaction,wait_text(outcome["wait"]))
+                return await fail(interaction,f"⏳ Encore {outcome['wait']} s avant la prochaine porte.")
             self.result=outcome
             self.selected=door
             self.stage="opening"
