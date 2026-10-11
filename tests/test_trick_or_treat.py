@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -36,10 +37,52 @@ class TrickStoreTests(unittest.TestCase):
         with patch("halloween_bot.storage.random.choices",return_value=["treat"]):
             first=self.db.play_trick(10,20,0,now=101)
         self.assertEqual(first["status"],"ok")
-        self.assertEqual(self.db.trick_status(10,20,now=102)["wait"],899)
+        self.assertEqual(self.db.trick_status(10,20,now=102)["wait"],29)
         second=self.db.play_trick(10,20,0,now=102)
-        self.assertEqual(second,{"status":"cooldown","wait":899})
+        self.assertEqual(second,{"status":"cooldown","wait":29})
         self.assertEqual(self.db.profile(10,20)["candies"],first["amount"])
+
+    def test_legacy_15_minute_cooldown_is_shortened_once(self):
+        # Simulate a DB containing historical 900-second timers, then restart.
+        self.db.award(4,8,250)
+        self.db.buy(4,8,"hat",50)
+        with self.db.transaction() as cur:
+            cur.execute(
+                "INSERT OR REPLACE INTO cooldowns "
+                "(guild_id,user_id,action,ready_at) VALUES (4,8,'trick',1900)"
+            )
+            cur.execute(
+                "DELETE FROM applied_migrations "
+                "WHERE name='trick_cooldown_900_to_30_v1'"
+            )
+        self.db.close()
+        self.db=Store(self.path)
+        self.assertEqual(self.db.trick_status(4,8,now=1001)["wait"],29)
+        self.assertEqual(self.db.profile(4,8)["candies"],200)
+        self.assertEqual(self.db.inventory(4,8)[0]["quantity"],1)
+        self.db.close()
+        self.db=Store(self.path)
+        # Idempotency: a second startup must NOT shorten new 30s timers.
+        self.assertEqual(self.db.trick_status(4,8,now=1001)["wait"],29)
+        with self.db.transaction() as cur:
+            cur.execute(
+                "UPDATE cooldowns SET ready_at=2000 "
+                "WHERE guild_id=4 AND user_id=8 AND action='trick'"
+            )
+        self.db.close()
+        self.db=Store(self.path)
+        self.assertEqual(self.db.trick_status(4,8,now=1999)["wait"],1)
+
+    def test_can_pick_again_after_thirty_seconds(self):
+        with patch("halloween_bot.storage.random.choices",return_value=["treat"]):
+            first=self.db.play_trick(1,3,0,now=1000)
+            self.assertEqual(first["status"],"ok")
+            self.assertEqual(self.db.play_trick(1,3,2,now=1029)["status"],"cooldown")
+            second=self.db.play_trick(1,3,2,now=1030)
+        self.assertEqual(second["status"],"ok")
+        self.assertEqual(second["plays"],2)
+        self.assertEqual(self.db.profile(1,3)["candies"],
+                         first["amount"]+second["amount"])
 
     def test_rare_item_persists_across_database_reopen(self):
         with patch("halloween_bot.storage.random.choices",return_value=["jackpot"]), \
@@ -136,6 +179,32 @@ class TrickVisualTests(unittest.TestCase):
             self.assertGreater(WIDTH,HEIGHT)
             self.assertGreater(len(data),8000)
 
+    def test_slash_command_public_during_cooldown(self):
+        from halloween_bot.games import Games
+        self.db.play_trick(1,2,1)
+        sent=[]
+        class Response:
+            async def send_message(self,**kw):
+                sent.append(kw)
+        async def original_response():
+            return SimpleNamespace(id=123)
+        interaction=SimpleNamespace(
+            guild=SimpleNamespace(id=1),
+            user=SimpleNamespace(id=2,bot=False),
+            app_permissions=SimpleNamespace(attach_files=True),
+            response=Response(),
+            original_response=original_response,
+        )
+        async def run():
+            cog=Games(self.bot)
+            await Games.trickortreat.callback(cog,interaction)
+        asyncio.run(run())
+        self.assertEqual(len(sent),1)
+        self.assertIs(sent[0]["ephemeral"],False)
+        self.assertEqual(len(sent[0]["view"].children[1].children),5)
+        self.assertFalse(any(b.disabled for b in
+                             sent[0]["view"].children[1].children[:3]))
+
     def test_real_components_without_grey_container(self):
         view=TrickOrTreatView(self.bot,1,2)
         self.assertIsInstance(view,discord.ui.LayoutView)
@@ -199,11 +268,11 @@ class TrickVisualTests(unittest.TestCase):
         self.assertEqual(rows,[(1,"Chasseur #1",55)])
         self.assertNotIn("987654321012345678",str(rows))
 
-    def test_during_cooldown_doors_lock_but_browsing_stays_open(self):
+    def test_during_cooldown_doors_stay_clickable_and_browsing_stays_open(self):
         self.db.play_trick(1,2,0)
         view=TrickOrTreatView(self.bot,1,2)
         buttons=view.children[1].children
-        self.assertTrue(all(button.disabled for button in buttons[:3]))
+        self.assertTrue(all(not button.disabled for button in buttons[:3]))
         self.assertTrue(all(not button.disabled for button in buttons[3:]))
         illustration=view._view_file()
         self.assertEqual(illustration.filename,"trickortreat-manoir.jpg")
@@ -243,7 +312,7 @@ class TrickVisualTests(unittest.TestCase):
                      "streak":1,"rare":False}
         view._draw()
         buttons=view.children[1].children
-        self.assertIn("Rejouer dans",buttons[0].label)
+        self.assertIn("Rejouer (",buttons[0].label)
         self.assertEqual(buttons[0].style,discord.ButtonStyle.secondary)
         self.assertEqual(len(buttons),3)
         self.assertTrue(all(not b.disabled for b in buttons))
