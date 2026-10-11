@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 FILENAME = "crypt-defi-halloween.jpg"
 
 
-def make_gate_art(game, question):
+def make_gate_art(game, question, *, wrong=False):
     """A 16:9-ish, self-contained, Halloween illustration with readable text."""
     image=_background()
     draw=ImageDraw.Draw(image)
@@ -65,14 +65,17 @@ def make_gate_art(game, question):
                            outline=(180, 135, 226, 175), width=3)
     _write(image, (630, 495), "3 CHOIX  •  1 BONNE RÉPONSE",
            30, BRIGHT, anchor="mt")
-    _write(image, (630, 594), "LES VRAIS BOUTONS SONT SOUS CETTE IMAGE",
-           23, LILAC, anchor="mm")
+    _write(image, (630, 594),
+           "MAUVAISE RÉPONSE • ESSAIE UNE AUTRE PROPOSITION" if wrong
+           else "CHOISIS TA RÉPONSE CI-DESSOUS",
+           23, PERIL if wrong else LILAC, anchor="mm")
     out=BytesIO()
     image.convert("RGB").save(out, "JPEG", quality=87, optimize=True)
     return out.getvalue()
 
 
-def make_reward_art(game, outcome, amount, note=""):
+def make_reward_art(game, outcome, amount, note="", *,
+                    balance=None, cooldown_minutes=None):
     """Distinct visual reward scene from the same CRYPT CUP art language."""
     if outcome not in ("treat","jackpot","trick","nothing"):
         raise ValueError("Unsupported Halloween reward illustration")
@@ -120,17 +123,35 @@ def make_reward_art(game, outcome, amount, note=""):
     for index,line in enumerate(parts[:3]):
         _write(image,(604,458+index*33),line,
                _fit(line,520,size=24,min_size=18),CREAM)
-    _write(image,(615,635),"PROCHAINE ÉTAPE : RELANCE LE JEU",
-           21,BRIGHT)
+    footer = (
+        f"SAC : {balance:,} BONBONS".replace(",", " ")
+        if balance is not None else "CRYPT CUP • HALLOWEEN"
+    )
+    if cooldown_minutes is not None:
+        footer += f"    /    PROCHAINE PARTIE : {cooldown_minutes} MIN"
+    _write(image,(617,636),footer,_fit(footer,1085,size=21,min_size=16),
+           BRIGHT)
     stream=BytesIO()
     image.convert("RGB").save(stream,"JPEG",quality=87,optimize=True)
     return stream.getvalue()
 
 
-def reward_file(game,outcome,amount,note=""):
+def reward_file(game,outcome,amount,note="",*,balance=None,cooldown_minutes=None):
     return discord.File(
-        BytesIO(make_reward_art(game,outcome,amount,note)),filename=FILENAME
+        BytesIO(make_reward_art(game,outcome,amount,note,
+                                balance=balance,
+                                cooldown_minutes=cooldown_minutes)),
+        filename=FILENAME
     )
+
+
+class RewardScene(discord.ui.LayoutView):
+    """Image-only V2 result: no redundant grey embed, labels, or ALT overlay."""
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(discord.ui.MediaGallery(
+            discord.MediaGalleryItem(media=f"attachment://{FILENAME}")
+        ))
 
 
 class RiddleGate(discord.ui.View):
@@ -152,6 +173,7 @@ class RiddleGate(discord.ui.View):
         self.attempts=0
         self.finished=False
         self.message=None
+        self.has_art=True
         self._lock=asyncio.Lock()
         for i,option in enumerate(self.riddle[1]):
             button=discord.ui.Button(
@@ -164,9 +186,9 @@ class RiddleGate(discord.ui.View):
             button.callback=handler
             self.add_item(button)
 
-    def art(self):
+    def art(self, *, wrong=False):
         return discord.File(
-            BytesIO(make_gate_art(self.game,self.riddle[0])),
+            BytesIO(make_gate_art(self.game,self.riddle[0],wrong=wrong)),
             filename=FILENAME
         )
 
@@ -204,9 +226,15 @@ class RiddleGate(discord.ui.View):
                 return await fail(interaction,"Ce choix n'existe pas.")
             if choice != self.riddle[2]:
                 self.attempts+=1
+                if self.has_art:
+                    # One edited image + the same three real Discord buttons.
+                    return await interaction.response.edit_message(
+                        embed=None, content=None,
+                        attachments=[self.art(wrong=True)], view=self,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
                 return await interaction.response.edit_message(
-                    embed=self.panel(wrong=True),
-                    view=self,
+                    embed=self.panel(wrong=True),view=self,
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
             # A callback checks and consumes the original game's cooldown
@@ -224,24 +252,33 @@ class RiddleGate(discord.ui.View):
                 return
             embed, next_view = result[:2]
             new_art = result[2] if len(result)>2 else None
-            if new_art is not None:
-                embed.set_image(url=f"attachment://{FILENAME}")
             if next_view is not None and hasattr(next_view,"message"):
                 next_view.message=interaction.message
             for btn in self.children:
                 btn.disabled=True
-            # Standard discord.ui.View is intentionally used here, not
-            # LayoutView: it can hand off to the existing embed/view games.
-            await interaction.response.edit_message(
-                embed=embed,view=next_view,
-                attachments=[new_art] if new_art is not None else [],
-                allowed_mentions=(
-                    discord.AllowedMentions(users=[self.mention_user],
-                                            roles=False,everyone=False)
-                    if self.mention_user is not None else
-                    discord.AllowedMentions.none()
-                ),
-            )
+            if new_art is not None and self.has_art:
+                # The reward picture already contains title, explanation,
+                # candy amount, current balance and cooldown. Showing its
+                # embed as well repeats everything in a large grey block.
+                # V2 editing MUST clear legacy content and embeds explicitly.
+                await interaction.response.edit_message(
+                    content=None, embed=None,
+                    view=RewardScene(), attachments=[new_art],
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            else:
+                # /boss, /duel and /expedition still hand off to their
+                # existing interactive Views and embeds.
+                await interaction.response.edit_message(
+                    content=None, embed=embed, view=next_view,
+                    attachments=[],
+                    allowed_mentions=(
+                        discord.AllowedMentions(users=[self.mention_user],
+                                                roles=False,everyone=False)
+                        if self.mention_user is not None else
+                        discord.AllowedMentions.none()
+                    ),
+                )
             self.stop()
 
     async def on_timeout(self):
@@ -268,13 +305,16 @@ async def launch_gate(interaction, game, continuation, *, mention_user=None):
     """Send one public message and reuse it for riddle, game and outcome."""
     gate=RiddleGate(game,interaction.user.id,interaction.guild.id,
                     continuation,mention_user=mention_user)
-    if getattr(interaction.app_permissions,"attach_files",False):
+    gate.has_art=bool(getattr(interaction.app_permissions,"attach_files",False))
+    if gate.has_art:
+        # A regular attachment previews on Discord with native buttons below.
+        # Unlike the old embed+image design, there is just ONE visual.
         await interaction.response.send_message(
-            embed=gate.panel(),view=gate,file=gate.art(),
+            view=gate,file=gate.art(),
             ephemeral=False,allowed_mentions=discord.AllowedMentions.none(),
         )
     else:
-        # Embeds and buttons still work without the Attach Files permission.
+        # Image permissions absent: preserve fully usable riddle/next steps.
         panel=gate.panel()
         panel.set_image(url=None)
         await interaction.response.send_message(

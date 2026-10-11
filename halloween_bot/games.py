@@ -314,7 +314,9 @@ class Games(commands.Cog):
             )
             kind="trick" if amount else "nothing"
             return (panel,None,reward_file(
-                "Chasse aux fantômes",kind,amount,found.replace("**","")
+                "Chasse aux fantômes",kind,amount,found.replace("**",""),
+                balance=self.bot.store.profile(g,u)["candies"],
+                cooldown_minutes=5,
             ))
 
         await launch_gate(interaction,"Chasse aux fantômes",unlock)
@@ -357,7 +359,8 @@ class Games(commands.Cog):
                    if kind=="empty" else "treat")
             return (panel,None,reward_file(
                 "La citrouille mystérieuse",scene,amount,
-                descriptions[kind].replace("**","")
+                descriptions[kind].replace("**",""),
+                balance=player["candies"],cooldown_minutes=10,
             ))
 
         await launch_gate(interaction,"La citrouille mystérieuse",unlock)
