@@ -302,9 +302,8 @@ class GhostHuntView(SoloAdventure):
         for n,name in enumerate(self.PLACES):
             async def pick(i,place=n):
                 await self.search(i,place)
-            controls.append(self.make_button(name,"ghost",pick,
-                                 discord.ButtonStyle.primary if n==self.hidden
-                                 else discord.ButtonStyle.secondary))
+            controls.append(self.make_button(
+                name,"ghost",pick,discord.ButtonStyle.primary))
         return controls
 
     async def search(self,i,place):
