@@ -16,7 +16,7 @@ MODES = {
     "labyrinthe":("Labyrinthe maudit", "Résous trois portes grâce aux indices.", 150, "key"),
     "chaudron":  ("Chaudron magique", "Choisis les ingrédients des trois énigmes.", 145, "pumpkin"),
     "coffres":   ("Coffres hantés", "Ouvre un coffre : trésor ou poussière.", 180, "candy"),
-    "des":       ("Dés du démon", "Trouve si son dé sera plus haut ou plus bas.", 125, "skull"),
+    "des":       ("Dés du démon", "Prédit : plus haut, plus bas ou égal.", 125, "skull"),
     "fantomes":  ("Chasse spectrale", "Choisis la tombe où se cache un fantôme.", 135, "bat"),
 }
 SYMBOLS = ("🌙", "🦇", "🎃", "🕯️")
@@ -28,6 +28,10 @@ POTION_CLUES = (
     ("Je brille au-dessus du château quand la nuit tombe.", 3),
     ("Je suis collante et je capture les insectes.", 0),
     ("Ma lumière éclaire les loups-garous.", 3),
+    ("On me sculpte avec deux yeux et une bouche.", 1),
+    ("Je file des fils entre deux branches.", 0),
+    ("Je suis l'animal qui dort suspendu.", 2),
+    ("Je réapparais dans le ciel chaque mois.", 3),
 )
 MAZE_OPTIONS = ("🌙 Lune", "🦇 Chauve-souris", "🕯️ Chandelle")
 MAZE_CLUES = (
@@ -37,6 +41,10 @@ MAZE_CLUES = (
     ("Je n'ai pas de plumes, mais je peux voler.", 1),
     ("Je veille dans le ciel lorsque le soleil s'endort.", 0),
     ("Je réchauffe la crypte avec une petite flamme.", 2),
+    ("Je suis une source de lumière avec une mèche.", 2),
+    ("Je peux être pleine, en croissant ou nouvelle.", 0),
+    ("Je me repère au sonar la nuit.", 1),
+    ("Je fonds lentement en éclairant l'obscurité.", 2),
 )
 COFFIN_REWARDS = (0, 50, 100, 180)
 TTL_SECONDS = 85
@@ -64,6 +72,8 @@ class MiniSession:
         self.success = False
         self.step = 0
         self.last = ""
+        self.last_pick = None
+        self.last_roll = None
         if mode == "memoire":
             self.sequence = tuple(self.rng.randrange(len(SYMBOLS)) for _ in range(4))
             self.ready_at += 6
@@ -87,7 +97,7 @@ class MiniSession:
             "labyrinthe": MAZE_OPTIONS,
             "chaudron": POTION_OPTIONS,
             "coffres": ("⚰️ Tombe I", "⚰️ Tombe II", "⚰️ Tombe III", "⚰️ Tombe IV"),
-            "des": ("🎲 Plus haut", "🎲 Plus bas"),
+            "des": ("🎲 Plus haut", "🎲 Plus bas", "🎯 Égalité"),
             "fantomes": ("🪦 Tombe I", "🪦 Tombe II", "🪦 Tombe III", "🪦 Tombe IV"),
         }[self.mode]
 
@@ -124,10 +134,12 @@ class MiniSession:
         if self.mode == "des":
             return (
                 f"🎲 Le démon a lancé **{self.demon_die}**.\n"
-                "Son prochain dé sera-t-il **plus haut** ou **plus bas** ? "
-                "Une égalité donne un lot de consolation."
+                "Prédis : **plus haut**, **plus bas** ou **égalité**. "
+                "Une mauvaise égalité donne un lot de consolation."
             )
-        return "👻 Un fantôme s'est glissé dans l'une des quatre tombes…"
+        clues=("tombes I et II" if self.hidden_ghost<2
+               else "tombes III et IV")
+        return f"👻 Des traces mènent vers les {clues}. Choisis la bonne !"
 
     def available(self, now=None) -> bool:
         now = time.monotonic() if now is None else float(now)
@@ -186,6 +198,7 @@ class MiniSession:
             return self._win(points,comment)
 
         if self.mode == "coffres":
+            self.last_pick=index
             reward = self.chest_rewards[index]
             if reward == 0:
                 return self._lose("🕸️ Ce coffre ne contient que de la poussière !")
@@ -193,14 +206,18 @@ class MiniSession:
 
         if self.mode == "des":
             result = self.rng.randint(1, 6)
+            self.last_roll=result
+            self.last_pick=index
             if result == self.demon_die:
-                return self._win(25, f"🎲 **Égalité : {result}.** Lot de consolation !")
+                if index==2:
+                    return self._win(125, f"🎯 Égalité exacte : {result} !")
+                return self._win(25, f"🎲 Égalité : {result}. Lot de consolation !")
             correct = (result > self.demon_die and index == 0) or (
                 result < self.demon_die and index == 1
             )
             if correct:
-                return self._win(125,f"🎲 **Le dé affiche {result} !** Bonne prédiction.")
-            return self._lose(f"💀 **Le dé affiche {result}.** Mauvaise prédiction.")
+                return self._win(125,f"🎲 Le dé affiche {result} ! Bonne prédiction.")
+            return self._lose(f"💀 Le dé affiche {result}. Mauvaise prédiction.")
 
         if index == self.hidden_ghost:
             return self._win(135,"👻 Tu as capturé le fantôme derrière la tombe !")
