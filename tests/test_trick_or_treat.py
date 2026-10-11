@@ -17,7 +17,7 @@ from PIL import Image
 from halloween_bot.common import ICONS
 from halloween_bot.storage import Store
 from halloween_bot.trick_or_treat import (
-    HEIGHT, WIDTH, TrickOrTreatView, banner_bytes, _font, _fit,
+    HEIGHT, WIDTH, TrickOrTreatView, DOOR_RIDDLES, banner_bytes, _font, _fit,
 )
 
 
@@ -168,6 +168,7 @@ class TrickVisualTests(unittest.TestCase):
         for stage, extras in (
             ("intro",{}),
             ("opening",{"selected":1}),
+            ("riddle",{"selected":1,"riddle":DOOR_RIDDLES[0]}),
             ("result",{"selected":1,"result":outcome}),
             ("inventory",{"inventory":[("Citrouille legendaire",2)]}),
             ("leaderboard",{"leaders":[(1,"Alice",300)]}),
@@ -317,7 +318,27 @@ class TrickVisualTests(unittest.TestCase):
         self.assertEqual(len(buttons),3)
         self.assertTrue(all(not b.disabled for b in buttons))
 
-    def test_double_click_mints_reward_once(self):
+    def test_three_choices_riddle_without_gray_container(self):
+        view=TrickOrTreatView(self.bot,1,2)
+        view.stage="riddle"
+        view.selected=1
+        view.riddle=DOOR_RIDDLES[0]
+        view._draw()
+        self.assertEqual(len(view.children),2)
+        self.assertIsInstance(view.children[0],discord.ui.MediaGallery)
+        row=view.children[1]
+        self.assertEqual(len(row.children),4)
+        self.assertEqual([button.label for button in row.children[:3]],[
+            f"{letter} · {choice}" for letter,choice
+            in zip("ABC",DOOR_RIDDLES[0][1])
+        ])
+        self.assertEqual(row.children[-1].label,"Changer de porte")
+        self.assertTrue(all(not button.disabled for button in row.children))
+        self.assertEqual(self.db.trick_status(1,2)["wait"],0)
+        image=view._view_file()
+        self.assertEqual(image.filename,"trickortreat-manoir.jpg")
+
+    def test_wrong_answer_cancel_and_correct_answer_gate_rewards(self):
         class Response:
             def is_done(self):
                 return False
@@ -326,27 +347,75 @@ class TrickVisualTests(unittest.TestCase):
             async def send_message(self,*args,**kwargs):
                 pass
         async def run():
-            v=TrickOrTreatView(self.bot,1,2)
-            user=SimpleNamespace(id=2,bot=False)
+            view=TrickOrTreatView(self.bot,1,2)
             def interaction():
                 async def edit_original_response(**kwargs):
                     pass
                 return SimpleNamespace(
-                    user=user,guild=SimpleNamespace(id=1),
+                    user=SimpleNamespace(id=2,bot=False),
+                    guild=SimpleNamespace(id=1),
                     response=Response(),
                     edit_original_response=edit_original_response,
                 )
+            with patch("halloween_bot.trick_or_treat.random.choice",
+                       return_value=DOOR_RIDDLES[0]):
+                await view.choose(interaction(),1)
+                self.assertEqual(view.stage,"riddle")
+                self.assertEqual(view.selected,1)
+                self.assertEqual(self.db.trick_status(1,2)["wait"],0)
+                self.assertEqual(self.db.profile(1,2)["candies"],0)
+
+                # Wrong choice cannot mint rewards or start cooldown.
+                await view.answer(interaction(),0)
+                self.assertEqual(view.stage,"riddle")
+                self.assertEqual(view.wrong_attempts,1)
+                self.assertEqual(self.db.trick_status(1,2)["wait"],0)
+                self.assertEqual(self.db.profile(1,2)["candies"],0)
+
+                # No penalty for backing out to change the door.
+                await view.cancel_riddle(interaction())
+                self.assertEqual(view.stage,"intro")
+                self.assertIsNone(view.selected)
+                self.assertEqual(self.db.trick_status(1,2)["wait"],0)
+                await view.choose(interaction(),2)
+                self.assertEqual(view.stage,"riddle")
+
             with patch("halloween_bot.storage.random.choices",
                        return_value=["jackpot"]):
+                # A fast double click cannot award the treasure twice.
                 await asyncio.gather(
-                    v.choose(interaction(),1),
-                    v.choose(interaction(),1),
+                    view.answer(interaction(),1),
+                    view.answer(interaction(),1),
                 )
-            return v
+            return view
         view=asyncio.run(run())
         self.assertEqual(view.stage,"result")
+        self.assertEqual(view.wrong_attempts,0)
         self.assertEqual(self.db.inventory(1,2)[0]["quantity"],1)
         self.assertEqual(self.db.trick_status(1,2)["streak"],1)
+        self.assertGreater(self.db.profile(1,2)["candies"],0)
+
+    def test_owner_only_controls_the_riddle(self):
+        view=TrickOrTreatView(self.bot,1,2)
+        view.stage="riddle"
+        view.selected=0
+        view.riddle=DOOR_RIDDLES[0]
+        notices=[]
+        class Response:
+            async def send_message(self, content, **kwargs):
+                notices.append((content,kwargs))
+        async def test():
+            other=SimpleNamespace(
+                guild=SimpleNamespace(id=1),
+                user=SimpleNamespace(id=3,bot=False),
+                response=Response(),
+            )
+            return await view.interaction_check(other)
+        self.assertFalse(asyncio.run(test()))
+        self.assertEqual(len(notices),1)
+        self.assertEqual(self.db.trick_status(1,2)["wait"],0)
+
+
 
 
 if __name__ == "__main__":
