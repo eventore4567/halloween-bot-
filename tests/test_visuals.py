@@ -84,11 +84,16 @@ class ThemeTests(unittest.TestCase):
 
     def test_boss_visual_has_progress_and_buttons(self):
         view = self.make_view(BossView, self.bot, 99)
-        panel = view.panel()
-        self.assertGreaterEqual(len(panel.fields), 3)
-        self.assertIn("450", panel.fields[0].value)
-        self.assertEqual(len(view.children), 1)
-        self.assertEqual(len(self.make_view(DuelView, 1, 2, 99).children), 2)
+        self.assertEqual(view.hp, 450)
+        self.assertEqual(len(view.children), 2)
+        self.assertIsInstance(view.children[0], discord.ui.MediaGallery)
+        self.assertIsInstance(view.children[1], discord.ui.ActionRow)
+        self.assertEqual(len(view.children[1].children), 3)
+        self.assertEqual(view.art().filename, "crypt-aventure.jpg")
+        duel = self.make_view(
+            DuelView,self.bot,99,1,2,("Challenger","Adversaire"))
+        self.assertEqual(len(duel.children), 2)
+        self.assertEqual(len(duel.children[1].children), 2)
 
     def test_event_button_stays_persistent(self):
         view = self.make_view(EventClaim, self.bot, 123)
