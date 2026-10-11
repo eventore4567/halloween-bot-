@@ -91,7 +91,7 @@ def _symbol(d,mode):
 def banner_bytes(mode:str)->bytes:
     if mode not in COLORS:raise ValueError(mode)
     top,bottom,accent=COLORS[mode]
-    im=Image.new("RGB",(WIDTH,HEIGHT),top)
+    im=Image.new("RGBA",(WIDTH,HEIGHT),(*top,255))
     d=ImageDraw.Draw(im)
     for y in range(HEIGHT):
         fraction=y/(HEIGHT-1)
