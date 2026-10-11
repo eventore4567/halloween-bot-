@@ -19,6 +19,7 @@ from discord.ext import commands
 
 from .common import button_icon, fail, wait_text
 from .mini_art import FILENAME, banner_file
+from .mini_scene import FILENAME as GAME_FILENAME, game_file
 from .mini_engine import MODES, MiniSession, TTL_SECONDS
 
 LOG = logging.getLogger(__name__)
@@ -38,6 +39,12 @@ SKILL_MODES = frozenset(("memoire", "labyrinthe", "chaudron"))
 def _gallery():
     return discord.ui.MediaGallery(
         discord.MediaGalleryItem(media=f"attachment://{FILENAME}")
+    )
+
+
+def _game_gallery():
+    return discord.ui.MediaGallery(
+        discord.MediaGalleryItem(media=f"attachment://{GAME_FILENAME}")
     )
 
 
@@ -65,7 +72,7 @@ async def launch_mini_game(bot, interaction: discord.Interaction, mode: str):
     game=MiniGameView(bot,guild_id,user_id,mode)
     try:
         await interaction.response.send_message(
-            view=game, file=banner_file(mode), ephemeral=False,
+            view=game, file=game.art(), ephemeral=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )
     except discord.HTTPException:
@@ -137,36 +144,20 @@ class MiniGameView(discord.ui.LayoutView):
             return False
         return True
 
+    def art(self):
+        """Render current game state, not a static intro reused at every step."""
+        return game_file(self.session,earned=getattr(self,"_earned",0))
+
     def _draw(self):
         self.clear_items()
         s=self.session
-        title,description,max_reward,emoji_key=MODES[s.mode]
-        remaining=int(time.time()+max(0,s.deadline-time.monotonic()))
-        self.add_item(_gallery())
+        self.add_item(_game_gallery())
         if s.done:
-            prize=(
-                f"🍬 **+{self._earned} bonbons** ajoutés à ton inventaire."
-                if getattr(self,"_earned",0)>0 else
-                "🕸️ **Aucun bonbon gagné** pour cette tentative."
-            )
-            info=(
-                f"### {'🏆 VICTOIRE !' if s.success else '🕯️ PARTIE TERMINÉE'}\n"
-                f"{s.last}\n\n{prize}\n"
-                "-# Tu peux lancer un autre jeu depuis /jeux."
-            )
-        else:
-            info=(
-                f"### {title.upper()}\n"
-                f"{description}\n\n"
-                f"{s.prompt()}\n\n"
-                f"🍬 Gain possible : **jusqu'à {max_reward} bonbons** "
-                f"• ⏳ Fin <t:{remaining}:R>\n"
-            )
-            if self._feedback:
-                info+="\n"+self._feedback
-        self.add_item(discord.ui.TextDisplay(info))
+            # The final art already contains the result and reward; leaving
+            # inert buttons under it was misleading.
+            return
         buttons=[]
-        for i,label in enumerate(s.options()):
+        for index,label in enumerate(s.options()):
             icon = (
                 button_icon("ghost") if s.mode=="reflexe" else
                 button_icon("key") if s.mode in ("labyrinthe","coffres","fantomes")
@@ -175,18 +166,12 @@ class MiniGameView(discord.ui.LayoutView):
             )
             button=discord.ui.Button(
                 label=label[:80],emoji=icon,
-                style=(discord.ButtonStyle.success
-                       if s.done and s.success and i==self._last_selected else
-                       discord.ButtonStyle.secondary
-                       if s.done else
-                       discord.ButtonStyle.primary),
-                custom_id=f"crypt:arcade:pick:{s.mode}:{i}",
+                style=discord.ButtonStyle.primary,
+                custom_id=f"crypt:arcade:pick:{s.mode}:{index}",
                 disabled=not s.available(),
             )
-
-            async def handler(interaction,choice=i):
+            async def handler(interaction,choice=index):
                 await self.pick(interaction,choice)
-
             button.callback=handler
             buttons.append(button)
         self.add_item(discord.ui.ActionRow(*buttons))
@@ -216,7 +201,8 @@ class MiniGameView(discord.ui.LayoutView):
             self._draw()
             try:
                 await interaction.response.edit_message(
-                    view=self, allowed_mentions=discord.AllowedMentions.none()
+                    view=self, attachments=[self.art()],
+                    allowed_mentions=discord.AllowedMentions.none()
                 )
             except discord.HTTPException:
                 LOG.exception("Arcade answer processed, but view edit failed")
@@ -241,7 +227,8 @@ class MiniGameView(discord.ui.LayoutView):
             self._draw()
             try:
                 await self.message.edit(
-                    view=self,allowed_mentions=discord.AllowedMentions.none()
+                    view=self,attachments=[self.art()],
+                    allowed_mentions=discord.AllowedMentions.none()
                 )
             except (discord.HTTPException,discord.NotFound):
                 LOG.warning("Cannot unlock minigame %s",self.session.mode)
@@ -256,7 +243,8 @@ class MiniGameView(discord.ui.LayoutView):
             if self.message:
                 try:
                     await self.message.edit(
-                        view=self,allowed_mentions=discord.AllowedMentions.none()
+                        view=self,attachments=[self.art()],
+                        allowed_mentions=discord.AllowedMentions.none()
                     )
                 except (discord.HTTPException,discord.NotFound):
                     LOG.warning("Expired minigame message not available")
