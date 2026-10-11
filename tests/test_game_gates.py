@@ -165,10 +165,10 @@ class GameGateTests(unittest.TestCase):
             self.assertNotIn("file",sent)
             self.assertIsNotNone(sent["embed"])
             answer=self.interaction()
-            with patch("halloween_bot.games.random.choices",
-                       return_value=["simple"]), \\
-                 patch("halloween_bot.games.random.randint",
-                       return_value=55):
+            with (patch("halloween_bot.games.random.choices",
+                        return_value=["simple"]),
+                  patch("halloween_bot.games.random.randint",
+                        return_value=55)):
                 await gate.answer(answer,1)
             self.assertTrue(gate.finished)
             result=answer.response.edited[0]
