@@ -121,7 +121,7 @@ def banner_bytes(mode:str)->bytes:
     _write(im,(90,211),subtitle,_fit(subtitle,690,size=22,min_size=17),INK)
     _symbol(ImageDraw.Draw(im),mode)
     io=BytesIO()
-    im.save(io,"JPEG",quality=86,optimize=True)
+    im.convert("RGB").save(io,"JPEG",quality=86,optimize=True)
     return io.getvalue()
 
 
