@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import random
+import unicodedata
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -15,7 +16,7 @@ import discord
 
 from .mini_art import COLORS
 from .mini_engine import MODES, SYMBOLS, TTL_SECONDS
-from .trick_or_treat import _write, _fit
+from .trick_or_treat import _write, _fit, _font
 
 W,H=1280,700
 FILENAME="crypt-mini-jeu.jpg"
@@ -71,6 +72,15 @@ def _dice(d,x,y,value):
         d.ellipse((x+dx-9,y+dy-9,x+dx+9,y+dy+9),fill=(61,36,85))
 
 
+def _clean(line):
+    """Remove only pictographs Vera cannot draw, preserving French accents."""
+    return "".join(
+        c for c in str(line).replace("**","").replace("*","")
+        if unicodedata.category(c) not in ("So","Cf","Sk")
+        and c not in "\ufe0f"
+    ).strip()
+
+
 def _text_lines(img,lines,accent):
     d=ImageDraw.Draw(img)
     y=252
@@ -80,13 +90,11 @@ def _text_lines(img,lines,accent):
         if not line:
             y+=18
             continue
-        words=str(line).split()
+        words=_clean(line).split()
         part=""
         for word in words:
             candidate=(part+" "+word).strip()
-            w=d.textbbox((0,0),candidate,
-                         font=__import__("halloween_bot.trick_or_treat",
-                                           fromlist=["_font"])._font(25))[2]
+            w=d.textbbox((0,0),candidate,font=_font(25))[2]
             if w>324 and part:
                 _write(img,(869,y),part,25,IVORY)
                 y+=34
