@@ -665,21 +665,33 @@ class BossView(discord.ui.LayoutView):
                 return await fail(i,"Tu as déjà effectué tes trois attaques.")
             if now-self.last.get(uid,-1e9)<10:
                 return await fail(i,"Attends 10 secondes entre deux attaques.")
+            phase_before=3 if self.hp<=150 else 2 if self.hp<=300 else 1
             damage=(random.randint(22,42) if move=="sword" else
                     random.randint(30,60) if move=="magic" else
                     0 if random.random()<.28 else random.randint(40,82))
-            # Actual applied damage can never exceed the remaining HP.
+            # Each phase has different strategic strengths, not only labels:
+            # phase 2's burning armor resists melee, and phase 3 magnifies
+            # high-risk attacks at the cost of their 28% miss chance.
+            if phase_before==2 and move=="sword":
+                damage=round(damage*.75)
+            if phase_before==3 and move=="risk":
+                damage=round(damage*1.3)
+            if phase_before==3 and move=="magic":
+                damage=round(damage*.85)
             damage=min(self.hp,damage)
             self.hp-=damage
             self.hits[uid]=self.hits.get(uid,0)+1
             self.last[uid]=now
-            self.damage[uid]=self.damage.get(uid,0)+damage
-            if damage:self.bot.store.award(self.guild_id,uid,boss_damage=damage)
+            if damage:
+                self.damage[uid]=self.damage.get(uid,0)+damage
+                self.bot.store.award(self.guild_id,uid,boss_damage=damage)
             phase=("PHASE 3 : FURIE" if self.hp<=150 else
-                   "PHASE 2 : FEU" if self.hp<=300 else
+                   "PHASE 2 : ARMURE DE FEU" if self.hp<=300 else
                    "PHASE 1 : ÉVEIL")
-            self.lines=[f"{phase}",f"{i.user.display_name[:18]} : {damage} dégâts.",
-                        f"{self.hp} / 450 PV restants."]
+            self.lines=[phase,
+                        f"{i.user.display_name[:18]} : {damage} dégâts.",
+                        f"{self.hp} / 450 PV restants.",
+                        f"{len(self.damage)} combattants actifs."]
             if self.hp<=0:
                 self.finished=True
                 self.stage="result"
