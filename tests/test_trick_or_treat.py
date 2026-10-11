@@ -402,6 +402,8 @@ class TrickVisualTests(unittest.TestCase):
         view.riddle=DOOR_RIDDLES[0]
         notices=[]
         class Response:
+            def is_done(self):
+                return False
             async def send_message(self, content, **kwargs):
                 notices.append((content,kwargs))
         async def test():
