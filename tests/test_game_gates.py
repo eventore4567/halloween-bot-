@@ -1,4 +1,8 @@
-"""Real game-cog integration coverage for the reusable Halloween riddle gate."""
+"""End-to-end checks for five DIFFERENT Halloween games.
+
+Every game has native controls and an illustrated public panel. No generic
+riddle is required for these five games, and no prize is minted twice.
+"""
 import asyncio
 import io
 import tempfile
@@ -11,230 +15,243 @@ import discord
 from PIL import Image
 
 from halloween_bot.common import ICONS
-from halloween_bot.games import Games, BossView, DuelView, ExpeditionView
-from halloween_bot.riddle_gate import (
-    RiddleGate, RewardScene, FILENAME, make_gate_art, make_reward_art
+from halloween_bot.games import Games
+from halloween_bot.adventure_games import (
+    GhostHuntView, PumpkinView, ExpeditionView, DuelView, BossView,
+    PALETTE, scene_file,
 )
 from halloween_bot.storage import Store
-from halloween_bot.trick_or_treat import DOOR_RIDDLES
 
 
-class _Response:
+class Response:
     def __init__(self):
         self.sent=[]
         self.edited=[]
         self.done=False
-
-    def is_done(self):
-        return self.done
-
-    async def send_message(self, *args, **kw):
-        self.sent.append((args, kw))
+    def is_done(self): return self.done
+    async def send_message(self,*args,**kwargs):
+        self.sent.append(kwargs)
         self.done=True
-
-    async def edit_message(self, **kw):
-        self.edited.append(kw)
+    async def edit_message(self,**kwargs):
+        self.edited.append(kwargs)
         self.done=True
 
 
-class GameGateTests(unittest.TestCase):
+class GamesTests(unittest.TestCase):
     def setUp(self):
-        self.folder=tempfile.TemporaryDirectory()
-        self.store=Store(str(Path(self.folder.name)/"gates.sqlite"))
+        self.temp=tempfile.TemporaryDirectory()
+        self.store=Store(str(Path(self.temp.name)/"games.sqlite3"))
         self.bot=SimpleNamespace(store=self.store,active_bosses={})
         ICONS.install([])
 
     def tearDown(self):
         self.store.close()
-        self.folder.cleanup()
+        self.temp.cleanup()
         ICONS.install([])
 
-    def interaction(self,uid=13,gid=7):
-        response=_Response()
+    def interaction(self,uid=13,gid=7,name=None):
+        response=Response()
         async def original_response():
-            return SimpleNamespace(id=51,edit=lambda **kw: None)
-        user=SimpleNamespace(id=uid,mention=f"<@{uid}>",bot=False)
+            return SimpleNamespace(id=51)
         return SimpleNamespace(
-            guild=SimpleNamespace(id=gid),user=user,client=self.bot,
-            response=response, app_permissions=SimpleNamespace(attach_files=True),
+            guild=SimpleNamespace(id=gid),
+            user=SimpleNamespace(id=uid,bot=False,mention=f"<@{uid}>",
+                                 display_name=name or f"Chasseur {uid}"),
+            client=self.bot,
+            response=response,
+            app_permissions=SimpleNamespace(attach_files=True),
             original_response=original_response,
-            message=SimpleNamespace(id=51)
         )
 
-    async def _launch(self,method,*,interaction=None,kwargs=None):
-        i=interaction or self.interaction()
-        with patch("halloween_bot.riddle_gate.random.choice",
-                   return_value=DOOR_RIDDLES[0]):
-            await getattr(Games,method).callback(Games(self.bot),i,**(kwargs or {}))
+    async def launch(self,command,kwargs=None):
+        i=self.interaction()
+        await getattr(Games,command).callback(Games(self.bot),i,**(kwargs or {}))
         self.assertEqual(len(i.response.sent),1)
-        args,kw=i.response.sent[0]
-        self.assertIs(kw["ephemeral"],False)
-        self.assertIsInstance(kw["view"],RiddleGate)
-        self.assertEqual(len(kw["view"].children),3)
-        self.assertEqual(kw["file"].filename,FILENAME)
-        self.assertNotIn("embed",kw)
-        return i,kw["view"]
+        sent=i.response.sent[0]
+        self.assertIs(sent["ephemeral"],False)
+        self.assertEqual(sent["file"].filename,"crypt-aventure.jpg")
+        self.assertIsInstance(sent["view"],discord.ui.LayoutView)
+        self.assertEqual(len(sent["view"].children),2)
+        self.assertIsInstance(sent["view"].children[0],discord.ui.MediaGallery)
+        self.assertEqual(sent["view"].message.id,51)
+        self.assertNotIn("embed",sent)
+        return sent["view"]
 
-    def test_art_is_valid_and_readable(self):
-        image=Image.open(io.BytesIO(
-            make_gate_art("Le Roi des Citrouilles",DOOR_RIDDLES[0][0])
-        ))
-        self.assertEqual(image.size,(1280,700))
-        for outcome in ("treat","jackpot","trick","nothing"):
-            preview=Image.open(io.BytesIO(
-                make_reward_art("La citrouille mystérieuse",outcome,95,
-                                "Une vieille citrouille mystérieuse !")
-            ))
-            self.assertEqual(preview.size,(1280,700))
+    def test_every_game_art_is_different(self):
+        seen=set()
+        for kind in PALETTE:
+            data=scene_file(kind,"start",lines=["Teste un nouveau décor !"])
+            img=Image.open(data.fp)
+            self.assertEqual(img.size,(1280,700))
+            # Real illustrated identity, not a color change of same castle.
+            region=img.crop((140,300,690,530))
+            self.assertGreater(len(set(region.getdata())),70)
+            seen.add(region.getpixel((120,100)))
+        self.assertEqual(len(seen),5)
 
-    def test_all_relevant_games_start_with_riddle_instead_of_rewards(self):
+    def test_unique_game_panels_and_controls(self):
         async def run():
-            for method,kwargs in (
-                ("ghosthunt",{}), ("pumpkin",{}),
-                ("expedition",{}), ("boss",{}),
+            for name,kwargs,cls,labels in (
+                ("ghosthunt",{},GhostHuntView,3),
+                ("pumpkin",{},PumpkinView,3),
+                ("expedition",{},ExpeditionView,3),
                 ("duel",{"adversaire":SimpleNamespace(
-                    id=42,mention="<@42>",bot=False)}),
+                    id=42,bot=False,mention="<@42>",display_name="Rival")},
+                    DuelView,2),
+                ("boss",{},BossView,3),
             ):
-                i,gate=await self._launch(method,kwargs=kwargs)
-                self.assertFalse(gate.finished)
+                view=await self.launch(name,kwargs)
+                self.assertIsInstance(view,cls)
+                self.assertEqual(len(view.children[1].children),labels)
                 self.assertEqual(self.store.profile(7,13)["candies"],0)
-                self.assertEqual(self.store.trick_status(7,13)["wait"],0)
-                self.assertEqual(self.bot.active_bosses,{})
         asyncio.run(run())
 
-    def test_wrong_answers_never_consume_original_game_cooldown(self):
+    def test_ghosthunt_is_search_not_an_enigma(self):
         async def run():
-            for name,action in (("ghosthunt","hunt"),("pumpkin","pumpkin"),
-                                ("expedition","expedition"),("duel","duel")):
-                kw={"adversaire":SimpleNamespace(id=42,mention="<@42>",bot=False)} if name=="duel" else {}
-                i,gate=await self._launch(name,kwargs=kw)
-                mistake=self.interaction()
-                await gate.answer(mistake,0)
-                self.assertEqual(len(mistake.response.edited),1)
-                self.assertIsNone(mistake.response.edited[0]["embed"])
-                self.assertEqual(len(mistake.response.edited[0]["attachments"]),1)
-                self.assertFalse(gate.finished)
-                self.assertEqual(gate.attempts,1)
-                self.assertEqual(self.store.profile(7,13)["candies"],0)
-                self.assertEqual(self.store.cooldown(7,13,action,1,now=100),0)
-                # The above storage check claims a 1s cooldown in the
-                # fictional past, not a real-time reward attempt.
+            view=await self.launch("ghosthunt")
+            self.assertEqual(view.stage,"start")
+            self.assertIn(view.PLACES[view.hidden],view.lines[1])
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=.7), \
+                 patch("halloween_bot.adventure_games.random.choices",
+                       return_value=[("Fantôme test",45,70)]), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=58):
+                a=self.interaction()
+                await view.search(a,view.hidden)
+            self.assertEqual(view.stage,"result")
+            self.assertEqual(len(a.response.edited),1)
+            self.assertEqual(self.store.profile(7,13)["candies"],58)
+            self.assertEqual(self.store.profile(7,13)["ghosts"],1)
+            self.assertEqual(a.response.edited[0]["attachments"][0].filename,
+                             "crypt-aventure.jpg")
+            await view.search(self.interaction(),view.hidden)
+            self.assertEqual(self.store.profile(7,13)["candies"],58)
         asyncio.run(run())
 
-    def test_pumpkin_reward_only_after_correct_answer(self):
+    def test_pumpkin_requires_three_hits_and_one_reward(self):
         async def run():
-            i,gate=await self._launch("pumpkin")
-            answer=self.interaction()
-            with patch("halloween_bot.games.random.choices",return_value=["rare"]), \
-                 patch("halloween_bot.games.random.randint",return_value=150):
-                await gate.answer(answer,1)
-            self.assertTrue(gate.finished)
-            self.assertEqual(self.store.profile(7,13)["candies"],150)
+            view=await self.launch("pumpkin")
+            await view.select(self.interaction(),1)
+            self.assertEqual(view.stage,"crack")
+            self.assertEqual(self.store.profile(7,13)["candies"],0)
+            await view.hit(self.interaction())
+            await view.hit(self.interaction())
+            self.assertEqual(view.cracks,2)
+            self.assertEqual(self.store.profile(7,13)["candies"],0)
+            with patch("halloween_bot.adventure_games.random.choices",
+                       return_value=["rare"]), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=170):
+                await asyncio.gather(view.hit(self.interaction()),
+                                     view.hit(self.interaction()))
+            self.assertEqual(view.stage,"result")
+            self.assertEqual(self.store.profile(7,13)["candies"],170)
             self.assertEqual(self.store.profile(7,13)["pumpkins"],1)
-            self.assertEqual(len(answer.response.edited),1)
-            result=answer.response.edited[0]
-            self.assertIsInstance(result["view"],RewardScene)
-            self.assertIsNone(result["embed"])
-            self.assertIsNone(result["content"])
-            self.assertEqual(len(result["attachments"]),1)
-            self.assertEqual(result["attachments"][0].filename,FILENAME)
-            self.assertEqual(len(result["view"].children),1)
-            self.assertIsInstance(result["view"].children[0],
-                                  discord.ui.MediaGallery)
-            self.assertFalse(any(isinstance(x,discord.ui.Container)
-                                 for x in result["view"].children))
-            # A second gate cannot reward again before the real cooldown.
-            other,second=await self._launch("pumpkin")
-            blocked=self.interaction()
-            await second.answer(blocked,1)
-            self.assertFalse(second.finished)
-            self.assertEqual(self.store.profile(7,13)["candies"],150)
+            self.assertEqual(view.cracks,3)
         asyncio.run(run())
 
-    def test_image_free_server_still_runs_with_embed_fallback(self):
+    def test_expedition_has_strategy_before_reward(self):
         async def run():
-            launch=self.interaction()
-            launch.app_permissions.attach_files=False
-            gate=None
-            with patch("halloween_bot.riddle_gate.random.choice",
-                       return_value=DOOR_RIDDLES[0]):
-                await Games.pumpkin.callback(Games(self.bot),launch)
-            sent=launch.response.sent[0][1]
-            gate=sent["view"]
-            self.assertFalse(gate.has_art)
-            self.assertNotIn("file",sent)
-            self.assertIsNotNone(sent["embed"])
-            answer=self.interaction()
-            with (patch("halloween_bot.games.random.choices",
-                        return_value=["simple"]),
-                  patch("halloween_bot.games.random.randint",
-                        return_value=55)):
-                await gate.answer(answer,1)
-            self.assertTrue(gate.finished)
-            result=answer.response.edited[0]
-            self.assertIsNotNone(result["embed"])
-            self.assertIsNone(result["view"])
-            self.assertEqual(result["attachments"],[])
-            self.assertEqual(self.store.profile(7,13)["candies"],55)
-        asyncio.run(run())
-
-    def test_ghost_reward_contains_no_duplicate_embed(self):
-        async def run():
-            _,gate=await self._launch("ghosthunt")
-            with patch("halloween_bot.games.random.random",return_value=0.0):
-                answer=self.interaction()
-                await gate.answer(answer,1)
-            result=answer.response.edited[0]
-            self.assertIsNone(result["embed"])
-            self.assertIsNone(result["content"])
-            self.assertIsInstance(result["view"],RewardScene)
-            self.assertEqual(len(result["attachments"]),1)
+            view=await self.launch("expedition")
+            await view.choose_path(self.interaction(),0)
+            self.assertEqual(view.stage,"route")
             self.assertEqual(self.store.profile(7,13)["candies"],0)
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=.99), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=110):
+                await view.cautious(self.interaction())
+            self.assertEqual(view.stage,"result")
+            self.assertEqual(self.store.profile(7,13)["expeditions"],1)
+            self.assertGreater(self.store.profile(7,13)["candies"],0)
+            self.assertGreater(self.store.cooldown(
+                7,13,"expedition",600),0)
         asyncio.run(run())
 
-    def test_ghosthunt_failure_only_after_riddle(self):
+    def test_duel_has_ten_turns_not_coinflip_on_accept(self):
         async def run():
-            _,gate=await self._launch("ghosthunt")
-            with patch("halloween_bot.games.random.random",return_value=0.0):
-                await gate.answer(self.interaction(),1)
-            self.assertTrue(gate.finished)
+            rival=SimpleNamespace(id=42,bot=False,mention="<@42>",
+                                  display_name="Rival")
+            view=await self.launch("duel",{"adversaire":rival})
+            accepted=self.interaction(uid=42)
+            await view.accept(accepted)
+            self.assertEqual(view.stage,"fight")
             self.assertEqual(self.store.profile(7,13)["candies"],0)
-            self.assertEqual(self.store.profile(7,13)["ghosts"],0)
+            with patch("halloween_bot.adventure_games.random.randint",
+                       return_value=32):
+                for _ in range(10):
+                    if view.finished:break
+                    uid=view.players[view.turn]
+                    await view.attack(self.interaction(uid=uid))
+            self.assertTrue(view.finished)
+            self.assertEqual(view.stage,"result")
+            self.assertEqual(
+                self.store.profile(7,13)["candies"]+
+                self.store.profile(7,42)["candies"],150
+            )
+            self.assertEqual(
+                self.store.profile(7,13)["duel_wins"]+
+                self.store.profile(7,42)["duel_wins"],1
+            )
         asyncio.run(run())
 
-    def test_duel_expedition_and_boss_handoff_keep_same_message(self):
+    def test_boss_has_phases_and_pays_every_participant_once(self):
         async def run():
-            other=SimpleNamespace(id=42,mention="<@42>",bot=False)
-            for name,kwargs,view_class in (
-                ("duel",{"adversaire":other},DuelView),
-                ("expedition",{},ExpeditionView),
-                ("boss",{},BossView),
-            ):
-                _,gate=await self._launch(name,kwargs=kwargs)
-                click=self.interaction()
-                await gate.answer(click,1)
-                self.assertTrue(gate.finished)
-                self.assertEqual(len(click.response.edited),1)
-                payload=click.response.edited[0]
-                self.assertIsInstance(payload["view"],view_class)
-                self.assertEqual(payload["view"].message.id,51)
-            self.assertIn(7,self.bot.active_bosses)
-            self.assertEqual(self.store.profile(7,13)["candies"],0)
+            view=await self.launch("boss")
+            self.assertIs(self.bot.active_bosses[7],view)
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=.9), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=82):
+                for uid in range(25,32):
+                    if view.finished:break
+                    await view.attack(self.interaction(uid=uid),"risk")
+            self.assertTrue(view.finished)
+            self.assertEqual(view.hp,0)
+            self.assertNotIn(7,self.bot.active_bosses)
+            self.assertEqual(sum(
+                self.store.profile(7,uid)["candies"] for uid in view.damage
+            ),150*len(view.damage))
+            for uid in view.damage:
+                self.assertLessEqual(view.hits[uid],3)
         asyncio.run(run())
 
-    def test_answer_race_one_continuation_only(self):
+    def test_missed_boss_attack_does_not_claim_victory_reward(self):
         async def run():
-            _,gate=await self._launch("pumpkin")
-            first=self.interaction()
-            second=self.interaction()
-            with patch("halloween_bot.games.random.choices",return_value=["simple"]), \
-                 patch("halloween_bot.games.random.randint",return_value=60):
-                await asyncio.gather(gate.answer(first,1),gate.answer(second,1))
-            self.assertEqual(self.store.profile(7,13)["candies"],60)
-            self.assertEqual(self.store.profile(7,13)["pumpkins"],1)
-            self.assertEqual(len(first.response.edited),1)
+            view=await self.launch("boss")
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=0.0):
+                await view.attack(self.interaction(uid=55),"risk")
+            self.assertEqual(view.hits[55],1)
+            self.assertNotIn(55,view.damage)
+            with patch("halloween_bot.adventure_games.random.random",
+                       return_value=.95), \
+                 patch("halloween_bot.adventure_games.random.randint",
+                       return_value=82):
+                for uid in range(60,68):
+                    if view.finished:
+                        break
+                    await view.attack(self.interaction(uid=uid),"risk")
+            self.assertTrue(view.finished)
+            self.assertEqual(self.store.profile(7,55)["candies"],0)
+            self.assertFalse(55 in view.damage)
+            self.assertEqual(sum(self.store.profile(7,u)["candies"]
+                                 for u in view.damage),150*len(view.damage))
+        asyncio.run(run())
+
+    def test_non_owner_solo_cannot_press_buttons(self):
+        async def run():
+            view=await self.launch("pumpkin")
+            response=Response()
+            other=SimpleNamespace(
+                guild=SimpleNamespace(id=7),
+                user=SimpleNamespace(id=55,bot=False),response=response)
+            allowed=await view.interaction_check(other)
+            self.assertFalse(allowed)
+            self.assertEqual(self.store.profile(7,55)["candies"],0)
         asyncio.run(run())
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     unittest.main()

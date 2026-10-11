@@ -59,6 +59,7 @@ FALLBACK = {
     "fire": "🔥",
     "book": "📜",
     "sword": "🗡️",
+    "shield": "🛡️",
 }
 ALIASES = {
     "pumpkin": ("citrouille", "halloween_pumpkin"),
