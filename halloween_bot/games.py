@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from .common import card, fail, wait_text, OwnerView, themed_view, progress
 from .content import QUIZZES,RIDDLES,HUNTS
-from .riddle_gate import launch_gate
+from .riddle_gate import launch_gate, reward_file
 
 
 class QuizView(OwnerView):
@@ -304,14 +304,18 @@ class Games(commands.Cog):
                 self.bot.store.award(g,u,amount,ghosts=1)
                 message="🌙 Une silhouette a surgi du brouillard..."
                 found=f"✨ **{name} capturé !**"
-            return (card(
+            panel=card(
                 "Chasse aux fantômes — Le verdict",message,
                 theme="ghost" if amount else "night",
                 sections=[
                     ("👻 RENCONTRE",found,False),
                     ("🍬 RÉCOMPENSE",f"**+{amount} bonbons**",False),
                 ],
-            ),None)
+            )
+            kind="trick" if amount else "nothing"
+            return (panel,None,reward_file(
+                "Chasse aux fantômes",kind,amount,found.replace("**","")
+            ))
 
         await launch_gate(interaction,"Chasse aux fantômes",unlock)
 
@@ -340,7 +344,7 @@ class Games(commands.Cog):
                 "legendary":"✨ **CITROUILLE LÉGENDAIRE !**",
                 "empty":"🕸️ Cette citrouille était vide...",
             }
-            return (card(
+            panel=card(
                 "Citrouille mystérieuse — Révélée",descriptions[kind],
                 theme="gold" if kind=="legendary" else
                       "night" if kind=="empty" else "pumpkin",
@@ -348,7 +352,13 @@ class Games(commands.Cog):
                     ("🍬 RÉCOMPENSE",f"**+{amount} bonbons**",True),
                     ("🎒 TON SOLDE",f"**{player['candies']:,}**",True),
                 ],
-            ),None)
+            )
+            scene=("jackpot" if kind=="legendary" else "nothing"
+                   if kind=="empty" else "treat")
+            return (panel,None,reward_file(
+                "La citrouille mystérieuse",scene,amount,
+                descriptions[kind].replace("**","")
+            ))
 
         await launch_gate(interaction,"La citrouille mystérieuse",unlock)
 
@@ -377,7 +387,8 @@ class Games(commands.Cog):
                 ],
             ),view)
 
-        await launch_gate(interaction,"Le duel des ombres",unlock)
+        await launch_gate(interaction,"Le duel des ombres",unlock,
+                          mention_user=adversaire)
 
     @app_commands.command(name="boss",description="💀 Déverrouiller le boss communautaire")
     @app_commands.guild_only()
