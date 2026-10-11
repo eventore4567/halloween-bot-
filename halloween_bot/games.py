@@ -98,6 +98,8 @@ class Games(commands.Cog):
     @app_commands.command(name="duel",description="⚔️ Défier un joueur au combat tour par tour")
     @app_commands.guild_only()
     async def duel(self,interaction:discord.Interaction,adversaire:discord.Member):
+        if not interaction.app_permissions.attach_files:
+            return await fail(interaction,"Autorise « Joindre des fichiers » pour lancer un duel.")
         if adversaire.bot or adversaire.id==interaction.user.id:
             return await fail(interaction,"Choisis un autre joueur humain.")
         guild_id,user_id=interaction.guild.id,interaction.user.id
@@ -110,6 +112,8 @@ class Games(commands.Cog):
     @app_commands.command(name="boss",description="💀 Combattre le Roi des Citrouilles ensemble")
     @app_commands.guild_only()
     async def boss(self,interaction:discord.Interaction):
+        if not interaction.app_permissions.attach_files:
+            return await fail(interaction,"Autorise « Joindre des fichiers » pour lancer le boss.")
         guild_id=interaction.guild.id
         if guild_id in self.bot.active_bosses:
             return await fail(interaction,"Un boss combat déjà sur le serveur.")
