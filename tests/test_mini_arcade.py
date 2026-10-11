@@ -22,7 +22,9 @@ from halloween_bot.mini_art import HEIGHT, WIDTH, banner_bytes
 from halloween_bot.mini_engine import (
     COFFIN_REWARDS, MODES, MiniSession, TTL_SECONDS,
 )
-from halloween_bot.mini_arcade import ArcadeHub, MiniGameView, COOLDOWN_SECONDS
+from halloween_bot.mini_arcade import (
+    ArcadeHub, MiniGameView, MiniArcade, COOLDOWN_SECONDS
+)
 from halloween_bot.quiz_content import generate_question, generate_film
 from halloween_bot.quiz_games import MultipleChoice
 from halloween_bot.storage import Store
@@ -120,6 +122,132 @@ class ArcadeUiTests(unittest.TestCase):
             self.assertEqual(image.size,(WIDTH,HEIGHT))
             self.assertGreater(WIDTH,HEIGHT)
             self.assertGreater(len(data),6000)
+
+    def test_every_mode_has_its_own_slash_command(self):
+        """Discord discovers seven direct slash commands, not only /jeux."""
+        names=("memoire","reflexe","labyrinthe","chaudron",
+               "coffres","des","fantomes")
+        self.assertEqual(set(names),set(MODES))
+        for name in names:
+            slash=getattr(MiniArcade,name)
+            self.assertIsInstance(slash,discord.app_commands.Command)
+            self.assertEqual(slash.name,name)
+            self.assertTrue(slash.description)
+
+    def test_direct_commands_launch_real_games_without_jeux_hub(self):
+        class Response:
+            def __init__(self):
+                self.sent=[]
+            def is_done(self):
+                return False
+            async def send_message(self,*args,**kwargs):
+                self.sent.append((args,kwargs))
+
+        async def run():
+            for count, mode in enumerate(MODES):
+                response=Response()
+                uid=self.owner+count
+                guild=SimpleNamespace(id=self.guild)
+                user=SimpleNamespace(id=uid,bot=False)
+                async def original_response():
+                    return SimpleNamespace(id=700+uid)
+                interaction=SimpleNamespace(
+                    guild=guild,user=user,response=response,
+                    original_response=original_response,
+                    app_permissions=SimpleNamespace(attach_files=True)
+                )
+                await getattr(MiniArcade,mode).callback(
+                    MiniArcade(self.bot),interaction
+                )
+                self.assertEqual(len(response.sent),1)
+                _,kwargs=response.sent[0]
+                self.assertIs(kwargs["ephemeral"],False)
+                game=kwargs["view"]
+                self.assertIsInstance(game,MiniGameView)
+                self.assertEqual(game.session.mode,mode)
+                self.assertEqual(game.owner_id,uid)
+                self.assertEqual(game.guild_id,self.guild)
+                self.assertEqual(game.message.id,700+uid)
+                self.assertEqual(kwargs["file"].filename,"halloween-arcade.jpg")
+                self.assertIsInstance(game.children[0],discord.ui.MediaGallery)
+                self.assertGreater(len(game.children[-1].children),0)
+                self.assertFalse(any(isinstance(c,discord.ui.Container)
+                                     for c in game.children))
+        asyncio.run(run())
+
+    def test_direct_and_jeux_hub_share_one_cooldown(self):
+        class Response:
+            def __init__(self):
+                self.sent=[]
+            def is_done(self):
+                return False
+            async def send_message(self,*args,**kwargs):
+                self.sent.append((args,kwargs))
+
+        async def run():
+            async def interact():
+                response=Response()
+                i=SimpleNamespace(
+                    guild=SimpleNamespace(id=self.guild),
+                    user=SimpleNamespace(id=self.owner,bot=False),
+                    response=response,
+                    app_permissions=SimpleNamespace(attach_files=True),
+                )
+                async def original_response():
+                    return SimpleNamespace(id=999)
+                i.original_response=original_response
+                return i,response
+
+            first,response=await interact()
+            await MiniArcade.coffres.callback(MiniArcade(self.bot),first)
+            self.assertEqual(len(response.sent),1)
+            hub=ArcadeHub(self.bot,self.owner,self.guild)
+            second,blocked=await interact()
+            await hub.launch(second,"coffres")
+            self.assertEqual(len(blocked.sent),1)
+            _,warning=blocked.sent[0]
+            self.assertTrue(warning.get("ephemeral"))
+            self.assertNotIn("view",warning)
+
+            # A different game is immediately available.
+            third,other=await interact()
+            await MiniArcade.des.callback(MiniArcade(self.bot),third)
+            self.assertEqual(other.sent[0][1]["view"].session.mode,"des")
+        asyncio.run(run())
+
+    def test_direct_launch_without_image_permission_does_not_spend_cooldown(self):
+        class Response:
+            def __init__(self):
+                self.sent=[]
+            def is_done(self):
+                return False
+            async def send_message(self,*args,**kwargs):
+                self.sent.append(kwargs)
+
+        async def run():
+            async def invoke(allow):
+                response=Response()
+                interaction=SimpleNamespace(
+                    guild=SimpleNamespace(id=self.guild),
+                    user=SimpleNamespace(id=self.owner,bot=False),
+                    response=response,
+                    app_permissions=SimpleNamespace(attach_files=allow)
+                )
+                async def original_response():
+                    return SimpleNamespace(id=1001)
+                interaction.original_response=original_response
+                await MiniArcade.labyrinthe.callback(
+                    MiniArcade(self.bot),interaction
+                )
+                return response.sent
+            denied=await invoke(False)
+            self.assertEqual(len(denied),1)
+            self.assertTrue(denied[0]["ephemeral"])
+            allowed=await invoke(True)
+            self.assertEqual(len(allowed),1)
+            self.assertIs(allowed[0]["ephemeral"],False)
+            self.assertEqual(allowed[0]["view"].session.mode,"labyrinthe")
+        asyncio.run(run())
 
     def test_hub_has_seven_buttons_without_grey_container(self):
         async def build():

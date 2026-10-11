@@ -1,10 +1,11 @@
 """CRYPT CUP arcade: seven small interactive Discord Components V2 games.
 
-All games are reachable from a SINGLE slash command (/jeux) and an existing
-/halloween hub button. Avoids command spam. Visuals use original in-app
-Halloween art, native controls and custom application emojis. One player owns
-each public session; other users can launch their own games. A SQLite-backed per-mode cooldown prevents farming;
-rewards are virtual candies only, never cash-prize competition points.
+All seven games have their own slash command (/memoire, /reflexe,
+/labyrinthe, /chaudron, /coffres, /des, /fantomes) in addition to the /jeux
+and /halloween menus. A shared launcher gives both entry points identical
+cooldowns, owner checks, images, buttons and rewards.
+Each public session belongs to one player; rewards are virtual candy only,
+never cash-prize competition points.
 """
 from __future__ import annotations
 
@@ -24,7 +25,8 @@ LOG = logging.getLogger(__name__)
 
 INTRO = (
     "### 🕹️ LE CABINET DES JEUX\n"
-    "Sept petites aventures à jouer seul, sans argent ni mise.\n"
+    "Sept jeux disponibles directement avec leurs propres commandes /, "
+    "ou depuis ce catalogue.\n"
     "Découvre la bonne porte, fabrique des potions, capture un fantôme ou "
     "affronte le démon. Les récompenses sont des **bonbons virtuels**.\n"
     "-# Aucun de ces jeux ne donne de points pour le concours CRYPT CUP."
@@ -37,6 +39,40 @@ def _gallery():
     return discord.ui.MediaGallery(
         discord.MediaGalleryItem(media=f"attachment://{FILENAME}")
     )
+
+
+async def launch_mini_game(bot, interaction: discord.Interaction, mode: str):
+    """Canonical launcher for BOTH the /jeux catalogue and direct slash commands.
+
+    All seven modes use the same cooldown key and one-shot payout regardless
+    of entry point. Never consume a cooldown on a server with no attachment
+    permission, where the game cannot be shown.
+    """
+    if mode not in MODES:
+        return await fail(interaction, "Jeu introuvable.")
+    if not interaction.guild:
+        return await fail(interaction, "Les mini-jeux sont réservés aux serveurs.")
+    if not getattr(interaction.app_permissions, "attach_files", False):
+        return await fail(interaction, "Autorise « Joindre des fichiers » pour jouer.")
+
+    guild_id=interaction.guild.id
+    user_id=interaction.user.id
+    wait=bot.store.cooldown(
+        guild_id, user_id, "minigame:"+mode, COOLDOWN_SECONDS
+    )
+    if wait:
+        return await fail(interaction, wait_text(wait))
+    game=MiniGameView(bot,guild_id,user_id,mode)
+    try:
+        await interaction.response.send_message(
+            view=game, file=banner_file(mode), ephemeral=False,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+    except discord.HTTPException:
+        LOG.exception("Unable to launch arcade game: %s", mode)
+        raise
+    game.message=await interaction.original_response()
+    game.schedule_reveal()
 
 
 class ArcadeHub(discord.ui.LayoutView):
@@ -77,24 +113,7 @@ class ArcadeHub(discord.ui.LayoutView):
         return True
 
     async def launch(self,interaction,mode):
-        if mode not in MODES:
-            return await fail(interaction,"Jeu introuvable.")
-        wait=self.bot.store.cooldown(
-            self.guild_id,self.owner_id,"minigame:"+mode,COOLDOWN_SECONDS
-        )
-        if wait:
-            return await fail(interaction,wait_text(wait))
-        game=MiniGameView(self.bot,self.guild_id,self.owner_id,mode)
-        try:
-            await interaction.response.send_message(
-                view=game,file=banner_file(mode),ephemeral=False,
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
-        except discord.HTTPException:
-            LOG.exception("Unable to launch arcade game: %s",mode)
-            raise
-        game.message=await interaction.original_response()
-        game.schedule_reveal()
+        await launch_mini_game(self.bot,interaction,mode)
 
 
 class MiniGameView(discord.ui.LayoutView):
@@ -264,6 +283,57 @@ class MiniArcade(commands.Cog):
     @app_commands.guild_only()
     async def jeux(self,interaction:discord.Interaction):
         await self.send_hub(interaction)
+
+
+    @app_commands.command(
+        name="memoire", description="🔮 Mémoire des runes : retrouve 4 symboles dans l'ordre"
+    )
+    @app_commands.guild_only()
+    async def memoire(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"memoire")
+
+    @app_commands.command(
+        name="reflexe", description="👻 Réflexe du fantôme : attrape-le au bon moment"
+    )
+    @app_commands.guild_only()
+    async def reflexe(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"reflexe")
+
+    @app_commands.command(
+        name="labyrinthe", description="🚪 Labyrinthe maudit : franchis trois portes"
+    )
+    @app_commands.guild_only()
+    async def labyrinthe(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"labyrinthe")
+
+    @app_commands.command(
+        name="chaudron", description="🧪 Chaudron magique : prépare les bonnes potions"
+    )
+    @app_commands.guild_only()
+    async def chaudron(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"chaudron")
+
+    @app_commands.command(
+        name="coffres", description="🎁 Coffres hantés : découvre ton trésor"
+    )
+    @app_commands.guild_only()
+    async def coffres(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"coffres")
+
+    @app_commands.command(
+        name="des", description="🎲 Dés du démon : prédis son prochain lancer"
+    )
+    @app_commands.guild_only()
+    async def des(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"des")
+
+    @app_commands.command(
+        name="fantomes", description="🪦 Chasse spectrale : choisis la tombe secrète"
+    )
+    @app_commands.guild_only()
+    async def fantomes(self,interaction:discord.Interaction):
+        await launch_mini_game(self.bot,interaction,"fantomes")
+
 
 
 async def setup(bot):

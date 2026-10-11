@@ -23,7 +23,9 @@ class CommandTests(unittest.TestCase):
                         "pumpkin","quiz","duel","boss","expedition",
                         "farm","leaderboard","profile","shop","inventory",
                         "give","achievements","guide","setup",
-                        "competition","challenge","film_horreur","jeux"
+                        "competition","challenge","film_horreur","jeux",
+                        "memoire","reflexe","labyrinthe","chaudron",
+                        "coffres","des","fantomes"
                     }
                     self.assertTrue(required<=actual,required-actual)
                     self.assertEqual(len(actual),len(required))
