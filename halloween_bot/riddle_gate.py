@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import unicodedata
 from io import BytesIO
 
 import discord
@@ -96,7 +97,12 @@ def make_reward_art(game, outcome, amount, note=""):
     _write(image,(591,356),amount_label,
            _fit(amount_label,555,size=48,min_size=28),theme,glow=3)
     draw.line((599,426,1151,426),fill=(*theme,150),width=2)
-    short=note.strip().replace("\n"," ")[:80] or "Le manoir a décidé de ton sort."
+    # Vera supports French text, not pictographic emoji. Strip only art
+    # pictographs; emoji remain intact in the native Discord embed.
+    short="".join(c for c in note.strip().replace("\n"," ")
+                  if unicodedata.category(c) not in ("So","Cf")
+                  and c not in "\ufe0f")[:80].strip()
+    short=short or "Le manoir a décidé de ton sort."
     # Keep result caption readable on desktop/mobile.
     words=short.split()
     parts=[]
