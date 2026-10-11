@@ -12,7 +12,9 @@ from PIL import Image
 
 from halloween_bot.common import ICONS
 from halloween_bot.games import Games, BossView, DuelView, ExpeditionView
-from halloween_bot.riddle_gate import RiddleGate, FILENAME, make_gate_art
+from halloween_bot.riddle_gate import (
+    RiddleGate, FILENAME, make_gate_art, make_reward_art
+)
 from halloween_bot.storage import Store
 from halloween_bot.trick_or_treat import DOOR_RIDDLES
 
@@ -77,6 +79,12 @@ class GameGateTests(unittest.TestCase):
             make_gate_art("Le Roi des Citrouilles",DOOR_RIDDLES[0][0])
         ))
         self.assertEqual(image.size,(1280,700))
+        for outcome in ("treat","jackpot","trick","nothing"):
+            preview=Image.open(io.BytesIO(
+                make_reward_art("La citrouille mystérieuse",outcome,95,
+                                "Une vieille citrouille mystérieuse !")
+            ))
+            self.assertEqual(preview.size,(1280,700))
 
     def test_all_relevant_games_start_with_riddle_instead_of_rewards(self):
         async def run():
@@ -121,8 +129,10 @@ class GameGateTests(unittest.TestCase):
             self.assertEqual(len(answer.response.edited),1)
             result=answer.response.edited[0]
             self.assertIsNone(result["view"])
-            self.assertEqual(result["attachments"],[])
-            self.assertIn("150",str(result["embed"].fields))
+            self.assertEqual(len(result["attachments"]),1)
+            self.assertEqual(result["attachments"][0].filename,FILENAME)
+            self.assertTrue(any("150" in field.value
+                                for field in result["embed"].fields))
             # A second gate cannot reward again before the real cooldown.
             other,second=await self._launch("pumpkin")
             blocked=self.interaction()
