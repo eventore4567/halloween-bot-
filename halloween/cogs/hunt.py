@@ -10,6 +10,7 @@ from discord.ext import commands
 from .. import config
 from ..emojis import E
 from ..rewards import grant
+from ..art import neon, scroller
 from ..ui import GameView, Panel, button, nav, relative
 
 ROWS, COLS = 4, 5
@@ -109,7 +110,15 @@ class HuntView(GameView):
                 if self.state == "play" and all(self.board[j] == "reaper" or j in self.dug
                                                 for j in range(len(self.board))):
                     self._cash_out()
-                await self.refresh(interaction)
+                if self.state != "play":
+                    return await self.refresh(interaction)  # the end-of-game cutscene takes over
+                await interaction.response.defer()
+                if kind == "chest":
+                    clip = ("chest", neon.YELLOW, "BUTIN DOUBLÉ !")
+                else:
+                    clip = ("ghost_still", neon.CYAN, f"+{gain} · BUTIN {self.pot}")
+                await self.play_action(interaction, scroller.action_gif, "tomb", neon.GREEN, *clip, True, False,
+                                       random.randrange(1000))
         return cb
 
     def _cash_out(self):

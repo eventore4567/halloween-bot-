@@ -201,22 +201,59 @@ def _details(name: str, m: Image.Image):
         d.text((64, 80), name[-1], font=font("neon", 32), fill=255, anchor="mm")
 
 
+@lru_cache(maxsize=256)
+def _silhouette(name: str, frame: int) -> Image.Image:
+    """Filled shape of the icon (from the cartoon drawing), used as a soft coloured body."""
+    spec = EMOJIS[name]
+    t = frame / spec.frames if spec.frames > 1 else 0.0
+    a = render_frame(name, t, 128).getchannel("A").resize((104, 104), Image.LANCZOS)
+    return a.point(lambda v: 255 if v > 110 else 0).filter(ImageFilter.GaussianBlur(0.8))
+
+
+@lru_cache(maxsize=16)
+def _tile_base(color: tuple) -> Image.Image:
+    """Glassy dark tile tinted with the icon colour: gradient, top gloss and a neon rim."""
+    s = 128
+    shape = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(shape).rounded_rectangle((2, 2, s - 3, s - 3), radius=30, fill=255)
+    top = tuple(int(10 + c * 0.16) for c in color)
+    grad = Image.new("RGBA", (s, s))
+    d = ImageDraw.Draw(grad)
+    for y in range(s):
+        k = y / (s - 1)
+        d.line((0, y, s, y), fill=(int(top[0] * (1 - k) + 9 * k), int(top[1] * (1 - k) + 5 * k),
+                                    int(top[2] * (1 - k) + 14 * k), 255))
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    out.paste(grad, (0, 0), shape)
+    gloss = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(gloss).ellipse((-30, -70, s + 30, 46), fill=34)
+    shine = Image.new("RGBA", (s, s), (255, 255, 255, 255))
+    shine.putalpha(ImageChops.multiply(gloss.filter(ImageFilter.GaussianBlur(6)), shape))
+    out.alpha_composite(shine)
+    rim = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(rim).rounded_rectangle((4, 4, s - 5, s - 5), radius=28, outline=255, width=3)
+    out.alpha_composite(dim(glow(rim, color, 2.5), 0.7))
+    return out
+
+
 def emoji_tile(name: str, frame: int = 0, flicker: float = 1.0) -> Image.Image:
     """128×128 RGBA neon emoji (one animation frame)."""
     if name.startswith("bar_"):
         return _bar_piece(name[4], name.endswith("1"))
     s = 128
     color = emoji_color(name)
-    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    ImageDraw.Draw(out).rounded_rectangle((2, 2, s - 3, s - 3), radius=30, fill=(16, 9, 24, 255))
-    border = Image.new("L", (s, s), 0)
-    ImageDraw.Draw(border).rounded_rectangle((5, 5, s - 6, s - 6), radius=27, outline=255, width=3)
-    out.alpha_composite(dim(glow(border, color, 3), 0.5 * flicker + 0.1))
+    out = _tile_base(tuple(color)).copy()
+    # soft coloured body so the shape reads even at 22 px
+    body = Image.new("L", (s, s), 0)
+    body.paste(_silhouette(name, frame), (12, 12))
+    fill = Image.new("RGBA", (s, s), tuple(int(c * 0.55) for c in color) + (255,))
+    fill.putalpha(body.point(lambda v: int(v * (0.42 + 0.12 * flicker))))
+    out.alpha_composite(fill)
     lines = icon_mask(name, 104, frame).filter(ImageFilter.MaxFilter(5))
     m = Image.new("L", (s, s), 0)
     m.paste(lines, (12, 12))
     _details(name, m)
-    out.alpha_composite(dim(glow(m, color, 4), flicker))
+    out.alpha_composite(dim(glow(m, color, 3.2), flicker))
     # keep the tile's rounded corners clean after the glow
     mask = Image.new("L", (s, s), 0)
     ImageDraw.Draw(mask).rounded_rectangle((2, 2, s - 3, s - 3), radius=30, fill=255)

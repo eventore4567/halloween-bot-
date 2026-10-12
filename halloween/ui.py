@@ -23,7 +23,7 @@ from typing import Awaitable, Callable
 import discord
 
 from . import config
-from .art import banners
+from .art import banners, scroller
 from .emojis import E
 
 LOG = logging.getLogger(__name__)
@@ -49,6 +49,29 @@ async def banner_file(key: str, **fmt) -> discord.File:
     loop = asyncio.get_running_loop()
     data = await loop.run_in_executor(None, lambda: banners.banner_bytes(key, **fmt))
     return discord.File(BytesIO(data), filename=banners.banner_filename(key))
+
+
+SCENE = "scene.gif"
+ACTION = "action.gif"
+MONSTERS = {"ghost", "bat", "vampire", "werewolf", "skull", "skull_fire", "reaper", "pumpkin_angry", "spider",
+            "witch", "zombie", "mummy", "demon", "eye", "frog", "hunter"}
+
+
+def cutscene_for(key: str, reward, seed: int = 0) -> bytes:
+    """2D cutscene for the end of a game: the hero beats the game's monster (or gets knocked out)."""
+    theme = banners.THEMES.get(key) or banners.THEMES["hub"]
+    monster = next((i for i in (theme.right, theme.left) if i in MONSTERS), "ghost")
+    color = theme.color2 if monster == theme.right else theme.color
+    won = reward.candies > 0
+    sub = ""
+    if getattr(reward, "leveled", False):
+        sub = f"NIVEAU {reward.new_level} !"
+    elif reward.achievements:
+        sub = f"SUCCÈS : {reward.achievements[0][1].upper()}"
+    elif reward.xp:
+        sub = f"+{reward.xp} XP"
+    head = f"+{config.fmt(reward.candies)} BONBONS" if won else "PERDU…"
+    return scroller.cutscene_gif(monster, color, won, reward.candies, head, sub, seed)
 
 
 def image_file(data: bytes, filename: str) -> discord.File:
@@ -183,9 +206,52 @@ class GameView(discord.ui.LayoutView):
         self.clear_items()
         token = KICKER.set(self.kicker)
         try:
-            self.add_item(self.build().container())
+            panel = self.build()
         finally:
             KICKER.reset(token)
+        banner = f"attachment://{banners.banner_filename(self.banner_key)}" if self.banner_key else None
+        self._shows_banner = False
+        for i, child in enumerate(panel.children):
+            if isinstance(child, discord.ui.MediaGallery) and banner and any(it.media.url == banner for it in child.items):
+                self._shows_banner = True
+                # the end-of-game cutscene, or the clip of the last action, replaces the banner
+                name = SCENE if getattr(self, "_scene_ready", False) else getattr(self, "_action", None)
+                if name:
+                    panel.children[i] = discord.ui.MediaGallery(discord.MediaGalleryItem(media=f"attachment://{name}"))
+        self.add_item(panel.container())
+
+    # end-of-game cutscene ------------------------------------------------------
+    cutscene = True  # set to False in a game that draws its own ending
+
+    def _wants_scene(self, attachments) -> bool:
+        reward = getattr(self, "reward", None)
+        return (self.cutscene and attachments is None and getattr(self, "finished", False)
+                and not getattr(self, "_scene_ready", False) and getattr(self, "_shows_banner", False)
+                and hasattr(reward, "candies") and hasattr(reward, "achievements"))
+
+    async def play_action(self, interaction, make, *args):
+        """Show a short 2D clip of the action that was just played, in place of the banner."""
+        try:
+            data = await asyncio.to_thread(make, *args)
+        except Exception:  # noqa: BLE001 - a clip must never break the game
+            LOG.exception("action clip failed")
+            return await self.refresh(interaction)
+        self._action = ACTION
+        await self.refresh(interaction, attachments=[image_file(data, ACTION)])
+
+    async def _scene(self, attachments):
+        """Render once; when the game just ended on its banner, swap in a 2D cutscene."""
+        self.render()
+        if not self._wants_scene(attachments):
+            return attachments
+        try:
+            data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, self.owner_id)
+        except Exception:  # noqa: BLE001 - a cutscene must never break the game
+            LOG.exception("cutscene failed")
+            return attachments
+        self._scene_ready = True
+        self.render()
+        return [image_file(data, SCENE)]
 
     def footer(self, hint=""):
         return footer_for(self.store, self.guild_id, self.user, hint)
@@ -197,7 +263,7 @@ class GameView(discord.ui.LayoutView):
         return True
 
     async def refresh(self, interaction: discord.Interaction, attachments=None):
-        self.render()
+        attachments = await self._scene(attachments)
         kwargs = dict(view=self, allowed_mentions=NO_PINGS)
         if attachments is not None:
             kwargs["attachments"] = attachments
@@ -213,7 +279,7 @@ class GameView(discord.ui.LayoutView):
         """Edit the message outside of an interaction (timers, animations)."""
         if not self.message:
             return
-        self.render()
+        attachments = await self._scene(attachments)
         kwargs = dict(view=self, allowed_mentions=NO_PINGS)
         if attachments is not None:
             kwargs["attachments"] = attachments
