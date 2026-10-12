@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-from . import neon
+from . import neon, scroller
 from .canvas import banner_gif_bytes
 
 
@@ -68,6 +68,9 @@ W2, H2 = 760, 300
 W, H = W2, H2
 FLOOR = 214  # y where the wet street starts
 FRAMES2 = FRAMES = 20
+RUN_FLOOR = 292  # where the hero runs, at the bottom of the street
+CHASERS = {"ghost", "bat", "vampire", "werewolf", "skull", "skull_fire", "reaper", "pumpkin_angry", "spider",
+           "witch", "zombie", "mummy", "demon", "eye"}
 
 
 def _letters(text: str, size: int, cx: int, cy: int):
@@ -125,9 +128,10 @@ def banner_bytes_uncached(key: str, **fmt) -> bytes:
     frame = neon.glow(neon.rounded_frame_mask((W2, FLOOR), (166, 24, W2 - 166, 182), 26, 4),
                       theme.frame or theme.color2, 5)
     left_n = neon.icon_frames(theme.left)
-    walker = "ghost"
     right_n = neon.icon_frames(theme.right)
-    walk_n = neon.icon_frames(walker)
+    chaser = next((i for i in (theme.right, theme.left) if i in CHASERS), "ghost")
+    chase_n = neon.icon_frames(chaser)
+    yard = neon.dim(scroller.graveyard(190, H2, RUN_FLOOR), 0.5)
     eyes = [(rnd.uniform(30, 140), rnd.uniform(20, 70)), (rnd.uniform(W2 - 140, W2 - 30), rnd.uniform(20, 70))]
     rain = [(rnd.uniform(0, W2), rnd.uniform(0, H2), rnd.uniform(10, 18)) for _ in range(38)]
     flash_at = rnd.randrange(6, FRAMES2 - 3)
@@ -159,11 +163,12 @@ def banner_bytes_uncached(key: str, **fmt) -> bytes:
             img.alpha_composite(Image.new("RGBA", (W2, FLOOR), (200, 190, 255, 45)))
         img.alpha_composite(sign)
         img.alpha_composite(_reflect(sign))
-        # a monster crossing the street
-        wf = int(t * walk_n * 2) % walk_n if walk_n > 1 else 0
-        small = neon.icon_light(walker, 64, neon.WHITE, wf)
-        x = int(-80 + (W2 + 100) * t)
-        img.alpha_composite(small, (x, FLOOR - 52 + round(3 * math.sin(t * math.tau * 4))))
+        # the running strip: the world scrolls (seamless loop), the hero runs, a monster chases him
+        scroller._scroll(img, yard, i * 190 / FRAMES2, 190)
+        cf = int(t * chase_n * 2) % chase_n if chase_n > 1 else 0
+        monster = neon.icon_light(chaser, 46, theme.color2, cf)
+        img.alpha_composite(monster, (18, RUN_FLOOR - monster.height + 6 + round(4 * math.sin(t * math.tau * 3))))
+        scroller.place(img, scroller.hero(i % 6, 46), 128, RUN_FLOOR)
         # eyes blinking in the dark
         d = ImageDraw.Draw(img)
         for j, (ex, ey) in enumerate(eyes):

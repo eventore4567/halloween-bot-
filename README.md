@@ -14,9 +14,13 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
   boutons → pied de page. Chaque jeu a sa couleur, tout le bot a la même allure.
 - **Scènes animées uniques** : chaque jeu a sa « ruelle hantée » sous la pluie : une
   enseigne néon dont les lettres grésillent une à une, son reflet dans les flaques, des
-  éclairs sur le mur, un fantôme qui traverse la rue et des yeux qui clignent dans le noir.
+  éclairs sur le mur, des yeux qui clignent dans le noir et, en bas, **un monde en 2D qui défile** :
+  ton héros-citrouille court à travers le cimetière, poursuivi par le monstre du jeu.
   Le titre du panneau est au-dessus de la scène, pas dans un bandeau. Le même style habille la carte de profil, le podium,
   la roue et la course de balais.
+- **Un vrai jeu vidéo 2D sur Discord** : à la fin de chaque partie, une **cinématique à défilement
+  parallaxe** (ciel, collines, cimetière, sol) : le héros court, saute sur le monstre du jeu qui
+  explose en bonbons, ou se fait renverser. Le score, le niveau gagné et les succès s'affichent dans la scène.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
@@ -50,6 +54,8 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 ![Familier hanté](docs/apercu-familier.gif)
 
 ![Roulette des potions](docs/apercu-roulette.gif)
+
+![Cinématique de fin de partie](docs/apercu-cinematique.gif)
 
 ![Le Film de ta Nuit](docs/apercu-film.gif)
 

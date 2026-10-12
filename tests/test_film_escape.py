@@ -4,6 +4,7 @@ import unittest
 from io import BytesIO
 from unittest import mock
 
+import discord
 from helpers import FakeInteraction, FakeUser, check_layout, install_fake_emojis, make_bot
 from PIL import Image
 
@@ -109,3 +110,43 @@ class FilmEscapeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CutsceneTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+
+    def test_game_end_plays_a_2d_cutscene(self):
+        from halloween.cogs import ritual
+        from halloween.ui import SCENE
+
+        async def go():
+            inter = FakeInteraction(user=FakeUser(9701, "Héros"), client=self.bot)
+            v = ritual.RitualView(self.bot, inter, True)
+            v.render()
+            v.sequence, v.round, v.state = [0, 1, 2], 1, "input"
+            end = FakeInteraction(user=FakeUser(9701, "Héros"), client=self.bot)
+            await v._tap(3)(end)  # wrong symbol: the ritual ends
+            self.assertEqual(v.state, "lost")
+            kind, kwargs = end.response.sent[-1]
+            self.assertEqual([f.filename for f in kwargs["attachments"]], [SCENE])
+            check_layout(v)
+            urls = [it.media.url for c in v.walk_children() if isinstance(c, discord.ui.MediaGallery)
+                    for it in c.items]
+            self.assertEqual(urls, [f"attachment://{SCENE}"])
+            # a later refresh keeps the cutscene without generating it again
+            again = FakeInteraction(user=FakeUser(9701, "Héros"), client=self.bot)
+            await v.refresh(again)
+            self.assertNotIn("attachments", again.response.sent[-1][1])
+        with mock.patch("asyncio.sleep", fast_sleep):
+            asyncio.run(go())
+
+    def test_cutscene_gif(self):
+        from halloween.rewards import Reward
+        from halloween.ui import cutscene_for
+        for key, won in (("hunt", True), ("ritual", False), ("daily", True)):
+            r = Reward(candies=120 if won else 0, xp=10)
+            img = Image.open(BytesIO(cutscene_for(key, r, 1)))
+            self.assertGreater(img.n_frames, 20)
