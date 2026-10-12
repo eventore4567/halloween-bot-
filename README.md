@@ -98,6 +98,7 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 | `/roulette` | **Roulette des potions** : 6 fioles, une empoisonnée, chaque gorgée fait grimper le pot (jusqu'à ×4,5) |
 | `/escape` | **Escape Game coopératif** : 1 à 4 joueurs enfermés dans la crypte, 3 salles, 10 minutes. Chaque joueur reçoit des **indices secrets différents** : il faut se parler pour trouver les codes. Énigmes générées à chaque partie |
 | `/film` | **Le Film de ta Nuit** : ta saison d'Halloween en film animé de 15 secondes (ton avatar, tes bonbons, ton familier, tes succès, ton rang, générique de fin) à partager |
+| `/rappel` | **Rappel quotidien** (à activer soi-même) : chaque soir, le bot mentionne dans le salon des événements ceux qui n'ont pas encore ouvert leur case du calendrier ou leur coffre du jour, avec un bouton pour l'ouvrir (en message privé s'il n'y a pas de salon). Aussi activable depuis `/calendrier` |
 | `/defis` | **Défis** : 3 défis du jour et 2 de la semaine, suivis automatiquement dans tous les jeux, avec bonus si tu fais les 3 |
 | `/machine` | **La Machine hantée** : machine à sous néon, les rouleaux tournent et s'arrêtent un par un (jackpot ×150) |
 | `/motus` | **Motus des ombres** : trouve le mot d'Halloween en 6 essais, les lettres se retournent en animation |
@@ -135,6 +136,7 @@ Dans le salon choisi par les organisateurs, quand le serveur est actif :
 | `/reglages frequence-evenements` | Activer/désactiver, fréquence (tous les N messages, max 1 toutes les 4 min) |
 | `/reglages lancer-evenement` | Lancer tout de suite un sac, un quiz éclair ou le boss |
 | `/reglages modifier-bonbons` | Ajouter / retirer des bonbons à un membre |
+| `/reglages heure-rappel` | Heure du rappel quotidien (18 h par défaut) |
 | `/reglages recharger-emojis` | Renvoyer les emojis du bot sur Discord |
 
 ![Profil](docs/apercu-profil.png)

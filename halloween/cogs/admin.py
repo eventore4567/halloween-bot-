@@ -8,6 +8,7 @@ from discord.ext import commands
 from .. import config
 from ..emojis import E, sync_emojis
 from ..ui import Panel, notice
+from .reminder import tz_name
 
 
 def panel_view(p: Panel) -> discord.ui.LayoutView:
@@ -85,6 +86,14 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
             s.add_candies(g, membre.id, montant, f"admin:{interaction.user.id}", boost=False)
         await self._reply(interaction, "Solde modifié",
                           f"{membre.mention} : **{montant:+}** {E.candy} → **{config.fmt(s.candies(g, membre.id))}**")
+
+    @app_commands.command(name="heure-rappel", description="Heure du rappel quotidien du calendrier (pour les membres qui l'ont activé)")
+    @app_commands.describe(heure="Heure de 0 à 23, dans le fuseau du bot (Europe/Paris par défaut)")
+    async def heure_rappel(self, interaction: discord.Interaction, heure: app_commands.Range[int, 0, 23]):
+        self.bot.store.meta_set(f"remind_hour:{interaction.guild_id}", heure)
+        await self._reply(interaction, "Heure du rappel enregistrée",
+                          f"Chaque jour à **{heure} h** ({tz_name()}), les membres qui ont activé `/rappel` seront prévenus "
+                          f"dans le salon des événements (ou en message privé s'il n'y en a pas).")
 
     @app_commands.command(name="recharger-emojis", description="Renvoyer les emojis du bot sur Discord (s'ils ne s'affichent pas)")
     async def emojis(self, interaction: discord.Interaction):
