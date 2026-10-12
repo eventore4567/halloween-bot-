@@ -120,7 +120,8 @@ class HouseView(GameView):
                     return await self.refresh(interaction)  # the end-of-game cutscene takes over
                 await interaction.response.defer()
                 await self.play_action(interaction, scenes.room_clip, room, icon, kind, None,
-                                       clip_sub(kind, gained, self.lives), random.randrange(10**6))
+                                       clip_sub(kind, gained, self.lives), random.randrange(10**6),
+                                       name=self.user.display_name)
         return cb
 
     def _resolve(self, kind):

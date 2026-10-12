@@ -43,10 +43,18 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "42 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", f"{len(config.ACHIEVEMENTS)} trophées à débloquer"),
 ]
 
 GAME = {key: (name, icon, desc) for key, name, icon, desc in GAMES}
+# Every game also has its own slash command.
+COMMAND = {"quiz": "quiz", "ouija": "ouija", "shell": "bonneteau", "motus": "motus", "hangman": "pendu",
+           "slots": "machine", "roulette": "roulette", "hilo": "plusoumoins", "race": "course", "wheel": "roue",
+           "hunt": "chasse", "memory": "memoire", "ritual": "rituel", "reflex": "reflexe", "maze": "labyrinthe",
+           "cauldron": "formule", "escape": "escape", "house": "maison", "manor": "expedition", "cards": "cartes",
+           "connect4": "puissance4", "pet": "familier", "defis": "defis", "daily": "quotidien",
+           "calendar": "calendrier", "giant": "citrouille", "film": "film", "profile": "profil",
+           "trophies": "succes", "top": "classement", "shop": "boutique"}
 
 # The select menu holds 25 options at most: games are grouped by category.
 CATEGORIES = [
@@ -123,14 +131,15 @@ class HubView(GameView):
         lines = [f"{E(icon)} **{name}** — " + " · ".join(GAME[k][0] for k in games)
                  for key, name, icon, games in CATEGORIES]
         p.text(f"**{len(GAMES)} activités** dans {len(CATEGORIES)} catégories :\n" + "\n".join(lines))
-        p.text(f"-# Et aussi : {E.lightning} `/defi` pour un face-à-face en direct · {E.pumpkin_lit} `/puissance4 @membre` · {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
+        p.text(f"-# Et aussi : {E.lightning} `/defi` pour un face-à-face en direct · {E.gift} `/echange @membre` pour échanger des cartes · {E.pumpkin_lit} `/puissance4 @membre` · {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
                f"{E.gift} `/donner` pour offrir des bonbons")
 
     def _category(self, p: Panel, cat):
         key, name, icon, games = cat
         p.title(name, icon=icon, body="Choisis ton jeu dans le menu ci-dessous.")
         p.sep()
-        p.text("\n".join(f"{E(GAME[k][1])} **{GAME[k][0]}** — {GAME[k][2]}" for k in games))
+        p.text("\n".join(f"{E(GAME[k][1])} **{GAME[k][0]}** `/{COMMAND[k]}` — {GAME[k][2]}" for k in games)
+               + "\n-# Chaque jeu s'ouvre dans son propre message : le menu reste là pour les autres.")
 
     def _guide(self, p: Panel):
         L = config.LIMITS
@@ -157,10 +166,8 @@ class HubView(GameView):
     async def on_pick(self, interaction: discord.Interaction):
         key = interaction.data["values"][0]
         opener = self.bot.openers.get(key)
-        if opener:
-            if interaction.user.id == self.owner_id:
-                self.finish()
-            await opener(interaction, edit=interaction.user.id == self.owner_id)
+        if opener:  # each game gets its own message; the menu stays for everyone
+            await opener(interaction, edit=False)
 
     async def on_category(self, interaction: discord.Interaction):
         page = "cat:" + interaction.data["values"][0]

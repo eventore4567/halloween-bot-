@@ -93,7 +93,7 @@ class DailyView(GameView):
         # 2D clip: the hero runs to the chest, the lid pops, the candies fly out
         caption = "COFFRE EN OR !" if streak >= 5 else random.choice(["LE COFFRE DU JOUR !", "UNE PLUIE DE BONBONS !"])
         clip = await asyncio.to_thread(scenes.chest_clip, caption, f"+{reward.candies} BONBONS · SÉRIE {streak}",
-                                       streak, random.randrange(10**6))
+                                       streak, random.randrange(10**6), self.user.display_name)
         self.state = "opened"
         self._action = ACTION
         await self.push(attachments=[image_file(clip, ACTION)])

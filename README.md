@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **30 jeux** et **42 succès** à débloquer.
+collectionner), **30 jeux** et **43 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -99,6 +99,7 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 | `/escape` | **Escape Game coopératif** : 1 à 4 joueurs enfermés dans la crypte, 3 salles, 10 minutes. Chaque joueur reçoit des **indices secrets différents** : il faut se parler pour trouver les codes. Énigmes générées à chaque partie |
 | `/film` | **Le Film de ta Nuit** : ta saison d'Halloween en film animé de 15 secondes (ton avatar, tes bonbons, ton familier, tes succès, ton rang, générique de fin) à partager |
 | `/rappel` | **Rappel quotidien** (à activer soi-même) : chaque soir, le bot mentionne dans le salon des événements ceux qui n'ont pas encore ouvert leur case du calendrier ou leur coffre du jour, avec un bouton pour l'ouvrir (en message privé s'il n'y a pas de salon). Aussi activable depuis `/calendrier` |
+| `/echange @membre` | **Échange de cartes** : choisis jusqu'à 3 cartes à donner et 3 à recevoir (+ des bonbons si tu veux), l'autre accepte, et les cartes s'échangent en animation. Échange sécurisé : tout ou rien |
 | `/defis` | **Défis** : 3 défis du jour et 2 de la semaine, suivis automatiquement dans tous les jeux, avec bonus si tu fais les 3 |
 | `/machine` | **La Machine hantée** : machine à sous néon, les rouleaux tournent et s'arrêtent un par un (jackpot ×150) |
 | `/motus` | **Motus des ombres** : trouve le mot d'Halloween en 6 essais, les lettres se retournent en animation |
@@ -113,7 +114,7 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **42 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **43 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |

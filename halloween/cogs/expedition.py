@@ -147,7 +147,8 @@ class ExpeditionView(GameView):
             self.report = ""
             await interaction.response.defer()
             await self.play_action(interaction, scroller.march_gif, self._team_sprites(self.team),
-                                   f"EN ROUTE : {d['name'].upper()} !", neon.CYAN, False, random.randrange(1000))
+                                   f"EN ROUTE : {d['name'].upper()} !", neon.CYAN, False, random.randrange(1000),
+                                   name=self.user.display_name)
 
     async def _claim(self, interaction):
         async with self.lock:
@@ -174,7 +175,7 @@ class ExpeditionView(GameView):
             self.team = [k for k in trip["team"] if k in self.store.cards(g, u)]
             await interaction.response.defer()
             await self.play_action(interaction, scroller.march_gif, self._team_sprites(trip["team"]), *clip,
-                                   random.randrange(1000))
+                                   random.randrange(1000), name=self.user.display_name)
 
     @staticmethod
     def _team_sprites(keys):

@@ -58,7 +58,7 @@ MONSTERS = {"ghost", "bat", "vampire", "werewolf", "skull", "skull_fire", "reape
             "witch", "zombie", "mummy", "demon", "eye", "frog", "hunter"}
 
 
-def cutscene_for(key: str, reward, seed: int = 0) -> bytes:
+def cutscene_for(key: str, reward, seed: int = 0, name: str = "") -> bytes:
     """2D cutscene for the end of a game: the hero beats the game's monster (or gets knocked out)."""
     theme = banners.THEMES.get(key) or banners.THEMES["hub"]
     monster = next((i for i in (theme.right, theme.left) if i in MONSTERS), "ghost")
@@ -72,7 +72,7 @@ def cutscene_for(key: str, reward, seed: int = 0) -> bytes:
     elif reward.xp:
         sub = f"+{reward.xp} XP"
     head = f"+{config.fmt(reward.candies)} BONBONS" if won else "PERDU…"
-    return scroller.cutscene_gif(monster, color, won, reward.candies, head, sub, seed)
+    return scroller.cutscene_gif(monster, color, won, reward.candies, head, sub, seed, name)
 
 
 def image_file(data: bytes, filename: str) -> discord.File:
@@ -230,10 +230,10 @@ class GameView(discord.ui.LayoutView):
                 and not getattr(self, "_scene_ready", False) and getattr(self, "_shows_banner", False)
                 and hasattr(reward, "candies") and hasattr(reward, "achievements"))
 
-    async def play_action(self, interaction, make, *args):
+    async def play_action(self, interaction, make, *args, **kwargs):
         """Show a short 2D clip of the action that was just played, in place of the banner."""
         try:
-            data = await asyncio.to_thread(make, *args)
+            data = await asyncio.to_thread(make, *args, **kwargs)
         except Exception:  # noqa: BLE001 - a clip must never break the game
             LOG.exception("action clip failed")
             return await self.refresh(interaction)
@@ -246,7 +246,8 @@ class GameView(discord.ui.LayoutView):
         if not self._wants_scene(attachments):
             return attachments
         try:
-            data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, random.randrange(10**6))
+            data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, random.randrange(10**6),
+                                           self.user.display_name)
         except Exception:  # noqa: BLE001 - a cutscene must never break the game
             LOG.exception("cutscene failed")
             return attachments
