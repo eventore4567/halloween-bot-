@@ -233,6 +233,7 @@ ACHIEVEMENTS = [
     ("pet_12", "Dresseur de l'au-delà", "Faire grandir son familier jusqu'au niveau 12", "heart", "pet_level", 12, 500),
     ("roulette_5", "Estomac d'acier", "Boire 5 fioles saines à la Roulette des potions", "potion_green", "roulette_best", 5, 400),
     ("escape_3", "Maître de l'évasion", "S'échapper 3 fois de la crypte en équipe (/escape)", "key", "escape_win", 3, 500),
+    ("trades_3", "Marchand d'âmes", "Conclure 3 échanges de cartes (/echange)", "gift", "trades", 3, 400),
 ]
 
 

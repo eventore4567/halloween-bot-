@@ -118,7 +118,8 @@ class HuntView(GameView):
                 else:
                     clip = ("ghost", random.choice(["UN FANTÔME S'ÉCHAPPE !", "BOUH ! UN FANTÔME !", "UNE ÂME ERRANTE !"]),
                             f"+{gain} · BUTIN : {self.pot}")
-                await self.play_action(interaction, scenes.grave_clip, *clip, random.randrange(10**6))
+                await self.play_action(interaction, scenes.grave_clip, *clip, random.randrange(10**6),
+                                       name=self.user.display_name)
         return cb
 
     def _cash_out(self):

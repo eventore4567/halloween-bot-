@@ -362,6 +362,47 @@ class Store:
             return db.execute("SELECT count FROM cards WHERE guild_id=? AND user_id=? AND card=?",
                               (g, u, card)).fetchone()[0]
 
+    def trade(self, g, a, b, give: list[str], take: list[str], candies: int = 0) -> bool:
+        """Atomic card swap: ``a`` gives ``give`` (+ ``candies``) to ``b`` and receives ``take``.
+
+        Returns False (and changes nothing) if someone no longer owns what they promised.
+        """
+        from collections import Counter
+
+        class _Abort(Exception):
+            pass
+
+        try:
+            with self.tx() as db:
+                for owner, cards in ((a, give), (b, take)):
+                    for card, n in Counter(cards).items():
+                        row = db.execute("SELECT count FROM cards WHERE guild_id=? AND user_id=? AND card=?",
+                                         (g, owner, card)).fetchone()
+                        if not row or row["count"] < n:
+                            raise _Abort
+                for src, dst, cards in ((a, b, give), (b, a, take)):
+                    for card in cards:
+                        db.execute("UPDATE cards SET count=count-1 WHERE guild_id=? AND user_id=? AND card=?",
+                                   (g, src, card))
+                        db.execute("INSERT INTO cards(guild_id,user_id,card,count) VALUES(?,?,?,1) "
+                                   "ON CONFLICT(guild_id,user_id,card) DO UPDATE SET count=count+1", (g, dst, card))
+                if candies:
+                    self._ensure(db, g, a)
+                    self._ensure(db, g, b)
+                    cur = db.execute("UPDATE players SET candies=candies-? WHERE guild_id=? AND user_id=? AND candies>=?",
+                                     (candies, g, a, candies))
+                    if cur.rowcount == 0:
+                        raise _Abort
+                    db.execute("UPDATE players SET candies=candies+? WHERE guild_id=? AND user_id=?", (candies, g, b))
+                    now = time.time()
+                    db.execute("INSERT INTO ledger(guild_id,user_id,delta,reason,ts) VALUES(?,?,?,?,?)",
+                               (g, a, -candies, "echange", now))
+                    db.execute("INSERT INTO ledger(guild_id,user_id,delta,reason,ts) VALUES(?,?,?,?,?)",
+                               (g, b, candies, "echange", now))
+        except _Abort:
+            return False
+        return True
+
     # ----------------------------------------------------------- leaderboard
     BOARDS = {
         "candies": "SELECT user_id, candies AS v FROM players WHERE guild_id=? AND candies>0 ORDER BY v DESC, user_id",

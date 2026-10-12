@@ -44,12 +44,17 @@ class FlowsTest(unittest.TestCase):
                 self.assertTrue(any(k in ("send", "followup") for k in kinds), (key, kinds))
         self.run_async(go())
 
-    def test_hub_select_opens_game_in_place(self):
+    def test_hub_select_opens_game_in_its_own_message(self):
         async def go():
             v = hub.HubView(self.bot, self.i())
             inter = self.i(data={"values": ["quiz"]}, message=object())
             await v.on_pick(inter)
-            self.assertEqual(inter.response.sent[0][0], "edit")
+            self.assertEqual(inter.response.sent[0][0], "send")  # a new message: the menu stays
+            self.assertFalse(getattr(v, "finished", False))
+            self.assertEqual(set(hub.COMMAND), {g[0] for g in hub.GAMES})
+            names = {c.name for c in self.bot.tree.walk_commands()}
+            for cmd in hub.COMMAND.values():
+                self.assertIn(cmd, names)
         self.run_async(go())
 
     def test_show_climb_and_cash(self):

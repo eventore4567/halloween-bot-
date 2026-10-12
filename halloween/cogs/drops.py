@@ -17,7 +17,8 @@ from .. import config
 from ..content import quiz_bank
 from ..content.games import DROP_SCENES
 from ..emojis import E
-from ..art import neon, scroller
+from ..art import neon, scenes, scroller
+from .profile import avatar_bytes
 from ..rewards import grant
 from ..ui import NO_PINGS, SCENE, Panel, banner_file, button, image_file, notice, relative
 
@@ -70,6 +71,18 @@ class EventView(discord.ui.LayoutView):
     async def expire(self):
         pass
 
+    async def winner_scene(self, winner, headline: str, sub: str, icon: str, color):
+        """Swap the banner for a 2D clip of the winner (name + avatar) grabbing the prize."""
+        try:
+            avatar = await avatar_bytes(winner)
+            data = await asyncio.to_thread(scenes.winner_clip, winner.display_name, headline, sub, icon, color,
+                                           avatar, random.randrange(10**6))
+        except Exception:  # noqa: BLE001 - the event result must be shown anyway
+            LOG.exception("winner clip failed")
+            return await self.push()
+        self.scene_file = True
+        await self.push(attachments=[image_file(data, SCENE)])
+
     def close(self):
         self.over = True
         self.stop()
@@ -86,7 +99,11 @@ class LootView(EventView):
 
     def build(self) -> Panel:
         s = self.scene
-        p = Panel("orange").banner("drop")
+        p = Panel("orange")
+        if getattr(self, "scene_file", False):
+            p.image(SCENE)
+        else:
+            p.banner("drop")
         if self.winner:
             p.title(f"{self.winner.display_name} a été le plus rapide !", icon=s["emoji"], thumb=E.url(s["emoji"]),
                     body=f"{self.winner.mention} rafle le butin : {self.reward.line()}")
@@ -111,7 +128,10 @@ class LootView(EventView):
             self.reward = grant(self.store, self.guild_id, interaction.user.id, self.amount, 10, "apparition",
                                 stats={"drops": 1})
             self.close()
-            await self.push(interaction)
+            await interaction.response.defer()
+            name = interaction.user.display_name.upper()
+            await self.winner_scene(interaction.user, f"{name} A ÉTÉ LE PLUS RAPIDE !",
+                                    f"+{self.reward.candies} BONBONS", self.scene["emoji"], neon.ORANGE)
 
 
 class FlashQuizView(EventView):
@@ -128,7 +148,11 @@ class FlashQuizView(EventView):
         self.reward = None
 
     def build(self) -> Panel:
-        p = Panel("purple").banner("drop")
+        p = Panel("purple")
+        if getattr(self, "scene_file", False):
+            p.image(SCENE)
+        else:
+            p.banner("drop")
         if self.winner:
             p.title("Quiz éclair remporté !", icon="crystal",
                     body=f"### {self.q.text}\n{E.check} **{self.options[self.correct]}**\n\n"
@@ -164,7 +188,10 @@ class FlashQuizView(EventView):
                 self.reward = grant(self.store, self.guild_id, uid, self.amount, 15, "quiz-eclair",
                                     stats={"quiz_right": 1, "drops": 1})
                 self.close()
-                await self.push(interaction)
+                await interaction.response.defer()
+                await self.winner_scene(interaction.user, f"{interaction.user.display_name.upper()} A TROUVÉ !",
+                                        f"{self.options[self.correct].upper()} · +{self.reward.candies} BONBONS",
+                                        "crystal", neon.PURPLE)
         return cb
 
 
@@ -231,6 +258,7 @@ class BossView(EventView):
             dmg *= 3
         self.hp = max(0, self.hp - dmg)
         self.damage[uid] = self.damage.get(uid, 0) + dmg
+        self.names[uid] = interaction.user.display_name
         self.feed = (f"{E.fire} **{interaction.user.display_name}** inflige **{dmg}**"
                      + (" — **COUP CRITIQUE !**" if crit else ""))
         await interaction.response.defer()
@@ -266,8 +294,10 @@ class BossView(EventView):
                                     + (f" {E.crown} *meilleur combattant*" if i == 0 else ""))
             self.close()
             # 2D cutscene: the hero jumps on the Pumpkin King, who bursts into candies
+            best = self.names.get(ranking[0][0]) if ranking else None
+            sub = f"{len(self.damage)} COMBATTANTS" + (f" · MEILLEUR : {best.upper()}" if best else "")
             data = await asyncio.to_thread(scroller.cutscene_gif, "pumpkin_angry", neon.ORANGE, True, 400,
-                                           "ROI CITROUILLE VAINCU !", f"{len(self.damage)} COMBATTANTS", 7)
+                                           "ROI CITROUILLE VAINCU !", sub, random.randrange(10**6))
             await self.push(attachments=[image_file(data, SCENE)])
 
     async def expire(self):

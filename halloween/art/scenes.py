@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw
 
 from . import neon
 from .cards import _neon_layer
-from .scroller import GROUND, H, W, _gif, _scroll, ground_strip, hills, place, sky
+from .scroller import GROUND, H, W, _gif, _scroll, ground_strip, hills, hud, place, sky
 from .scroller import hero as _hero
 
 HERO_SIZE = 80
@@ -464,15 +464,17 @@ def _approach(bg, prop_kind, color, n_run=9, px_end=470, hx_end=330, open_frames
     return frames
 
 
-def _clip(frames_a, frames_b) -> bytes:
+def _clip(frames_a, frames_b, name: str = "") -> bytes:
     frames = frames_a + frames_b
+    for img in frames:
+        hud(img, name)
     durations = [65] * len(frames_a) + [80] * len(frames_b)
     durations[-1] = 1700
     return _gif(frames, durations)
 
 
 def room_clip(room_name: str, choice_icon: str, kind: str, label: str | None = None, sub: str = "",
-              seed: int = 0) -> bytes:
+              seed: int = 0, name: str = "") -> bytes:
     """One choice in the haunted house, animated in the room's own decor."""
     rnd = random.Random(seed)
     decor, color = ROOM_DECOR.get(room_name, ("hall", neon.YELLOW))
@@ -485,10 +487,10 @@ def room_clip(room_name: str, choice_icon: str, kind: str, label: str | None = N
     frames_a = _approach(lambda t: room_bg(decor, color, t), prop_kind, color)
     frames_b, _good = outcome_frames(bg, kind, prop(prop_kind, 1, color), 470, 330,
                                      label or rnd.choice(CAPTIONS.get(kind, CAPTIONS["empty"])), sub, rnd)
-    return _clip(frames_a, frames_b)
+    return _clip(frames_a, frames_b, name)
 
 
-def grave_clip(kind: str, label: str, sub: str = "", seed: int = 0) -> bytes:
+def grave_clip(kind: str, label: str, sub: str = "", seed: int = 0, name: str = "") -> bytes:
     """Digging a grave in the cemetery: a ghost spirals out, or a cursed chest bursts open."""
     rnd = random.Random(seed)
     variant = seed % 5
@@ -497,10 +499,10 @@ def grave_clip(kind: str, label: str, sub: str = "", seed: int = 0) -> bytes:
     outcome = "treasure" if kind == "chest" else "ghost"
     frames_b, _ = outcome_frames(lambda f: night_bg(variant, 9 * 14), outcome, prop("slab", 1, color), 470, 330,
                                  label, sub, rnd)
-    return _clip(frames_a, frames_b)
+    return _clip(frames_a, frames_b, name)
 
 
-def chest_clip(label: str, sub: str = "", streak: int = 1, seed: int = 0) -> bytes:
+def chest_clip(label: str, sub: str = "", streak: int = 1, seed: int = 0, name: str = "") -> bytes:
     """The daily chest: wooden at first, golden on a long streak."""
     rnd = random.Random(seed)
     variant = seed % 5
@@ -508,4 +510,61 @@ def chest_clip(label: str, sub: str = "", streak: int = 1, seed: int = 0) -> byt
     frames_a = _approach(lambda t: night_bg(variant, t), "chest", color)
     frames_b, _ = outcome_frames(lambda f: night_bg(variant, 9 * 14), "treasure", prop("chest", 1, color), 470, 330,
                                  label, sub, rnd)
-    return _clip(frames_a, frames_b)
+    return _clip(frames_a, frames_b, name)
+
+
+# --------------------------------------------------------------------------- winners
+def name_tag(img, name: str, x: float, head_y: float, color=neon.YELLOW):
+    """The winner's name floating above the hero's head."""
+    text = name.upper()[:18]
+    img.alpha_composite(_neon_layer((W, H), text, (round(x), round(head_y)), neon.fit_text(text, 18, 200),
+                                    tuple(color), "mm"))
+
+
+def winner_clip(name: str, headline: str, sub: str, icon: str, color, avatar: bytes | None = None,
+                seed: int = 0) -> bytes:
+    """The winner (hero with their name and avatar) runs to the prize, grabs it, confetti rains."""
+    from .versus import _portrait
+    rnd = random.Random(seed)
+    variant = rnd.randrange(5)
+    prize = neon.icon_light(icon, 74, tuple(color))
+    portrait = _portrait(avatar, neon.YELLOW, "pumpkin_lit").resize((96, 96), Image.LANCZOS)
+    confetti = [(rnd.uniform(0, W), rnd.uniform(-H, 0), rnd.uniform(4, 9), rnd.choice(
+        [neon.PINK, neon.YELLOW, neon.CYAN, neon.GREEN, neon.ORANGE])) for _ in range(46)]
+    px, frames, durations = 470, [], []
+    for f in range(9):  # run to the prize on its pedestal
+        img = night_bg(variant, f * 14)
+        bob = 6 * math.sin(f * 0.8)
+        img.alpha_composite(prize, (px - prize.width // 2, round(GROUND - 120 + bob - prize.height / 2)))
+        hx = 140 + (px - 60 - 140) * min(1.0, (f + 1) / 9)
+        place(img, hero(f % 8), hx, GROUND)
+        name_tag(img, name, hx, GROUND + 30)
+        frames.append(img)
+        durations.append(65)
+    hx = px - 60
+    for f in range(16):  # grab it, cheer, confetti, the winner's face and name
+        img = night_bg(variant, 9 * 14)
+        t = min(1.0, (f + 1) / 4)
+        cx = px + (hx + 10 - px) * t
+        cy = GROUND - 120 + (GROUND - HERO_SIZE * 1.62 - (GROUND - 120)) * t  # held up high
+        jump = 22 * abs(math.sin(f * 0.6)) if f > 3 else 0
+        place(img, hero(0, "cheer" if f > 2 else "idle"), hx, GROUND - jump)
+        img.alpha_composite(prize, (round(cx - prize.width / 2), round(cy - jump - prize.height / 2)))
+        name_tag(img, name, hx, GROUND + 30)
+        over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        od = ImageDraw.Draw(over)
+        for x, y, v, col in confetti:
+            yy = (y + (f + 9) * v * 7) % (H + 20) - 10
+            od.rectangle((x - 3, yy - 2, x + 3, yy + 2), fill=tuple(col) + (230,))
+        img.alpha_composite(over)
+        img.alpha_composite(portrait, (W - 140, 16))
+        k = min(1.0, (f + 1) / 4)
+        size = int(neon.fit_text(headline, 30, 470) * (0.7 + 0.3 * k))
+        img.alpha_composite(_neon_layer((W, H), headline, (W // 2 - 50, 38), size, tuple(neon.YELLOW), "mm"))
+        if sub:
+            img.alpha_composite(_neon_layer((W, H), sub, (W // 2 - 50, 74), neon.fit_text(sub, 20, 470),
+                                            tuple(neon.PINK), "mm"))
+        frames.append(img)
+        durations.append(80)
+    durations[-1] = 1800
+    return _gif(frames, durations)

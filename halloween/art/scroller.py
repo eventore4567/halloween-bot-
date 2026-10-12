@@ -217,6 +217,13 @@ def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
     return out
 
 
+def hud(img, name: str):
+    """Video-game HUD: the player's name in the top-left corner."""
+    if name:
+        text = "▶ " + name.upper()[:20]
+        img.alpha_composite(_neon_layer(img.size, text, (18, 20), 16, tuple(neon.CYAN), "lm"))
+
+
 def place(img, sprite, x, foot_y):
     img.alpha_composite(sprite, (round(x - sprite.width / 2), round(foot_y - sprite.height + 18)))
 
@@ -236,7 +243,7 @@ def _gif(frames, durations) -> bytes:
 
 
 def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "",
-                    subline: str = "", seed: int = 0):
+                    subline: str = "", seed: int = 0, name: str = ""):
     """End-of-game cutscene, with a random finishing move (or way of losing) and a random night sky."""
     from .scenes import night_bg  # late import: scenes builds on this module
     rnd = random.Random(seed)
@@ -356,12 +363,14 @@ def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, hea
             frames.append(img)
             durations.append(75)
     durations[-1] = 1800
+    for img in frames:
+        hud(img, name)
     return frames, durations
 
 
 def cutscene_gif(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "", subline: str = "",
-                 seed: int = 0) -> bytes:
-    frames, durations = cutscene_frames(monster, color, won, candies, headline, subline, seed)
+                 seed: int = 0, name: str = "") -> bytes:
+    frames, durations = cutscene_frames(monster, color, won, candies, headline, subline, seed, name)
     return _gif(frames, durations)
 
 
@@ -450,6 +459,8 @@ def march_frames(team: list[tuple[str, tuple]], caption: str, caption_color, rai
     return frames, durations
 
 
-def march_gif(team, caption, caption_color, rain=False, seed=0) -> bytes:
+def march_gif(team, caption, caption_color, rain=False, seed=0, name: str = "") -> bytes:
     frames, durations = march_frames(team, caption, caption_color, rain, seed)
+    for img in frames:
+        hud(img, name)
     return _gif(frames, durations)
