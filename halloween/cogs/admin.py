@@ -86,6 +86,14 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
         await self._reply(interaction, "Solde modifié",
                           f"{membre.mention} : **{montant:+}** {E.candy} → **{config.fmt(s.candies(g, membre.id))}**")
 
+    @app_commands.command(name="heure-rappel", description="Heure du rappel quotidien du calendrier (pour les membres qui l'ont activé)")
+    @app_commands.describe(heure="Heure (0 à 23, heure de Paris)")
+    async def heure_rappel(self, interaction: discord.Interaction, heure: app_commands.Range[int, 0, 23]):
+        self.bot.store.meta_set(f"remind_hour:{interaction.guild_id}", heure)
+        await self._reply(interaction, "Heure du rappel enregistrée",
+                          f"Chaque jour à **{heure} h**, les membres qui ont activé `/rappel` seront prévenus "
+                          f"dans le salon des événements (ou en message privé s'il n'y en a pas).")
+
     @app_commands.command(name="recharger-emojis", description="Renvoyer les emojis du bot sur Discord (s'ils ne s'affichent pas)")
     async def emojis(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)

@@ -68,8 +68,20 @@ class CalendarView(GameView):
             p.row(button("Ouvrir la case du jour", "gift", "success", self._open, disabled=today_open),
                   nav("daily", self.owner_id, "Coffre du jour", "chest"),
                   nav("hub", self.owner_id, "Tous les jeux", "pumpkin"))
+            from .reminder import is_subscribed
+            on = is_subscribed(self.store, self.guild_id, self.owner_id)
+            p.row(button("Rappel quotidien : activé" if on else "Me rappeler chaque jour", "lightning",
+                         "success" if on else "secondary", self._remind))
         p.footer(self.footer())
         return p
+
+    async def _remind(self, interaction):
+        from .reminder import reminder_hour, toggle
+        on = toggle(self.store, self.guild_id, self.owner_id)
+        hour = reminder_hour(self.store, self.guild_id)
+        self.result = (f"{E.check} Rappel activé : chaque jour vers **{hour} h**, je te préviens si ta case t'attend."
+                       if on else "Rappel désactivé.")
+        await self.refresh(interaction)
 
     async def _open(self, interaction):
         async with self.lock:
