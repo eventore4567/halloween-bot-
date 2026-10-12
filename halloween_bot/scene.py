@@ -18,6 +18,9 @@ from time import time
 import discord
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+import pathlib as _pathlib
+_FONTS = _pathlib.Path(__file__).resolve().parent / "fonts"
+
 WIDTH, HEIGHT = 1280, 840
 SCENE_FILE = "crypt-cup-scene.jpg"
 SCENE_URI = f"attachment://{SCENE_FILE}"
@@ -41,6 +44,9 @@ SANS_BOLD = "DejaVuSans-Bold.ttf"
 def _font(size, *, serif=False, bold=True):
     family = SERIF if serif else SANS_BOLD if bold else SANS
     for name in (
+        # Police embarquée d'abord : sur l'hébergement, DejaVu n'est pas installée
+        # et Pillow retombait sur une police sans accents (« FERM☒ »).
+        str(_FONTS / family),
         "/usr/share/fonts/truetype/dejavu/"+family,
         family,
         "/usr/share/fonts/truetype/liberation2/"+(

@@ -1,0 +1,6 @@
+DejaVu Fonts — https://dejavu-fonts.github.io/
+Bitstream Vera Fonts Copyright (c) 2003 by Bitstream, Inc. DejaVu changes are in public domain.
+Les polices DejaVu peuvent être librement utilisées, copiées et redistribuées
+(licence Bitstream Vera / Arev, voir https://dejavu-fonts.github.io/License.html).
+Embarquées ici pour que les images s'affichent avec les accents sur tout hébergement :
+sans elles, Pillow retombait sur une police sans « é », « è », « É » (carrés ☒).

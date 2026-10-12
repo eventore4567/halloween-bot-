@@ -15,6 +15,9 @@ from random import Random
 import discord
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+import pathlib as _pathlib
+_FONTS = _pathlib.Path(__file__).resolve().parent / "fonts"
+
 WIDTH = 1400
 HEIGHT = 460
 FILENAME = "crypt-cup-banner.jpg"
@@ -28,6 +31,9 @@ MIST = (143, 116, 148)
 
 def _font(size: int, bold=True):
     names = (
+        # Police embarquée d'abord : sur l'hébergement, DejaVu n'est pas installée
+        # et Pillow retombait sur une police sans accents (« FERM☒ »).
+        str(_FONTS / ("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf")),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         if bold else
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
