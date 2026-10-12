@@ -1,6 +1,6 @@
 """Server events: candy drops, flash quizzes and the Pumpkin King raid boss.
 
-They spawn in the channel chosen with /admin salon when the server is
+They spawn in the channel chosen with /reglages salon-evenements when the server is
 active (every N messages, at most one every few minutes).
 """
 from __future__ import annotations
