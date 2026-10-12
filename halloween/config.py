@@ -1,0 +1,201 @@
+"""Game balance, colours and static catalogues."""
+from __future__ import annotations
+
+import datetime as dt
+import os
+from zoneinfo import ZoneInfo
+
+try:
+    TZ = ZoneInfo(os.getenv("BOT_TIMEZONE", "Europe/Paris"))
+except Exception:  # pragma: no cover - tzdata missing
+    TZ = dt.timezone.utc
+
+BRAND = "Nuit Hantée"
+
+COLORS = {
+    "orange": 0xF7852A,
+    "purple": 0x8B52E0,
+    "green": 0x5FD35C,
+    "red": 0xE23E4C,
+    "gold": 0xFFC83D,
+    "cyan": 0x4FD8E0,
+    "night": 0x2A1650,
+}
+
+# --------------------------------------------------------------------------
+# Levels
+# --------------------------------------------------------------------------
+TITLES = [
+    (1, "Petit Fantôme"),
+    (3, "Chasseur de Bonbons"),
+    (6, "Apprenti Sorcier"),
+    (10, "Momie Gourmande"),
+    (15, "Vampire Noble"),
+    (20, "Loup-Garou Alpha"),
+    (25, "Liche Ancienne"),
+    (32, "Roi Citrouille"),
+    (40, "Légende d'Halloween"),
+]
+
+
+def xp_for_next(level: int) -> int:
+    return 120 + 60 * (level - 1)
+
+
+def level_from_xp(xp: int):
+    """Return (level, xp_into_level, xp_needed_for_next)."""
+    level = 1
+    while xp >= xp_for_next(level):
+        xp -= xp_for_next(level)
+        level += 1
+    return level, xp, xp_for_next(level)
+
+
+def rank_title(level: int) -> str:
+    title = TITLES[0][1]
+    for lvl, name in TITLES:
+        if level >= lvl:
+            title = name
+    return title
+
+
+# --------------------------------------------------------------------------
+# Daily limits & cooldowns
+# --------------------------------------------------------------------------
+LIMITS = {
+    "quiz": 25,
+    "memory": 6,
+    "hunt": 6,
+    "hangman": 6,
+    "cauldron": 5,
+    "gift_out": 2000,  # max candies a member can give per day
+}
+WHEEL_COOLDOWN = 4 * 3600
+
+DAILY_BASE = 150
+DAILY_STREAK_STEP = 30
+DAILY_STREAK_MAX = 7
+
+# --------------------------------------------------------------------------
+# Quiz levels
+# --------------------------------------------------------------------------
+QUIZ_LEVELS = {
+    1: dict(key="facile", name="Facile", emoji="pumpkin", reward=(15, 30), xp=8, time=25,
+            style="success"),
+    2: dict(key="moyen", name="Moyen", emoji="ghost", reward=(30, 60), xp=12, time=25,
+            style="primary"),
+    3: dict(key="difficile", name="Difficile", emoji="pumpkin_angry", reward=(60, 110), xp=18, time=22,
+            style="secondary"),
+    4: dict(key="infernal", name="Infernal", emoji="demon", reward=(110, 200), xp=26, time=20,
+            style="danger"),
+    5: dict(key="cauchemar", name="CAUCHEMAR", emoji="skull_fire", reward=(200, 400), xp=40, time=18,
+            style="danger"),
+}
+
+# --------------------------------------------------------------------------
+# Shop
+# --------------------------------------------------------------------------
+SHOP = {
+    "joker": dict(name="Joker 50/50", emoji="joker", price=120,
+                  desc="Retire deux mauvaises réponses au quiz."),
+    "shield": dict(name="Bouclier de série", emoji="shield", price=150,
+                   desc="Ta série du quiz survit à une erreur."),
+    "ticket": dict(name="Ticket de roue", emoji="wheel", price=220,
+                   desc="Un tour de roue en plus, sans attendre."),
+    "scroll": dict(name="Parchemin du savoir", emoji="scroll", price=260,
+                   desc="+5 questions de quiz aujourd'hui."),
+    "luck": dict(name="Philtre de fortune", emoji="potion_gold", price=650,
+                 desc="Tous tes gains de bonbons ×2 pendant 30 min."),
+    "booster": dict(name="Booster de cartes", emoji="gift", price=250,
+                    desc="Une carte de monstre aléatoire."),
+}
+TITLES_SHOP = {
+    "t_glouton": dict(name="Glouton de Bonbons", price=1000),
+    "t_farceur": dict(name="Fantôme Farceur", price=1200),
+    "t_chasseur": dict(name="Chasseur de Vampires", price=1800),
+    "t_reine": dict(name="Reine des Citrouilles", price=2500),
+    "t_roi": dict(name="Seigneur des Ténèbres", price=2500),
+    "t_legende": dict(name="Terreur Absolue", price=10000),
+}
+CARD_THEMES = {
+    "orange": dict(name="Citrouille", price=0, colors=((255, 150, 50), (120, 40, 10))),
+    "purple": dict(name="Sortilège", price=800, colors=((176, 110, 255), (50, 20, 100))),
+    "green": dict(name="Poison", price=800, colors=((120, 230, 110), (20, 80, 40))),
+    "red": dict(name="Sang", price=800, colors=((255, 90, 100), (90, 10, 30))),
+    "gold": dict(name="Trésor", price=1500, colors=((255, 214, 90), (110, 70, 10))),
+    "cyan": dict(name="Spectre", price=1500, colors=((120, 240, 240), (20, 70, 100))),
+}
+
+# --------------------------------------------------------------------------
+# Manor (idle game). Production is in souls per minute.
+# --------------------------------------------------------------------------
+MANOR_UNITS = [
+    dict(key="wisp", name="Feu follet", emoji="soul", cost=15, rate=1),
+    dict(key="skeleton", name="Squelette", emoji="skull", cost=110, rate=6),
+    dict(key="zombie", name="Zombie", emoji="zombie", cost=600, rate=24),
+    dict(key="ghost", name="Fantôme", emoji="ghost_still", cost=2600, rate=80),
+    dict(key="witch", name="Sorcière", emoji="witch", cost=11000, rate=270),
+    dict(key="vampire", name="Vampire", emoji="vampire", cost=42000, rate=880),
+    dict(key="werewolf", name="Loup-garou", emoji="werewolf", cost=160000, rate=2900),
+    dict(key="reaper", name="Faucheuse", emoji="reaper", cost=650000, rate=10500),
+]
+MANOR_GROWTH = 1.15
+MANOR_OFFLINE_CAP = 12 * 3600
+MANOR_MILESTONES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000]
+MANOR_MILESTONE_REWARD = [100, 200, 400, 800, 1500, 3000, 6000]
+
+
+def click_upgrade_cost(level: int) -> int:
+    return int(40 * (4 ** level))
+
+
+def click_power(level: int) -> int:
+    return 2 ** level
+
+
+def unit_cost(base: int, owned: int, amount: int = 1) -> int:
+    total = 0.0
+    for i in range(amount):
+        total += base * (MANOR_GROWTH ** (owned + i))
+    return int(round(total))
+
+
+# --------------------------------------------------------------------------
+# Wheel of fortune segments (weight, kind, value, label, emoji)
+# --------------------------------------------------------------------------
+WHEEL = [
+    dict(kind="candy", value=60, label="60 bonbons", emoji="candy", weight=24, color=(247, 133, 36)),
+    dict(kind="candy", value=120, label="120 bonbons", emoji="candy", weight=20, color=(139, 82, 224)),
+    dict(kind="nothing", value=0, label="Citrouille pourrie", emoji="pumpkin_angry", weight=12, color=(70, 50, 90)),
+    dict(kind="candy", value=250, label="250 bonbons", emoji="candy_bag", weight=12, color=(95, 211, 92)),
+    dict(kind="item", value="joker", label="Joker 50/50", emoji="joker", weight=10, color=(84, 166, 255)),
+    dict(kind="xp", value=120, label="120 XP", emoji="star", weight=10, color=(255, 120, 190)),
+    dict(kind="item", value="booster", label="Booster de cartes", emoji="gift", weight=8, color=(226, 62, 76)),
+    dict(kind="candy", value=1000, label="JACKPOT 1000", emoji="crown", weight=4, color=(255, 200, 61)),
+]
+
+
+def today(now: dt.datetime | None = None) -> str:
+    now = now or dt.datetime.now(TZ)
+    return now.astimezone(TZ).strftime("%Y-%m-%d")
+
+
+def next_midnight_ts(now: dt.datetime | None = None) -> int:
+    now = (now or dt.datetime.now(TZ)).astimezone(TZ)
+    tomorrow = (now + dt.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(tomorrow.timestamp())
+
+
+def fmt(n) -> str:
+    """French thousands separator: 12 345."""
+    n = int(n)
+    return f"{n:,}".replace(",", " ")
+
+
+def short(n) -> str:
+    """Compact number: 12 345, 45,2 k, 1,3 M, 2 Md."""
+    n = float(n)
+    for unit, div, floor in (("Md", 1e9, 1e9), ("M", 1e6, 1e6), ("k", 1e3, 1e5)):
+        if abs(n) >= floor:
+            return f"{n / div:.1f}".rstrip("0").rstrip(".").replace(".", ",") + f"\u202f{unit}"
+    return fmt(n)
