@@ -24,6 +24,7 @@ GAMES = [
     ("hunt", "Chasse aux fantômes", "ghost", "Creuse les tombes… évite la Faucheuse"),
     ("hangman", "Le Pendu", "skull", "Sauve le squelette lettre par lettre"),
     ("ritual", "Le Rituel", "candle", "Mémorise la formule maudite et répète-la"),
+    ("ouija", "La Planche Ouija", "crystal", "L'esprit épelle un mot en vidéo : devine lequel"),
     ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
     ("calendar", "Calendrier d'octobre", "gift", "Une case par jour, jackpot le 31"),
@@ -31,7 +32,7 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "29 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "31 trophées à débloquer"),
 ]
 
 TIPS = [
@@ -101,7 +102,7 @@ class HubView(GameView):
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
             f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
-            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Réflexe **{L['reflex']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Réflexe **{L['reflex']}** · "
             f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "

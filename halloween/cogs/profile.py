@@ -65,7 +65,8 @@ class ProfileView(GameView):
         s, g, u = self.store, self.guild_id, self.member.id
         cells = [("skull", "Frisson", "quiz"), ("house", "Maison", "house"), ("witch", "Course", "race"),
                  ("cauldron", "Formule", "cauldron"), ("eye", "Mémoire", "memory"), ("ghost", "Chasse", "hunt"),
-                 ("bone", "Pendu", "hangman"), ("candle", "Rituel", "ritual"), ("lightning", "Réflexe", "reflex")]
+                 ("bone", "Pendu", "hangman"), ("candle", "Rituel", "ritual"), ("lightning", "Réflexe", "reflex"),
+                 ("crystal", "Ouija", "ouija")]
         out = []
         for icon, name, key in cells:
             left = s.remaining(g, u, key)
