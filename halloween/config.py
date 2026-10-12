@@ -74,6 +74,9 @@ LIMITS = {
     "reflex": 8,
     "ouija": 5,
     "shell": 6,
+    "slots": 15,
+    "motus": 3,
+    "hilo": 6,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -216,6 +219,11 @@ ACHIEVEMENTS = [
     ("ouija_perfect", "Médium", "Réussir une séance Ouija parfaite", "crystal", "ouija_best", 3, 300),
     ("ouija_25", "Voix de l'au-delà", "Trouver 25 mots à la planche Ouija", "candle", "ouija_words", 25, 450),
     ("shell_perfect", "Œil de lynx", "Gagner les 3 manches du Bonneteau", "pumpkin_lit", "shell_best", 3, 300),
+    ("slots_jackpot", "Jackpot hanté", "Aligner trois couronnes à la Machine hantée", "crown", "slots_jackpot", 1, 500),
+    ("motus_5", "Linguiste des ombres", "Trouver 5 mots au Motus des ombres", "book", "motus_win", 5, 400),
+    ("hilo_6", "Devin", "Enchaîner 6 bonnes réponses à Plus ou Moins", "star", "hilo_best", 6, 400),
+    ("quests_20", "Chasseur de défis", "Accomplir 20 défis du jour", "scroll", "quests_done", 20, 600),
+    ("versus_5", "Roi des défis", "Gagner 5 défis en direct (/defi)", "crown", "versus_win", 5, 500),
 ]
 
 
