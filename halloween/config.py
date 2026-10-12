@@ -68,6 +68,10 @@ LIMITS = {
     "hunt": 6,
     "hangman": 6,
     "cauldron": 5,
+    "house": 5,
+    "race": 6,
+    "ritual": 6,
+    "reflex": 8,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -108,7 +112,13 @@ SHOP = {
                  desc="Tous tes gains de bonbons ×2 pendant 30 min."),
     "booster": dict(name="Booster de cartes", emoji="gift", price=250,
                     desc="Une carte de monstre aléatoire."),
+    "amulet": dict(name="Amulette anti-sort", emoji="gem", price=300,
+                   desc="Bloque le prochain mauvais sort lancé contre toi."),
 }
+CURSE_COST = 60
+CURSE_COOLDOWN = 3600
+CURSE_PROTECTION = 2 * 3600
+CURSE_SUCCESS = 0.6
 TITLES_SHOP = {
     "t_glouton": dict(name="Glouton de Bonbons", price=1000),
     "t_farceur": dict(name="Fantôme Farceur", price=1200),
@@ -199,3 +209,35 @@ def short(n) -> str:
         if abs(n) >= floor:
             return f"{n / div:.1f}".rstrip("0").rstrip(".").replace(".", ",") + f"\u202f{unit}"
     return fmt(n)
+
+
+# --------------------------------------------------------------------------
+# Achievements: (key, name, description, emoji, measured value, goal, reward)
+# --------------------------------------------------------------------------
+ACHIEVEMENTS = [
+    ("first_quiz", "Premier frisson", "Réussir une question de quiz", "crystal", "quiz_right", 1, 50),
+    ("quiz_50", "Érudit des ténèbres", "50 bonnes réponses au quiz", "book", "quiz_right", 50, 300),
+    ("quiz_250", "Oracle maudit", "250 bonnes réponses au quiz", "crystal", "quiz_right", 250, 1000),
+    ("streak_10", "Série infernale", "10 bonnes réponses d'affilée", "fire", "quiz_best_streak", 10, 400),
+    ("memory_1", "Mémoire d'outre-tombe", "Gagner une partie de mémoire", "eye", "memory_win", 1, 100),
+    ("memory_10", "Mémoire éternelle", "Gagner 10 parties de mémoire", "eye", "memory_win", 10, 500),
+    ("hunt_300", "Pilleur de tombes", "Encaisser 300 bonbons à la chasse", "tomb", "hunt_best", 300, 300),
+    ("hangman_5", "Sauveur de squelettes", "Gagner 5 parties de pendu", "skull", "hangman_win", 5, 300),
+    ("house_5", "Explorateur", "Sortir 5 fois vivant de la maison hantée", "house", "house_escape", 5, 300),
+    ("crypt_1", "Pilleur de crypte", "Ouvrir la crypte de la maison hantée", "coffin", "crypt", 1, 400),
+    ("duel_1", "Premier sang", "Gagner un duel", "fang", "duel_win", 1, 100),
+    ("duel_10", "Maître duelliste", "Gagner 10 duels", "vampire", "duel_win", 10, 600),
+    ("boss_1", "Tueur de citrouille", "Vaincre le Roi Citrouille", "pumpkin_angry", "boss_win", 1, 300),
+    ("drops_5", "Main rapide", "Attraper 5 apparitions", "lightning", "drops", 5, 250),
+    ("potions_10", "Alchimiste", "Réussir 10 potions", "cauldron", "potions", 10, 300),
+    ("boosters_10", "Collectionneur", "Ouvrir 10 boosters", "gift", "boosters", 10, 300),
+    ("cards_24", "Collection complète", "Posséder les 24 cartes", "crown", "cards", 24, 500),
+    ("jackpot", "Jackpot !", "Toucher le jackpot de la roue", "wheel", "jackpot", 1, 200),
+    ("gift_1", "Cœur sur la main", "Offrir des bonbons", "heart", "gifts", 1, 100),
+    ("daily_7", "Fidèle à la nuit", "7 jours de coffre d'affilée", "chest", "streak", 7, 400),
+    ("level_10", "Monstre confirmé", "Atteindre le niveau 10", "star", "level", 10, 500),
+    ("level_25", "Liche ancienne", "Atteindre le niveau 25", "gem", "level", 25, 1500),
+    ("earned_10k", "Sac plein", "Gagner 10 000 bonbons au total", "candy_bag", "earned", 10_000, 500),
+    ("earned_100k", "Roi des bonbons", "Gagner 100 000 bonbons au total", "crown", "earned", 100_000, 3000),
+    ("manor_1m", "Seigneur du manoir", "Récolter 1 million d'âmes", "soul", "manor", 1_000_000, 1000),
+]

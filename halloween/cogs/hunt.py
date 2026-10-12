@@ -96,8 +96,7 @@ class HuntView(GameView):
                 g, u = self.guild_id, self.owner_id
                 if kind == "reaper":
                     self.state = "dead"
-                    self.reward = grant(self.store, g, u, 0, 5, "chasse")
-                    self.store.stat_add(g, u, "hunt_dead")
+                    self.reward = grant(self.store, g, u, 0, 5, "chasse", stats={"hunt_dead": 1})
                     self.finish()
                 elif kind == "chest":
                     self.pot = max(self.pot * 2, 40)
@@ -116,8 +115,7 @@ class HuntView(GameView):
         g, u = self.guild_id, self.owner_id
         self.state = "cashed"
         self.flash = ""
-        self.reward = grant(self.store, g, u, self.pot, 8 + len(self.dug), "chasse")
-        self.store.stat_max(g, u, "hunt_best", self.pot)
+        self.reward = grant(self.store, g, u, self.pot, 8 + len(self.dug), "chasse", best={"hunt_best": self.pot})
         self.finish()
 
     async def _cash(self, interaction):

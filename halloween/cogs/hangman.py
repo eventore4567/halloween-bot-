@@ -158,8 +158,7 @@ class HangmanView(GameView):
         self.state = "won"
         g, u = self.guild_id, self.owner_id
         amount = hangman_reward(LIVES - self.misses) + (30 if bonus else 0)
-        self.reward = grant(self.store, g, u, amount, 15, "pendu")
-        self.store.stat_add(g, u, "hangman_win")
+        self.reward = grant(self.store, g, u, amount, 15, "pendu", stats={"hangman_win": 1})
         self.flash = f"{E.lightning} Mot trouvé d'un coup : **+30** bonus !" if bonus else ""
         self.finish()
 

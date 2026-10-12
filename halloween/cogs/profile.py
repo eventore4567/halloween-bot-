@@ -69,7 +69,8 @@ class ProfileView(GameView):
         p.title(f"{'Ton profil' if me else 'Profil de ' + self.member.display_name}", icon="pumpkin_lit",
                 body=f"{E.star} Niveau **{level}** · *{title_of(s, g, u, level)}* · "
                      f"{E.candy} **{config.fmt(player['candies'])}** en poche · "
-                     f"**{config.fmt(player['earned'])}** gagnés au total")
+                     f"**{config.fmt(player['earned'])}** gagnés au total · {E.trophy} "
+                     f"**{sum(1 for t in s.owned(g, u) if t.startswith('ach:'))}/{len(config.ACHIEVEMENTS)}** succès")
         p.sep()
         # today's quotas
         wheel_left = s.cooldown_left(g, u, "wheel")
@@ -79,6 +80,10 @@ class ProfileView(GameView):
             f"{E.eye} Mémoire : **{s.counter(g, u, 'memory')}/{config.LIMITS['memory']}** · "
             f"{E.ghost} Chasse : **{s.counter(g, u, 'hunt')}/{config.LIMITS['hunt']}** · "
             f"{E.skull} Pendu : **{s.counter(g, u, 'hangman')}/{config.LIMITS['hangman']}**",
+            f"{E.house} Maison : **{s.counter(g, u, 'house')}/{config.LIMITS['house']}** · "
+            f"{E.witch} Course : **{s.counter(g, u, 'race')}/{config.LIMITS['race']}** · "
+            f"{E.candle} Rituel : **{s.counter(g, u, 'ritual')}/{config.LIMITS['ritual']}** · "
+            f"{E.lightning} Réflexe : **{s.counter(g, u, 'reflex')}/{config.LIMITS['reflex']}**",
             f"{E.cauldron} Potions : **{s.counter(g, u, 'cauldron')}/{config.LIMITS['cauldron']}** · "
             f"{E.book} Recettes trouvées : **{len(s.recipes_found(g, u))}/8**",
             f"{E.wheel} Roue : " + (f"prête dans {relative(time.time() + wheel_left)}" if wheel_left else "**prête !**")
@@ -98,7 +103,7 @@ class ProfileView(GameView):
         if bonus:
             fx.append(f"{E.potion_blue} **+{bonus} questions** de quiz aujourd'hui")
         inv_names = {"joker": ("joker", "Joker"), "shield": ("shield", "Bouclier"), "ticket": ("wheel", "Ticket de roue"),
-                     "booster": ("gift", "Booster")}
+                     "booster": ("gift", "Booster"), "amulet": ("gem", "Amulette")}
         inv = [f"{E(icon)} {name} ×**{items[k]}**" for k, (icon, name) in inv_names.items() if items.get(k)]
         if fx or inv:
             p.sep()
@@ -114,9 +119,11 @@ class ProfileView(GameView):
         p.sep()
         o = self.owner_id
         p.row(nav("quiz", o, "Quiz", "crystal"), nav("manor", o, "Manoir", "soul"),
-              nav("cauldron", o, "Chaudron", "cauldron"), nav("wheel", o, "Roue", "wheel"))
+              nav("cauldron", o, "Chaudron", "cauldron"), nav("wheel", o, "Roue", "wheel"),
+              nav("house", o, "Maison", "house"))
         p.row(nav("cards", o, "Cartes", "gift"), nav("shop", o, "Boutique", "witch"),
-              nav("top", o, "Classement", "trophy"), nav("hub", o, "Tous les jeux", "pumpkin"))
+              nav("top", o, "Classement", "trophy"), nav("trophies", o, "Succès", "medal1"),
+              nav("hub", o, "Tous les jeux", "pumpkin"))
         p.footer(self.footer())
         return p
 

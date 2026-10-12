@@ -132,8 +132,7 @@ class CauldronView(GameView):
             if key:
                 new = self.store.add_recipe(g, u, key)
                 text = apply_potion(self.store, g, u, key)
-                reward = grant(self.store, g, u, 0, 30 if new else 10, "potion")
-                self.store.stat_add(g, u, "potions")
+                reward = grant(self.store, g, u, 0, 30 if new else 10, "potion", stats={"potions": 1})
                 self.result = dict(potion=key, new=new, text=text, reward=reward)
             else:
                 msg, candies = random.choice(FAILS)

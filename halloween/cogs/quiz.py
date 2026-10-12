@@ -248,10 +248,9 @@ class QuizView(GameView):
             self.best = max(self.best, self.streak)
             gain, fast = compute_gain(self.level, self.streak, elapsed)
             last["fast"] = fast
-            last["reward"] = grant(self.store, g, u, gain, info["xp"], "quiz")
+            last["reward"] = grant(self.store, g, u, gain, info["xp"], "quiz", stats={"quiz_right": 1},
+                                   best={"quiz_best_streak": self.streak})
             self.session_gain += last["reward"].candies
-            self.store.stat_add(g, u, "quiz_right")
-            self.store.stat_max(g, u, "quiz_best_streak", self.streak)
         else:
             if self.streak >= 2 and self.store.use_item(g, u, "shield"):
                 last["shielded"] = True

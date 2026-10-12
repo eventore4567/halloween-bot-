@@ -104,8 +104,8 @@ class LootView(EventView):
                 return await notice(interaction, f"Trop tard ! Le butin est parti avec {who}.", icon="hourglass")
             self.over = True
             self.winner = interaction.user
-            self.reward = grant(self.store, self.guild_id, interaction.user.id, self.amount, 10, "apparition")
-            self.store.stat_add(self.guild_id, interaction.user.id, "drops")
+            self.reward = grant(self.store, self.guild_id, interaction.user.id, self.amount, 10, "apparition",
+                                stats={"drops": 1})
             self.close()
             await self.push(interaction)
 
@@ -157,8 +157,8 @@ class FlashQuizView(EventView):
                     await notice(interaction, "Mauvaise réponse… tu es éliminé de ce quiz éclair !", icon="skull")
                     return await self.push()
                 self.winner = interaction.user
-                self.reward = grant(self.store, self.guild_id, uid, self.amount, 15, "quiz-eclair")
-                self.store.stat_add(self.guild_id, uid, "quiz_right")
+                self.reward = grant(self.store, self.guild_id, uid, self.amount, 15, "quiz-eclair",
+                                    stats={"quiz_right": 1, "drops": 1})
                 self.close()
                 await self.push(interaction)
         return cb
@@ -253,8 +253,7 @@ class BossView(EventView):
             ranking = sorted(self.damage.items(), key=lambda kv: -kv[1])
             for i, (uid, d) in enumerate(ranking):
                 amount = min(450, 40 + int(d * 0.6)) + (150 if i == 0 else 0)
-                r = grant(self.store, self.guild_id, uid, amount, 25, "boss")
-                self.store.stat_add(self.guild_id, uid, "boss_win")
+                r = grant(self.store, self.guild_id, uid, amount, 25, "boss", stats={"boss_win": 1})
                 self.rewards.append(f"{E.candy} <@{uid}> · {r.line().splitlines()[0]}"
                                     + (f" {E.crown} *meilleur combattant*" if i == 0 else ""))
             self.close()

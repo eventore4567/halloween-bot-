@@ -100,8 +100,7 @@ class MemoryView(GameView):
     def _win(self):
         self.state = "won"
         g, u = self.guild_id, self.owner_id
-        self.reward = grant(self.store, g, u, memory_reward(self.moves), 20, "memoire")
-        self.store.stat_add(g, u, "memory_win")
+        self.reward = grant(self.store, g, u, memory_reward(self.moves), 20, "memoire", stats={"memory_win": 1})
         self.finish()
 
     def on_expire(self):

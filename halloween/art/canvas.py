@@ -42,6 +42,7 @@ def font(name: str, size: int, weight: str | None = None):
         "title": "LuckiestGuy-Regular.ttf",
         "lilita": "LilitaOne-Regular.ttf",
         "body": "Fredoka-Variable.ttf",
+        "neon": "TiltNeon-Variable.ttf",
     }
     path = FONT_DIR / files.get(name, name)
     try:

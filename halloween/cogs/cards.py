@@ -102,13 +102,14 @@ class CardsView(GameView):
             self.duplicate = 0
             self.completed = False
             if count > 1:
-                self.duplicate = grant(self.store, g, u, RARITIES[card["rarity"]]["refund"], 5, "doublon").candies
+                self.reward = grant(self.store, g, u, RARITIES[card["rarity"]]["refund"], 5, "doublon",
+                                    stats={"boosters": 1})
+                self.duplicate = self.reward.candies
             else:
-                grant(self.store, g, u, 0, 15 * RARITIES[card["rarity"]]["stars"], "carte")
-                if before + 1 == len(CARDS):
-                    self.completed = True
-                    grant(self.store, g, u, COLLECTION_BONUS, 200, "collection")
-            self.store.stat_add(g, u, "boosters")
+                bonus = COLLECTION_BONUS if before + 1 == len(CARDS) else 0
+                self.completed = bool(bonus)
+                self.reward = grant(self.store, g, u, bonus, 15 * RARITIES[card["rarity"]]["stars"] + (200 if bonus else 0),
+                                    "carte", stats={"boosters": 1})
             data = await asyncio.to_thread(art.card_reveal_gif, card["key"])
             self.state = "reveal"
             await self.refresh(interaction, attachments=[image_file(data, "carte.gif")])

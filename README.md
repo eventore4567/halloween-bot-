@@ -2,25 +2,31 @@
 
 ![Bannière animée](docs/banniere-accueil.gif)
 
-Un bot Halloween **entièrement refait** : un seul format de panneau pour tous les jeux,
-des **bannières GIF animées**, **72 emojis personnalisés** (dont 21 animés) dessinés
-par le bot lui-même, des images générées (carte de profil, podium, roue, cartes à
-collectionner) et **12 jeux** pour gagner des bonbons.
+Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : des
+**enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
+de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
+le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
+collectionner), **17 jeux** et **25 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
 - **Un seul format de panneau** (Components V2) : bannière animée → titre → sections →
   boutons → pied de page. Chaque jeu a sa couleur, tout le bot a la même allure.
-- **Animé partout** : bannières GIF (étoiles qui scintillent, chauve-souris qui
-  traverse le ciel, personnages qui flottent), emojis animés, comptes à rebours en direct,
-  roue qui tourne réellement, cartes qui se retournent, coffre et chaudron qui
-  « s'ouvrent » et « bouillonnent ».
+- **Style néon unique** : chaque jeu a son enseigne lumineuse (titre en tubes néon,
+  cadre, monstres dessinés en néon), qui clignote, grésille, crache des étincelles,
+  avec du brouillard qui défile. Le même style habille la carte de profil, le podium,
+  la roue et la course de balais.
+- **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
+  roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
+  coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
 - **Emojis personnalisés automatiques** : au démarrage, le bot dessine et envoie ses
-  72 emojis dans *Developer Portal → ton application → Emojis*. Ils marchent dans
+  74 emojis dans *Developer Portal → ton application → Emojis*. Ils marchent dans
   **tous les serveurs**, sans Nitro et sans prendre de place sur le serveur.
   Ils sont mis à jour tout seuls si le dessin change.
 - **Images générées** : carte de profil avec ton avatar, niveau et XP ; podium du
   classement avec les avatars du top 3.
+
+![Bannières](docs/apercu-bannieres.png)
 
 ![Emojis](docs/apercu-emojis.png)
 
@@ -34,12 +40,18 @@ collectionner) et **12 jeux** pour gagner des bonbons.
 | `/chaudron` | **L'Alchimiste** : mélange 2 ingrédients sur 8, trouve les **8 recettes secrètes du jour** (différentes sur chaque serveur, changent à minuit) |
 | `/roue` | **Roue du destin** animée, un tour gratuit toutes les 4 h, jackpot 1 000 |
 | `/cartes` | **Cartes maudites** : 24 monstres à collectionner (4 raretés), révélation animée |
+| `/maison` | **Maison hantée** : 4 pièces tirées au hasard parmi 10, 3 choix par pièce, trésors, pièges, monstres, 3 bougies de vie, une clé… et une **crypte** au trésor |
+| `/course` | **Course de balais** : parie sur une des 4 sorcières, la course est un **GIF animé**, gain ×3,6 |
+| `/rituel` | **Le Rituel** : mémorise la formule maudite qui s'efface, répète-la, elle s'allonge à chaque manche |
+| `/reflexe` | **Réflexe du fantôme** : clique dès que le bouton passe au vert, 3 manches chronométrées |
 | `/memoire` | **Mémoire d'outre-tombe** : 8 paires sur une grille de 16 boutons |
 | `/chasse` | **Chasse aux fantômes** : creuse des tombes, double ton butin… évite les 3 Faucheuses |
 | `/pendu` | **Le Pendu de la crypte** : 50 mots d'Halloween, indice, proposition du mot entier |
+| `/sort @membre` | **Mauvais sort** : vole jusqu'à 8 % des bonbons d'un rival (60 % de réussite, sinon le sort se retourne contre toi). L'**amulette** de la boutique protège |
 | `/duel @membre [mise]` | **Duel de monstres** : Vampire / Loup-garou / Chasseur en 2 manches gagnantes, mise en bonbons sécurisée |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
-| `/boutique` | Jokers, boucliers, tickets, potions, **titres** et **couleurs de profil** |
+| `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
+| `/succes` | **25 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée, quotas du jour, effets actifs, manoir |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, quiz, manoir, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |
@@ -121,5 +133,5 @@ tests/
 ```
 
 Le jeu utilise uniquement des bonbons virtuels : **aucun argent réel ni mise d'argent**.
-Les polices Luckiest Guy (Apache 2.0), Lilita One et Fredoka (SIL OFL)
+Les polices Luckiest Guy (Apache 2.0), Lilita One, Fredoka et Tilt Neon (SIL OFL)
 sont incluses avec leurs licences dans `assets/fonts/`.

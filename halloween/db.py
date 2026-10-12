@@ -316,6 +316,16 @@ class Store:
             db.execute("INSERT INTO ledger(guild_id,user_id,delta,reason,ts) VALUES(?,?,?,?,?)",
                        (g, u, -price, reason, time.time()))
 
+    def unlock(self, g, u, thing) -> bool:
+        """Grant a permanent thing; True only the first time."""
+        with self.tx() as db:
+            return db.execute("INSERT OR IGNORE INTO owned(guild_id,user_id,thing) VALUES(?,?,?)",
+                              (g, u, thing)).rowcount > 0
+
+    def manor_lifetime(self, g, u) -> float:
+        row = self.one("SELECT lifetime FROM manor WHERE guild_id=? AND user_id=?", g, u)
+        return row["lifetime"] if row else 0.0
+
     def owns(self, g, u, thing) -> bool:
         return self.one("SELECT 1 FROM owned WHERE guild_id=? AND user_id=? AND thing=?", g, u, thing) is not None
 

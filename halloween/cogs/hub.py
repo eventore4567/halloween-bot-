@@ -18,13 +18,18 @@ GAMES = [
     ("cauldron", "L'Alchimiste", "cauldron", "Trouve les 8 recettes secrètes du jour"),
     ("wheel", "Roue du destin", "wheel", "Un tour gratuit toutes les 4 heures"),
     ("cards", "Cartes maudites", "gift", "Collectionne les 24 monstres"),
+    ("house", "Maison hantée", "house", "4 pièces, 3 bougies, une crypte au trésor"),
+    ("race", "Course de balais", "witch", "Parie sur la sorcière la plus rapide"),
     ("memory", "Mémoire d'outre-tombe", "eye", "Retrouve les 8 paires"),
     ("hunt", "Chasse aux fantômes", "ghost", "Creuse les tombes… évite la Faucheuse"),
     ("hangman", "Le Pendu", "skull", "Sauve le squelette lettre par lettre"),
+    ("ritual", "Le Rituel", "candle", "Mémorise la formule maudite et répète-la"),
+    ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
+    ("trophies", "Succès", "medal1", "25 trophées à débloquer"),
 ]
 
 TIPS = [
@@ -75,9 +80,10 @@ class HubView(GameView):
                 body="Gagne des **bonbons**, monte de niveau et deviens la terreur du serveur.\n"
                      "Tout se joue avec des boutons, directement ici.")
         p.sep()
-        lines = [f"{E(icon)} **{name}** — {desc}" for key, name, icon, desc in GAMES[:9]]
+        lines = [f"{E(icon)} **{name}** — {desc}" for key, name, icon, desc in GAMES if key not in ("shop", "top", "profile", "trophies")]
         p.text("\n".join(lines))
-        p.text(f"-# Et aussi : {E.vampire} `/duel` pour défier un membre · {E.gift} `/donner` pour offrir des bonbons")
+        p.text(f"-# Et aussi : {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
+               f"{E.gift} `/donner` pour offrir des bonbons")
 
     def _guide(self, p: Panel):
         L = config.LIMITS
@@ -91,7 +97,8 @@ class HubView(GameView):
             f"### {E.star} Niveaux & XP\n"
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
-            f"Quiz **{L['quiz']}** · Mémoire **{L['memory']}** · Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · "
+            f"Quiz **{L['quiz']}** · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Réflexe **{L['reflex']}** · "
             f"Potions **{L['cauldron']}** · Roue toutes les **4 h**. Tout revient à zéro à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "

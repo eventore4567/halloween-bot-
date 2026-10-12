@@ -25,6 +25,7 @@ LOG = logging.getLogger("nuit-hantee")
 COGS = (
     "hub", "profile", "daily", "quiz", "manor", "cauldron", "wheel", "memory", "hunt",
     "hangman", "duel", "cards", "shop", "leaderboard", "gift", "drops", "admin",
+    "house", "race", "ritual", "reflex", "curse", "trophies",
 )
 
 
