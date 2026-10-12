@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **17 jeux** et **27 succès** à débloquer.
+collectionner), **19 jeux** et **29 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -19,6 +19,8 @@ collectionner), **17 jeux** et **27 succès** à débloquer.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
+- **Emojis néon maison** : chaque emoji est une petite enseigne néon sur une tuile sombre
+  (lisible en thème clair comme sombre), dessinée par le bot lui-même ; les animés grésillent.
 - **Emojis personnalisés automatiques** : au démarrage, le bot dessine et envoie ses
   74 emojis dans *Developer Portal → ton application → Emojis*. Ils marchent dans
   **tous les serveurs**, sans Nitro et sans prendre de place sur le serveur.
@@ -29,6 +31,8 @@ collectionner), **17 jeux** et **27 succès** à débloquer.
 ![Bannières](docs/apercu-bannieres.png)
 
 ![Le Grand Frisson](docs/apercu-frisson.png)
+
+![Calendrier et citrouille géante](docs/apercu-saison.png)
 
 ![Emojis](docs/apercu-emojis.png)
 
@@ -51,9 +55,11 @@ collectionner), **17 jeux** et **27 succès** à débloquer.
 | `/pendu` | **Le Pendu de la crypte** : 50 mots d'Halloween, indice, proposition du mot entier |
 | `/sort @membre` | **Mauvais sort** : vole jusqu'à 8 % des bonbons d'un rival (60 % de réussite, sinon le sort se retourne contre toi). L'**amulette** de la boutique protège |
 | `/duel @membre [mise]` | **Duel de monstres** : Vampire / Loup-garou / Chasseur en 2 manches gagnantes, mise en bonbons sécurisée |
+| `/calendrier` | **Calendrier d'octobre** en néon : une case par jour jusqu'à Halloween, la case 13 est maudite (666 bonbons… ou rien), le **31** cache le grand jackpot et une **carte légendaire** |
+| `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **27 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **29 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |

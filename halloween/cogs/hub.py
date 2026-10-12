@@ -26,10 +26,12 @@ GAMES = [
     ("ritual", "Le Rituel", "candle", "Mémorise la formule maudite et répète-la"),
     ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
+    ("calendar", "Calendrier d'octobre", "gift", "Une case par jour, jackpot le 31"),
+    ("giant", "Citrouille géante", "pumpkin_lit", "Tout le serveur la nourrit ensemble"),
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "27 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "29 trophées à débloquer"),
 ]
 
 TIPS = [

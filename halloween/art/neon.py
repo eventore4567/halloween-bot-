@@ -147,3 +147,78 @@ def dim(img: Image.Image, factor: float) -> Image.Image:
     out = img.copy()
     out.putalpha(img.getchannel("A").point(lambda v: int(v * factor)))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Neon emoji pack: every icon is a tiny glowing sign on a dark rounded tile.
+# ---------------------------------------------------------------------------
+EMOJI_COLORS = {
+    ORANGE: ["pumpkin", "pumpkin_lit", "pumpkin_angry", "candy", "candy_bag", "fire", "cookie", "door", "hunter",
+             "coffin", "lollipop"],
+    CYAN: ["ghost", "ghost_still", "soul", "potion_blue", "hourglass", "eye", "moon", "tomb", "lock"],
+    PURPLE: ["bat", "crystal", "spider", "web", "potion_purple", "book", "gem", "joker", "house", "reaper",
+             "mummy", "feather", "question"],
+    GREEN: ["witch", "zombie", "frog", "cauldron", "potion_green", "check", "mushroom"],
+    RED: ["vampire", "demon", "heart", "cross", "potion_red", "fang", "werewolf"],
+    YELLOW: ["trophy", "medal1", "crown", "chest", "star", "sparkle", "lightning", "key", "potion_gold", "wheel",
+             "candle", "scroll"],
+    PINK: ["gift", "dice", "shield", "skull_fire"],
+    WHITE: ["skull", "bone", "medal2"],
+}
+_COLOR_OF = {name: color for color, names in EMOJI_COLORS.items() for name in names}
+_COLOR_OF["medal3"] = (255, 150, 90)
+
+
+def emoji_color(name: str):
+    return _COLOR_OF.get(name, PURPLE)
+
+
+def _bar_piece(part: str, on: bool) -> Image.Image:
+    s = 128
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    m = Image.new("L", (s, s), 0)
+    d = ImageDraw.Draw(m)
+    x0 = 30 if part == "l" else -40
+    x1 = 98 if part == "r" else 170
+    d.rounded_rectangle((x0, 50, x1, 78), radius=14, outline=255, width=6)
+    if on:
+        fill = Image.new("L", (s, s), 0)
+        ImageDraw.Draw(fill).rounded_rectangle((x0 + 8, 58, x1 - 8, 70), radius=6, fill=255)
+        out.alpha_composite(glow(ImageChops.lighter(m, fill), ORANGE, 5))
+    else:
+        out.alpha_composite(dim(glow(m, (120, 90, 170), 3), 0.55))
+    return out
+
+
+def _details(name: str, m: Image.Image):
+    """Details lost by the line extraction (filled shapes, digits)."""
+    d = ImageDraw.Draw(m)
+    if name == "dice":
+        for x, y in ((44, 44), (84, 44), (64, 64), (44, 84), (84, 84)):
+            d.ellipse((x - 7, y - 7, x + 7, y + 7), fill=255)
+    elif name.startswith("medal"):
+        d.ellipse((44, 59, 84, 99), fill=0)
+        d.text((64, 80), name[-1], font=font("neon", 32), fill=255, anchor="mm")
+
+
+def emoji_tile(name: str, frame: int = 0, flicker: float = 1.0) -> Image.Image:
+    """128×128 RGBA neon emoji (one animation frame)."""
+    if name.startswith("bar_"):
+        return _bar_piece(name[4], name.endswith("1"))
+    s = 128
+    color = emoji_color(name)
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    ImageDraw.Draw(out).rounded_rectangle((2, 2, s - 3, s - 3), radius=30, fill=(16, 9, 24, 255))
+    border = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(border).rounded_rectangle((5, 5, s - 6, s - 6), radius=27, outline=255, width=3)
+    out.alpha_composite(dim(glow(border, color, 3), 0.5 * flicker + 0.1))
+    lines = icon_mask(name, 104, frame).filter(ImageFilter.MaxFilter(5))
+    m = Image.new("L", (s, s), 0)
+    m.paste(lines, (12, 12))
+    _details(name, m)
+    out.alpha_composite(dim(glow(m, color, 4), flicker))
+    # keep the tile's rounded corners clean after the glow
+    mask = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((2, 2, s - 3, s - 3), radius=30, fill=255)
+    out.putalpha(ImageChops.multiply(out.getchannel("A"), mask))
+    return out

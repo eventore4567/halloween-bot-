@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from .canvas import Canvas, Grad, mix, png_bytes, rgba
 from . import neon
-from .emoji_art import emoji_image, render_frame
+from .emoji_art import emoji_image
 
 INK = (24, 12, 32)
 CREAM = (255, 246, 228)
@@ -273,7 +273,8 @@ def card_face(card: dict, rarity: dict, number: int, total: int) -> Image.Image:
     for _ in range(18):
         c.circle(rnd.uniform(36, CW - 36), rnd.uniform(66, 200), rnd.uniform(0.8, 2), (255, 250, 230, 160))
     c.circle(CW / 2, 168, 86, rgba(col, 60))
-    c.paste(render_frame(card["emoji"], 0.2, 128), (CW / 2 - 86, 82), (172, 172))
+    art = neon.icon_light(card["emoji"], 150, tuple(col))
+    c.paste(art, (CW / 2 - art.width / 2, 168 - art.height / 2), art.size)
     # name
     name = card["name"].upper()
     fs = 24

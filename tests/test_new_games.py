@@ -186,7 +186,7 @@ class NewGamesTest(unittest.TestCase):
     def test_achievement_keys_are_measurable(self):
         known = {"quiz_right", "quiz_best_streak", "memory_win", "hunt_best", "hangman_win", "house_escape", "crypt",
                  "duel_win", "boss_win", "drops", "potions", "boosters", "cards", "jackpot", "gifts", "streak",
-                 "level", "earned", "exp_win", "show_top"}
+                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed"}
         keys = [a[0] for a in config.ACHIEVEMENTS]
         self.assertEqual(len(keys), len(set(keys)))
         for a in config.ACHIEVEMENTS:
@@ -203,3 +203,72 @@ class NewGamesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeasonalTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+        cls.store = cls.bot.store
+
+    def run_async(self, coro):
+        with mock.patch("asyncio.sleep", fast_sleep):
+            return asyncio.run(coro)
+
+    def test_calendar_rewards(self):
+        for day in range(1, 32):
+            r = config.calendar_reward(day)
+            self.assertIn("emoji", r)
+        self.assertTrue(config.calendar_reward(31)["legendary"])
+        self.assertTrue(config.calendar_reward(13)["cursed"])
+
+    def test_calendar_open_once_per_day(self):
+        from halloween.cogs import seasonal
+        user = FakeUser(9101, "Calendrier")
+
+        async def go():
+            with mock.patch.object(seasonal, "october_day", lambda now=None: (2026, 31)):
+                v = seasonal.CalendarView(self.bot, FakeInteraction(user=user, client=self.bot))
+                check_layout((v.render(), v)[1])
+                await v._open(FakeInteraction(user=user, client=self.bot))
+                self.assertIn(31, v.opened())
+                legendary = [k for k in self.store.cards(999, user.id) if k.startswith("l_")]
+                self.assertEqual(len(legendary), 1)
+                before = self.store.candies(999, user.id)
+                await v._open(FakeInteraction(user=user, client=self.bot))
+                self.assertEqual(self.store.candies(999, user.id), before)
+                check_layout((v.render(), v)[1])
+            with mock.patch.object(seasonal, "october_day", lambda now=None: (2026, None)):
+                v = seasonal.CalendarView(self.bot, FakeInteraction(user=user, client=self.bot))
+                check_layout((v.render(), v)[1])
+        self.run_async(go())
+
+    def test_giant_pumpkin_stage_rewards(self):
+        from halloween.cogs import seasonal
+        a, b = FakeUser(9201, "A"), FakeUser(9202, "B")
+        for u in (a, b):
+            self.store.add_candies(999, u.id, 5000, "t", boost=False)
+
+        async def go():
+            v = seasonal.GiantView(self.bot, FakeInteraction(user=a, client=self.bot))
+            check_layout((v.render(), v)[1])
+            for _ in range(3):
+                await v._feed(500)(FakeInteraction(user=a, client=self.bot))
+            a_before = self.store.candies(999, a.id)
+            b_before = self.store.candies(999, b.id)
+            await v._feed(500)(FakeInteraction(user=b, client=self.bot))
+            st = v.state()
+            self.assertEqual(st["total"], 2000)
+            self.assertEqual(config.pumpkin_stage(st["total"]), 1)
+            # B crossed the stage: B paid 500 and got back 12 % + stage bonus
+            self.assertEqual(self.store.candies(999, b.id), b_before - 500 + int(500 * 0.12) + 40)
+            # every earlier feeder is rewarded too
+            self.assertEqual(self.store.candies(999, a.id), a_before + int(1500 * 0.12) + 40)
+            self.assertIn("GRANDIT", v.flash)
+            check_layout((v.render(), v)[1])
+        self.run_async(go())
+
+    def test_pumpkin_stages(self):
+        self.assertEqual(config.pumpkin_stage(0), 0)
+        self.assertEqual(config.pumpkin_stage(150_000), len(config.PUMPKIN_STAGES) - 1)
