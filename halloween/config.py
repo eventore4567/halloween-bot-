@@ -223,6 +223,7 @@ ACHIEVEMENTS = [
     ("motus_5", "Linguiste des ombres", "Trouver 5 mots au Motus des ombres", "book", "motus_win", 5, 400),
     ("hilo_6", "Devin", "Enchaîner 6 bonnes réponses à Plus ou Moins", "star", "hilo_best", 6, 400),
     ("quests_20", "Chasseur de défis", "Accomplir 20 défis du jour", "scroll", "quests_done", 20, 600),
+    ("versus_5", "Roi des défis", "Gagner 5 défis en direct (/defi)", "crown", "versus_win", 5, 500),
 ]
 
 

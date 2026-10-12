@@ -210,3 +210,62 @@ class HiloTest(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VersusTest(Base):
+    def _view(self, mode, stake=0, a=9401, b=9402):
+        from halloween.cogs import versus
+        p1, p2 = FakeUser(a, "Alpha"), FakeUser(b, "Bravo")
+        for uid in (a, b):
+            self.store.add_candies(999, uid, 1000, "test", boost=False)
+        return versus, versus.VersusView(self.bot, 999, p1, p2, mode, stake), p1, p2
+
+    def test_quiz_race(self):
+        async def go():
+            versus, v, p1, p2 = self._view("quiz", 200)
+            with mock.patch.object(versus.VersusView, "later", lambda self, s, fn: None):
+                self.show(v)
+                await v._accept(FakeInteraction(user=p1, client=self.bot))  # not the invited one
+                self.assertEqual(v.state, "invite")
+                await v._accept(FakeInteraction(user=p2, client=self.bot))
+                self.assertEqual(v.state, "question")
+                self.assertEqual(self.store.candies(999, p1.id), 800)
+                while v.state != "over":
+                    if v.state == "pause":
+                        await v._next_round()
+                    self.show(v)
+                    wrong = next(i for i, c in enumerate(v.choices) if c != v.question.answer)
+                    right = v.choices.index(v.question.answer)
+                    await v._answer(wrong)(FakeInteraction(user=p2, client=self.bot))
+                    await v._answer(right)(FakeInteraction(user=p2, client=self.bot))  # locked out
+                    self.assertEqual(v.score[p2.id], 0)
+                    await v._answer(right)(FakeInteraction(user=p1, client=self.bot))
+                self.show(v)
+                self.assertEqual(v.winner.id, p1.id)
+                self.assertGreaterEqual(self.store.candies(999, p1.id), 1200)  # + achievement bonuses
+                self.assertEqual(self.store.candies(999, p2.id), 800)
+                self.assertEqual(self.store.meta_prefix("versus:"), {})
+        self.run_async(go())
+
+    def test_reflex_duel(self):
+        async def go():
+            versus, v, p1, p2 = self._view("reflexe", 0, 9411, 9412)
+            with mock.patch.object(versus.VersusView, "later", lambda self, s, fn: None):
+                await v._accept(FakeInteraction(user=p2, client=self.bot))
+                self.assertEqual(v.state, "wait")
+                self.show(v)
+                await v._hit(FakeInteraction(user=p1, client=self.bot))  # false start
+                self.assertEqual(v.score[p2.id], 1)
+                for _ in range(3):
+                    await v._next_round()
+                    await v._go()
+                    self.show(v)
+                    await v._hit(FakeInteraction(user=p1, client=self.bot))
+                self.assertEqual((v.state, v.winner.id), ("over", p1.id))
+                self.show(v)
+        self.run_async(go())
+
+    def test_vs_gif(self):
+        from halloween.art.versus import versus_gif
+        img = Image.open(BytesIO(versus_gif("A", "B", None, b"not an image", "DÉFI", 1)))
+        self.assertGreater(img.n_frames, 10)

@@ -37,7 +37,7 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "36 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "37 trophées à débloquer"),
 ]
 
 TIPS = [
@@ -92,7 +92,7 @@ class HubView(GameView):
         p.sep()
         lines = [f"{E(icon)} **{name}** — {desc}" for key, name, icon, desc in GAMES if key not in ("shop", "top", "profile", "trophies")]
         p.text("\n".join(lines))
-        p.text(f"-# Et aussi : {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
+        p.text(f"-# Et aussi : {E.lightning} `/defi` pour un face-à-face en direct · {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
                f"{E.gift} `/donner` pour offrir des bonbons")
 
     def _guide(self, p: Panel):
