@@ -61,6 +61,7 @@ class GuessModal(discord.ui.Modal, title="Proposer le mot"):
 
 class HangmanView(GameView):
     banner_key = "hangman"
+    kicker = "LE PENDU"
     owner_hint = "Lance ta propre partie avec /pendu."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -109,7 +110,7 @@ class HangmanView(GameView):
             left = self.store.remaining(self.guild_id, self.owner_id, "hangman")
             p.row(nav("hangman", self.owner_id, f"Rejouer ({left})", "skull", "success"),
                   nav("quiz", self.owner_id, "Quiz", "crystal"), nav("hub", self.owner_id, "Tous les jeux", "pumpkin"))
-        p.footer(self.footer("Seul toi peux jouer"))
+        p.footer(self.footer())
         return p
 
     async def _letter(self, interaction):

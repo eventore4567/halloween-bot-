@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **17 jeux** et **25 succès** à débloquer.
+collectionner), **17 jeux** et **27 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -28,6 +28,8 @@ collectionner), **17 jeux** et **25 succès** à débloquer.
 
 ![Bannières](docs/apercu-bannieres.png)
 
+![Le Grand Frisson](docs/apercu-frisson.png)
+
 ![Emojis](docs/apercu-emojis.png)
 
 ## 🕹️ Les jeux
@@ -35,9 +37,9 @@ collectionner), **17 jeux** et **25 succès** à débloquer.
 | Commande | Jeu |
 |---|---|
 | `/jeux` | L'accueil : tous les jeux dans un menu, guide, coffre du jour |
-| `/quiz` | **Quiz maudit** : **644 questions**, 5 niveaux (Facile → CAUCHEMAR), compte à rebours en direct, combo jusqu'à ×2, bonus de rapidité +20 %, jokers 50/50, boucliers de série |
-| `/manoir` | **Le Manoir** (jeu idle) : hante pour récolter des âmes, recrute 8 monstres qui travaillent même hors ligne, paliers payés en bonbons |
-| `/chaudron` | **L'Alchimiste** : mélange 2 ingrédients sur 8, trouve les **8 recettes secrètes du jour** (différentes sur chaque serveur, changent à minuit) |
+| `/quiz` | **Le Grand Frisson**, le jeu télé hanté : 12 questions sur une **échelle de gains** jusqu'à 1 500 bonbons, 2 paliers, on peut encaisser à tout moment. Chaque question est une **vidéo GIF** (plateau néon, échelle, chrono qui se vide). 3 jokers : 50/50, **murmure du fantôme**, **vote du public**. Questions 3, 6 et 9 : **manche vidéo « Qui se cache dans l'ombre ? »** (une silhouette qui s'illumine). **700 questions** dont des questions de jeux vidéo |
+| `/expedition` | **Expéditions** : envoie jusqu'à 3 de tes cartes de monstres en mission (30 min à 6 h). Plus ils sont rares, plus la mission réussit et plus le butin est gros |
+| `/formule` | **La Formule** : déchiffre le code secret de 4 ingrédients du chaudron en 8 essais (façon Mastermind), la potion obtenue donne un effet bonus |
 | `/roue` | **Roue du destin** animée, un tour gratuit toutes les 4 h, jackpot 1 000 |
 | `/cartes` | **Cartes maudites** : 24 monstres à collectionner (4 raretés), révélation animée |
 | `/maison` | **Maison hantée** : 4 pièces tirées au hasard parmi 10, 3 choix par pièce, trésors, pièges, monstres, 3 bougies de vie, une clé… et une **crypte** au trésor |
@@ -51,9 +53,9 @@ collectionner), **17 jeux** et **25 succès** à débloquer.
 | `/duel @membre [mise]` | **Duel de monstres** : Vampire / Loup-garou / Chasseur en 2 manches gagnantes, mise en bonbons sécurisée |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **25 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
-| `/profil [membre]` | Carte de chasseur générée, quotas du jour, effets actifs, manoir |
-| `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, quiz, manoir, cartes, duels |
+| `/succes` | **27 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
+| `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |
 | `/aide` | Guide du joueur |
 
@@ -123,7 +125,7 @@ halloween/
   ui.py                     LE format de panneau unique + navigation persistante
   db.py                     SQLite (transactions, anti-solde négatif)
   emojis.py                 envoi et utilisation des emojis d'application
-  config.py                 équilibrage : gains, limites, boutique, manoir, roue
+  config.py                 équilibrage : gains, limites, boutique, Grand Frisson, roue, succès
   rewards.py                bonbons + XP + passage de niveau
   art/                      dessin des emojis, bannières GIF, cartes et images
   content/                  questions du quiz, mots du pendu, potions, cartes

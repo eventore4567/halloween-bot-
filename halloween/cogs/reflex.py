@@ -45,6 +45,7 @@ def verdict(seconds: float | None) -> str:
 
 class ReflexView(GameView):
     banner_key = "reflex"
+    kicker = "RÉFLEXE"
     owner_hint = "Teste tes propres réflexes avec /reflexe."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -84,7 +85,7 @@ class ReflexView(GameView):
             left = self.store.remaining(self.guild_id, self.owner_id, "reflex")
             p.row(nav("reflex", self.owner_id, f"Rejouer ({left})", "lightning", "success"),
                   nav("hub", self.owner_id, "Tous les jeux", "pumpkin"))
-        p.footer(self.footer("Seul toi peux jouer"))
+        p.footer(self.footer())
         return p
 
     async def _begin(self, interaction):

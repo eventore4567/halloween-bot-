@@ -20,6 +20,7 @@ PRICE = config.SHOP["booster"]["price"]
 
 class CardsView(GameView):
     banner_key = "cards"
+    kicker = "CARTES MAUDITES"
     owner_hint = "Ouvre ta propre collection avec /cartes."
 
     def __init__(self, bot, interaction):

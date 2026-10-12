@@ -22,6 +22,7 @@ def daily_amount(streak: int, rnd=random) -> int:
 
 class DailyView(GameView):
     banner_key = "daily"
+    kicker = "COFFRE DU JOUR"
 
     def __init__(self, bot, interaction):
         super().__init__(bot, interaction, timeout=300)

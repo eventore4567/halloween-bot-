@@ -34,9 +34,9 @@ class Theme:
 N = neon
 THEMES: dict[str, Theme] = {
     "hub": Theme("NUIT HANTÉE", "LE GRAND JEU D'HALLOWEEN", N.ORANGE, N.PURPLE, "pumpkin_lit", "ghost", N.PINK),
-    "quiz": Theme("QUIZ MAUDIT", "{questions} QUESTIONS · 5 NIVEAUX", N.ORANGE, N.CYAN, "pumpkin_angry", "crystal", N.PURPLE),
-    "manor": Theme("LE MANOIR", "RÉVEILLE TES MONSTRES", N.PURPLE, N.GREEN, "soul", "vampire", N.CYAN),
-    "cauldron": Theme("L'ALCHIMISTE", "8 RECETTES SECRÈTES PAR NUIT", N.GREEN, N.PINK, "cauldron", "potion_purple", N.PURPLE),
+    "quiz": Theme("LE GRAND FRISSON", "LE JEU TÉLÉ · {questions} QUESTIONS", N.PINK, N.YELLOW, "skull", "crystal", N.CYAN),
+    "manor": Theme("EXPÉDITIONS", "ENVOIE TES MONSTRES EN MISSION", N.PURPLE, N.GREEN, "werewolf", "chest", N.CYAN),
+    "cauldron": Theme("LA FORMULE", "DÉCHIFFRE LE CODE DU CHAUDRON", N.GREEN, N.PINK, "cauldron", "potion_purple", N.PURPLE),
     "wheel": Theme("ROUE DU DESTIN", "UN TOUR GRATUIT TOUTES LES 4 H", N.YELLOW, N.PINK, "wheel", "star", N.ORANGE),
     "memory": Theme("MÉMOIRE", "D'OUTRE-TOMBE · 8 PAIRES", N.CYAN, N.PURPLE, "eye", "tomb", N.GREEN),
     "hunt": Theme("CHASSE AUX FANTÔMES", "ÉVITE LA FAUCHEUSE", N.CYAN, N.RED, "ghost", "reaper", N.PURPLE),
@@ -53,7 +53,7 @@ THEMES: dict[str, Theme] = {
     "ritual": Theme("LE RITUEL", "RÉPÈTE LA FORMULE MAUDITE", N.PINK, N.CYAN, "book", "candle", N.PURPLE),
     "reflex": Theme("RÉFLEXE", "CLIQUE DÈS QU'IL APPARAÎT", N.CYAN, N.YELLOW, "ghost", "lightning", N.RED),
     "curse": Theme("MAUVAIS SORT", "VOLE LES BONBONS DES AUTRES", N.RED, N.PURPLE, "skull", "shield", N.GREEN),
-    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 25 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
+    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 27 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
 # Per-frame brightness of the title / subtitle / frame: a buzzing sign that sometimes stutters.

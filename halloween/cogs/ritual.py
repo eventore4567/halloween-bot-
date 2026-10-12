@@ -26,6 +26,7 @@ def ritual_reward(rounds_done: int) -> int:
 
 class RitualView(GameView):
     banner_key = "ritual"
+    kicker = "LE RITUEL"
     owner_hint = "Lance ton propre rituel avec /rituel."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -71,7 +72,7 @@ class RitualView(GameView):
             left = self.store.remaining(self.guild_id, self.owner_id, "ritual")
             p.row(nav("ritual", self.owner_id, f"Rejouer ({left})", "book", "success"),
                   nav("hub", self.owner_id, "Tous les jeux", "pumpkin"))
-        p.footer(self.footer("Seul toi peux réciter ce rituel"))
+        p.footer(self.footer())
         return p
 
     async def _start(self, interaction):

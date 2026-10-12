@@ -32,6 +32,7 @@ def title_of(store, g, u, level) -> str:
 
 
 class ProfileView(GameView):
+    kicker = "PROFIL"
     def __init__(self, bot, interaction, member: discord.abc.User):
         super().__init__(bot, interaction, timeout=600)
         self.member = member
@@ -45,13 +46,12 @@ class ProfileView(GameView):
         level, into, need = config.level_from_xp(p["xp"])
         rank, total = s.rank(g, u, "candies")
         stats = s.stats(g, u)
-        manor = s.manor(g, u)
         theme = config.CARD_THEMES.get(p["theme"], config.CARD_THEMES["orange"])
         small = [
-            ("crystal", "Quiz", config.fmt(stats.get("quiz_right", 0))),
+            ("skull", "Frisson", f"{stats.get('show_best', 0)}/12"),
             ("gift", "Cartes", f"{len(s.cards(g, u))}/{len(CARDS)}"),
             ("fire", "Série", f"{p['streak']} j"),
-            ("soul", "Âmes", config.short(manor["lifetime"])),
+            ("key", "Missions", config.fmt(stats.get("exp_win", 0))),
         ]
         rank_txt = f"{rank}e / {total}" if rank and rank > 1 else ("1er / %d" % total if rank == 1 else "—")
         av = await avatar_bytes(self.member)
@@ -60,67 +60,58 @@ class ProfileView(GameView):
             config.fmt(p["candies"]), rank_txt, small, av, theme["colors"])
         return [image_file(data, "profil.png")]
 
+    def _night_grid(self):
+        """Compact grid of tonight's plays: every game with what is left."""
+        s, g, u = self.store, self.guild_id, self.member.id
+        cells = [("skull", "Frisson", "quiz"), ("house", "Maison", "house"), ("witch", "Course", "race"),
+                 ("cauldron", "Formule", "cauldron"), ("eye", "Mémoire", "memory"), ("ghost", "Chasse", "hunt"),
+                 ("bone", "Pendu", "hangman"), ("candle", "Rituel", "ritual"), ("lightning", "Réflexe", "reflex")]
+        out = []
+        for icon, name, key in cells:
+            left = s.remaining(g, u, key)
+            out.append(f"{E(icon)} {name} **{left}**" if left else f"{E.lock} ~~{name}~~")
+        rows = [" ┃ ".join(out[i:i + 3]) for i in range(0, len(out), 3)]
+        wheel_left = s.cooldown_left(g, u, "wheel")
+        daily_done = s.player(g, u)["last_daily"] == config.today()
+        extra = (f"{E.wheel} Roue " + (f"{relative(time.time() + wheel_left)}" if wheel_left else "**prête**")
+                 + f" ┃ {E.chest} Coffre " + ("~~ouvert~~" if daily_done else "**à ouvrir**"))
+        return "\n".join(rows + [extra])
+
     def build(self) -> Panel:
         s, g, u = self.store, self.guild_id, self.member.id
         me = u == self.owner_id
         p = Panel("orange").image("profil.png")
         player = s.player(g, u)
         level, _, _ = config.level_from_xp(player["xp"])
-        p.title(f"{'Ton profil' if me else 'Profil de ' + self.member.display_name}", icon="pumpkin_lit",
-                body=f"{E.star} Niveau **{level}** · *{title_of(s, g, u, level)}* · "
-                     f"{E.candy} **{config.fmt(player['candies'])}** en poche · "
-                     f"**{config.fmt(player['earned'])}** gagnés au total · {E.trophy} "
-                     f"**{sum(1 for t in s.owned(g, u) if t.startswith('ach:'))}/{len(config.ACHIEVEMENTS)}** succès")
+        trophies = sum(1 for t in s.owned(g, u) if t.startswith("ach:"))
+        p.title(self.member.display_name if not me else "Ta carte de chasseur", icon="pumpkin_lit",
+                body=f"*{title_of(s, g, u, level)}* · **{config.fmt(player['earned'])}** {E.candy} gagnés depuis le "
+                     f"début · {E.trophy} **{trophies}/{len(config.ACHIEVEMENTS)}** succès")
         p.sep()
-        # today's quotas
-        wheel_left = s.cooldown_left(g, u, "wheel")
-        daily_done = player["last_daily"] == config.today()
-        lines = [
-            f"{E.crystal} Quiz : **{s.counter(g, u, 'quiz')}/{s.limit_for(g, u, 'quiz')}** questions",
-            f"{E.eye} Mémoire : **{s.counter(g, u, 'memory')}/{config.LIMITS['memory']}** · "
-            f"{E.ghost} Chasse : **{s.counter(g, u, 'hunt')}/{config.LIMITS['hunt']}** · "
-            f"{E.skull} Pendu : **{s.counter(g, u, 'hangman')}/{config.LIMITS['hangman']}**",
-            f"{E.house} Maison : **{s.counter(g, u, 'house')}/{config.LIMITS['house']}** · "
-            f"{E.witch} Course : **{s.counter(g, u, 'race')}/{config.LIMITS['race']}** · "
-            f"{E.candle} Rituel : **{s.counter(g, u, 'ritual')}/{config.LIMITS['ritual']}** · "
-            f"{E.lightning} Réflexe : **{s.counter(g, u, 'reflex')}/{config.LIMITS['reflex']}**",
-            f"{E.cauldron} Potions : **{s.counter(g, u, 'cauldron')}/{config.LIMITS['cauldron']}** · "
-            f"{E.book} Recettes trouvées : **{len(s.recipes_found(g, u))}/8**",
-            f"{E.wheel} Roue : " + (f"prête dans {relative(time.time() + wheel_left)}" if wheel_left else "**prête !**")
-            + f" · {E.chest} Coffre : " + ("**ouvert**" if daily_done else "**à ouvrir !**"),
-            f"-# Tout revient à zéro {relative(config.next_midnight_ts())}",
-        ]
-        p.text(f"### {E.hourglass} Aujourd'hui\n" + "\n".join(lines))
-        # effects & inventory
+        p.text(f"**{E.moon} Parties restantes ce soir**\n{self._night_grid()}\n"
+               f"-# Nouvelle nuit {relative(config.next_midnight_ts())}")
         eff = s.effects(g, u)
         items = s.items(g, u)
-        fx = []
+        bag = []
         if "luck" in eff:
-            fx.append(f"{E.potion_gold} **Bonbons ×2** jusqu'à {relative(eff['luck'])}")
+            bag.append(f"{E.potion_gold} gains ×2 → {relative(eff['luck'])}")
         if "wisdom" in eff:
-            fx.append(f"{E.potion_green} **XP ×2** jusqu'à {relative(eff['wisdom'])}")
-        bonus = s.counter(g, u, "quiz_bonus")
-        if bonus:
-            fx.append(f"{E.potion_blue} **+{bonus} questions** de quiz aujourd'hui")
-        inv_names = {"joker": ("joker", "Joker"), "shield": ("shield", "Bouclier"), "ticket": ("wheel", "Ticket de roue"),
-                     "booster": ("gift", "Booster"), "amulet": ("gem", "Amulette")}
-        inv = [f"{E(icon)} {name} ×**{items[k]}**" for k, (icon, name) in inv_names.items() if items.get(k)]
-        if fx or inv:
+            bag.append(f"{E.potion_green} XP ×2 → {relative(eff['wisdom'])}")
+        names = {"joker": ("joker", "joker"), "shield": ("shield", "bouclier"), "ticket": ("wheel", "ticket"),
+                 "booster": ("gift", "booster"), "amulet": ("gem", "amulette")}
+        bag += [f"{E(icon)} {items[k]} {name}{'s' if items[k] > 1 else ''}" for k, (icon, name) in names.items()
+                if items.get(k)]
+        trip = s.meta_get(f"exp:{g}:{u}")
+        if trip:
+            bag.append(f"{E.key} expédition : retour {relative(trip['ends'])}")
+        if bag:
             p.sep()
-            p.text("### Effets & objets\n" + "\n".join(fx + ([" · ".join(inv)] if inv else [])))
-        # manor
-        manor = s.manor(g, u)
-        rate = s.manor_rate(manor["units"])
-        mrank, mtotal = s.rank(g, u, "manor")
-        p.sep()
-        p.text(f"### {E.soul} Manoir\n"
-               f"**{config.short(manor['souls'])}** âmes en réserve · **{config.short(rate)}**/min · "
-               + (f"Seigneur **#{mrank}** sur {mtotal}" if mrank else "pas encore classé"))
+            p.text(f"**{E.candy_bag} Dans le sac**\n" + " ┃ ".join(bag))
         p.sep()
         o = self.owner_id
-        p.row(nav("quiz", o, "Quiz", "crystal"), nav("manor", o, "Manoir", "soul"),
-              nav("cauldron", o, "Chaudron", "cauldron"), nav("wheel", o, "Roue", "wheel"),
-              nav("house", o, "Maison", "house"))
+        p.row(nav("quiz", o, "Grand Frisson", "skull"), nav("house", o, "Maison", "house"),
+              nav("manor", o, "Expédition", "key"), nav("cauldron", o, "Formule", "cauldron"),
+              nav("wheel", o, "Roue", "wheel"))
         p.row(nav("cards", o, "Cartes", "gift"), nav("shop", o, "Boutique", "witch"),
               nav("top", o, "Classement", "trophy"), nav("trophies", o, "Succès", "medal1"),
               nav("hub", o, "Tous les jeux", "pumpkin"))

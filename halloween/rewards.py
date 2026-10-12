@@ -42,7 +42,6 @@ def measures(store, guild_id: int, user_id: int) -> dict:
     values["earned"] = p["earned"]
     values["streak"] = p["streak"]
     values["cards"] = len(store.cards(guild_id, user_id))
-    values["manor"] = store.manor_lifetime(guild_id, user_id)
     return values
 
 

@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 LOG = logging.getLogger("nuit-hantee")
 
 COGS = (
-    "hub", "profile", "daily", "quiz", "manor", "cauldron", "wheel", "memory", "hunt",
+    "hub", "profile", "daily", "quiz", "expedition", "formula", "wheel", "memory", "hunt",
     "hangman", "duel", "cards", "shop", "leaderboard", "gift", "drops", "admin",
     "house", "race", "ritual", "reflex", "curse", "trophies",
 )

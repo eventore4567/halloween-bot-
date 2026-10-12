@@ -29,6 +29,7 @@ RACE_FILE = "course.gif"
 
 class RaceView(GameView):
     banner_key = "race"
+    kicker = "COURSE DE BALAIS"
     owner_hint = "Lance ta propre course avec /course."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -84,7 +85,7 @@ class RaceView(GameView):
                        disabled=b > bal) for b in BETS])
         p.row(*[button(r["name"], r["emoji"], r["style"], self._go(i), disabled=bal < self.bet)
                 for i, r in enumerate(RACERS)])
-        p.footer(self.footer("Seul toi peux parier ici"))
+        p.footer(self.footer())
         return p
 
     def _set_bet(self, amount):

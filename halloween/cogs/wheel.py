@@ -39,6 +39,7 @@ def apply_segment(store, g, u, seg) -> str:
 
 class WheelView(GameView):
     banner_key = "wheel"
+    kicker = "ROUE DU DESTIN"
     owner_hint = "Fais tourner ta propre roue avec /roue."
 
     def __init__(self, bot, interaction):

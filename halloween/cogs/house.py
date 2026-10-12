@@ -16,6 +16,7 @@ from ..ui import GameView, Panel, button, nav, relative
 
 class HouseView(GameView):
     banner_key = "house"
+    kicker = "MAISON HANTÉE"
     owner_hint = "Entre dans ta propre maison avec /maison."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -72,7 +73,7 @@ class HouseView(GameView):
             p.row(button("Ouvrir la crypte" if self.key else "La grille est verrouillée…", "key", "success",
                          self._crypt, disabled=not self.key),
                   button(f"Sortir avec {config.fmt(self.bag)} bonbons", "door", "secondary", self._leave))
-            p.footer(self.footer("Seul toi explores cette maison"))
+            p.footer(self.footer())
             return p
         room = self.rooms[self.depth]
         p.title(f"Pièce {self.depth + 1}/{H.DEPTH} · {room['name']}", icon=room["emoji"], thumb=E.url(room["emoji"]),

@@ -13,9 +13,9 @@ from ..emojis import E
 from ..ui import GameView, Panel, nav
 
 GAMES = [
-    ("quiz", "Quiz maudit", "crystal", f"{quiz_bank.TOTAL} questions, 5 niveaux, combos et jokers"),
-    ("manor", "Le Manoir", "soul", "Recrute des monstres qui récoltent des âmes pour toi"),
-    ("cauldron", "L'Alchimiste", "cauldron", "Trouve les 8 recettes secrètes du jour"),
+    ("quiz", "Le Grand Frisson", "skull", f"Le jeu télé : 12 questions, 3 jokers, manches vidéo ({quiz_bank.TOTAL} questions)"),
+    ("manor", "Expéditions", "key", "Envoie tes cartes de monstres en mission"),
+    ("cauldron", "La Formule", "cauldron", "Déchiffre le code secret du chaudron"),
     ("wheel", "Roue du destin", "wheel", "Un tour gratuit toutes les 4 heures"),
     ("cards", "Cartes maudites", "gift", "Collectionne les 24 monstres"),
     ("house", "Maison hantée", "house", "4 pièces, 3 bougies, une crypte au trésor"),
@@ -29,15 +29,15 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "25 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "27 trophées à débloquer"),
 ]
 
 TIPS = [
-    "Les recettes du chaudron changent chaque nuit à minuit : partage-les avec le serveur !",
-    "Une bonne série au quiz multiplie tes gains jusqu'à ×2.",
+    "Au Grand Frisson, les marches 5 et 9 sont des paliers : tu ne redescends jamais en dessous.",
+    "Plus tes monstres sont rares, plus tes expéditions réussissent.",
     "Le Philtre de fortune double TOUS tes gains de bonbons pendant 30 minutes.",
-    "Tes monstres du manoir travaillent même quand tu dors (jusqu'à 12 h).",
-    "Réponds vite au quiz : un bonus de rapidité t'attend.",
+    "Le murmure du fantôme se trompe parfois… surtout sur les questions difficiles.",
+    "À La Formule, commence par tester des ingrédients différents pour éliminer des pistes.",
     "Ne rate pas un jour de coffre : la série monte jusqu'à 7 jours.",
     "Défie un ami avec /duel et mise tes bonbons !",
     "Garde l'œil sur le salon des apparitions : le premier qui clique gagne.",
@@ -46,6 +46,7 @@ TIPS = [
 
 class HubView(GameView):
     banner_key = "hub"
+    kicker = "NUIT HANTÉE"
 
     def __init__(self, bot, interaction, page="home"):
         super().__init__(bot, interaction, timeout=600)
@@ -97,12 +98,12 @@ class HubView(GameView):
             f"### {E.star} Niveaux & XP\n"
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
-            f"Quiz **{L['quiz']}** · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
+            f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
             f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Réflexe **{L['reflex']}** · "
-            f"Potions **{L['cauldron']}** · Roue toutes les **4 h**. Tout revient à zéro à minuit.\n"
+            f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "
-            f"les **jokers** retirent deux mauvaises réponses, le **bouclier** protège ta série.\n"
+            f"les **jokers** retirent deux mauvaises réponses, le **bouclier** efface une erreur au Grand Frisson.\n"
             f"### {E.ghost} Apparitions\n"
             f"Dans le salon choisi par les admins, des sacs de bonbons, des quiz éclair et le "
             f"**Roi Citrouille** apparaissent quand le serveur est actif.")

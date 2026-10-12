@@ -15,6 +15,7 @@ INSTANT = {"luck", "scroll"}  # applied right away instead of going to the bag
 
 class ShopView(GameView):
     banner_key = "shop"
+    kicker = "BOUTIQUE DE MORGANE"
     owner_hint = "Ouvre ta propre boutique avec /boutique."
 
     def __init__(self, bot, interaction):
@@ -97,8 +98,8 @@ class ShopView(GameView):
                         until = self.store.add_effect(g, u, "luck", 1800)
                         self.flash = f"{E.potion_gold} Gains **×2** jusqu'à {relative(until)} !"
                     else:
-                        self.store.bump(g, u, "quiz_bonus", amount=5)
-                        self.flash = f"{E.scroll} **+5 questions** de quiz aujourd'hui !"
+                        self.store.bump(g, u, "quiz_bonus", amount=1)
+                        self.flash = f"{E.scroll} **+1 émission** du Grand Frisson pour ce soir !"
                 else:
                     self.store.buy(g, u, it["price"], item=key, reason=f"boutique:{key}")
                     self.flash = f"{E(it['emoji'])} **{it['name']}** ajouté à ton sac !"

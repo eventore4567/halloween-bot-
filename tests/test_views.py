@@ -4,7 +4,7 @@ import unittest
 
 from helpers import FakeInteraction, FakeUser, check_layout, install_fake_emojis, make_bot
 
-from halloween.cogs import cards, cauldron, daily, hangman, hub, hunt, leaderboard, manor, memory, quiz, shop, wheel
+from halloween.cogs import cards, daily, expedition, formula, hangman, hub, hunt, leaderboard, memory, quiz, shop, wheel
 from halloween.cogs.drops import BossView, FlashQuizView, LootView
 from halloween.cogs.duel import DuelView
 from halloween.cogs.profile import ProfileView
@@ -42,51 +42,57 @@ class ViewsTest(unittest.TestCase):
             self.render(ProfileView(self.bot, i, i.user))
         run(go())
 
-    def test_quiz_every_state(self):
+    def test_show_every_state(self):
         async def go():
-            v = quiz.QuizView(self.bot, FakeInteraction())
+            v = quiz.ShowView(self.bot, FakeInteraction())
             self.render(v)
-            for level in range(1, 6):
-                v.level = level
-                i = FakeInteraction()
-                await v._ask(i)
-                self.assertEqual(v.state, "question")
+            for rung in range(12):
+                v.correct_count = rung
+                v._prepare()
+                v.state, v.image, v.deadline = "question", quiz.GIF_NAME, 0
                 self.render(v)
-                v._resolve(v.correct)
-                self.assertTrue(v.last["ok"])
+                v.hint = "x" * 200
                 self.render(v)
-                await v._ask(FakeInteraction())
-                v._resolve((v.correct + 1) % 4)
-                self.assertFalse(v.last["ok"])
+                v.state, v.result = "answer", "Bonne réponse !\nbravo"
+                self.render(v)
+            from halloween.rewards import Reward
+            for how in ("top", "cash", "fall"):
+                v.state, v.final, v.result = "end", dict(how=how, amount=10, reward=Reward(candies=10)), "fin"
                 self.render(v)
             v.state = "empty"
             self.render(v)
-            if v.timer:
-                v.timer.cancel()
         run(go())
 
-    def test_manor(self):
+    def test_expedition_states(self):
         async def go():
-            v = manor.ManorView(self.bot, FakeInteraction())
+            self.store.add_card(999, 111, "c_bat")
+            v = expedition.ExpeditionView(self.bot, FakeInteraction())
             self.render(v)
-            for _ in range(30):
-                await v._haunt(FakeInteraction())
-            await v._recruit(FakeInteraction(data={"values": ["wisp"]}))
-            self.assertEqual(self.store.manor(999, 111)["units"].get("wisp"), 1)
+            v.team = ["c_bat"]
+            v.report = "### ok"
             self.render(v)
+            for dest in expedition.DEST:
+                v.dest = dest
+                self.render(v)
+            self.store.meta_set("exp:999:111", dict(dest="castle", team=["c_bat"], chance=0.5, mult=1.1, ends=0))
+            self.render(v)
+            self.store.meta_del("exp:999:111")
         run(go())
 
-    def test_cauldron(self):
+    def test_formula_states(self):
         async def go():
-            v = cauldron.CauldronView(self.bot, FakeInteraction())
+            v = formula.FormulaView(self.bot, FakeInteraction(), True)
             self.render(v)
-            v.state, v.mix = "brewing", ("bat", "eye")
+            for _ in range(7):
+                v.history.append((list(v.secret[::-1]), 0, 4))
+            v.current = v.secret[:2]
             self.render(v)
-            v.state = "result"
-            v.result = dict(potion="fortune", new=True, text="ok", reward=None)
+            from halloween.rewards import Reward
+            v.state, v.potion, v.effect, v.reward = "won", "fortune", "effet", Reward(candies=5)
             self.render(v)
-            v.result = dict(potion=None, text="raté")
+            v.state = "lost"
             self.render(v)
+            self.render(formula.FormulaView(self.bot, FakeInteraction(), False))
         run(go())
 
     def test_wheel_states(self):

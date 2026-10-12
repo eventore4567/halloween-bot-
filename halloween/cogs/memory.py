@@ -24,6 +24,7 @@ def memory_reward(moves: int) -> int:
 
 class MemoryView(GameView):
     banner_key = "memory"
+    kicker = "MÉMOIRE D'OUTRE-TOMBE"
     owner_hint = "Lance ta propre partie avec /memoire."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -72,7 +73,7 @@ class MemoryView(GameView):
             p.row(nav("memory", self.owner_id, f"Rejouer ({left})", "eye", "success"),
                   nav("hunt", self.owner_id, "Chasse aux fantômes", "ghost"),
                   nav("hub", self.owner_id, "Tous les jeux", "pumpkin"))
-        p.footer(self.footer("Seul toi peux jouer"))
+        p.footer(self.footer())
         return p
 
     def _flip(self, i):

@@ -1,8 +1,6 @@
 """Static content for the mini-games."""
 from __future__ import annotations
 
-import hashlib
-import itertools
 import random
 import unicodedata
 
@@ -83,12 +81,12 @@ INGREDIENTS = [
 ING = {i["key"]: i for i in INGREDIENTS}
 
 POTIONS = [
-    dict(key="knowledge", name="Élixir du savoir", emoji="potion_blue", effect="quiz5",
-         desc="**+5 questions** de quiz aujourd'hui"),
+    dict(key="knowledge", name="Élixir du savoir", emoji="potion_blue", effect="show1",
+         desc="**+1 émission** du Grand Frisson ce soir"),
     dict(key="fortune", name="Philtre de fortune", emoji="potion_gold", effect="luck30",
          desc="Tous tes gains de bonbons **×2** pendant 30 min"),
     dict(key="souls", name="Potion des âmes", emoji="potion_purple", effect="souls",
-         desc="**1 heure** de production du manoir, tout de suite"),
+         desc="Un **booster de cartes** offert"),
     dict(key="blood", name="Élixir de sang", emoji="potion_red", effect="candy",
          desc="**+180** bonbons instantanés"),
     dict(key="wisdom", name="Philtre de sagesse", emoji="potion_green", effect="xp60",
@@ -101,31 +99,6 @@ POTIONS = [
          desc="**1 ticket** de roue du destin"),
 ]
 POTION = {p["key"]: p for p in POTIONS}
-
-FAILS = [
-    ("La potion fait « pschitt » et devient une soupe tiède.", 8),
-    ("Le chaudron explose ! Tu as les sourcils roussis…", 0),
-    ("Ça sent le vieux chaussette. Personne n'en voudra.", 5),
-    ("La mixture devient rose et se met à chanter faux.", 10),
-    ("Un crapaud saute du chaudron et s'enfuit avec ta cuillère.", 0),
-    ("La potion gèle instantanément. Bizarre…", 6),
-    ("Une fumée verte forme le mot « RATÉ ».", 4),
-]
-
-
-def all_pairs():
-    keys = [i["key"] for i in INGREDIENTS]
-    return [tuple(sorted(p)) for p in itertools.combinations(keys, 2)]
-
-
-def daily_recipes(guild_id: int, day: str) -> dict[tuple, str]:
-    """Each server gets its own 8 secret pairs, reshuffled at midnight."""
-    seed = int(hashlib.sha256(f"{guild_id}:{day}:cauldron".encode()).hexdigest()[:12], 16)
-    rnd = random.Random(seed)
-    pairs = all_pairs()
-    rnd.shuffle(pairs)
-    return {pairs[i]: POTIONS[i]["key"] for i in range(len(POTIONS))}
-
 
 # ---------------------------------------------------------------------------
 # Collectible cards
@@ -213,4 +186,19 @@ DROP_SCENES = [
     dict(title="Un coffre maudit vient d'apparaître !", emoji="chest", button="Forcer le coffre", reward=(120, 300)),
     dict(title="Un fantôme distribue des bonbons !", emoji="ghost", button="Tendre la main", reward=(70, 190)),
     dict(title="Une chauve-souris lâche son butin !", emoji="bat", button="Rattraper le butin", reward=(60, 180)),
+]
+
+
+# ---------------------------------------------------------------------------
+# « Qui se cache dans l'ombre ? » — creatures for the shadow video rounds
+# ---------------------------------------------------------------------------
+SHADOWS = [
+    ("pumpkin", "Citrouille"), ("ghost_still", "Fantôme"), ("bat", "Chauve-souris"), ("skull", "Crâne"),
+    ("vampire", "Vampire"), ("zombie", "Zombie"), ("werewolf", "Loup-garou"), ("witch", "Sorcière"),
+    ("mummy", "Momie"), ("reaper", "Faucheuse"), ("demon", "Démon"), ("hunter", "Chasseur"),
+    ("spider", "Araignée"), ("frog", "Crapaud"), ("mushroom", "Champignon"), ("cauldron", "Chaudron"),
+    ("crystal", "Boule de cristal"), ("candle", "Bougie"), ("coffin", "Cercueil"), ("tomb", "Pierre tombale"),
+    ("house", "Maison hantée"), ("key", "Clé"), ("trophy", "Trophée"), ("crown", "Couronne"),
+    ("bone", "Os"), ("eye", "Œil"), ("chest", "Coffre"), ("hourglass", "Sablier"), ("door", "Porte"),
+    ("lollipop", "Sucette"), ("moon", "Lune"), ("feather", "Plume"),
 ]

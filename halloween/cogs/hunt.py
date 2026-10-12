@@ -29,6 +29,7 @@ def make_board(rnd=random):
 
 class HuntView(GameView):
     banner_key = "hunt"
+    kicker = "CHASSE AUX FANTÔMES"
     owner_hint = "Lance ta propre chasse avec /chasse."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -83,7 +84,7 @@ class HuntView(GameView):
         else:
             p.row(button(f"Encaisser {config.fmt(self.pot)} bonbons", "candy_bag", "success", self._cash,
                          disabled=self.pot <= 0))
-        p.footer(self.footer("Seul toi peux creuser ici"))
+        p.footer(self.footer())
         return p
 
     def _dig(self, i):

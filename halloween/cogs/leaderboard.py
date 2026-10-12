@@ -18,7 +18,8 @@ BOARDS = {
     "earned": dict(name="Bonbons gagnés", emoji="candy_bag", unit="gagnés", fmt=config.fmt),
     "xp": dict(name="Niveau", emoji="star", unit="", fmt=None),
     "quiz": dict(name="Maîtres du quiz", emoji="crystal", unit="bonnes réponses", fmt=config.fmt),
-    "manor": dict(name="Seigneurs du Manoir", emoji="soul", unit="âmes", fmt=config.short),
+    "show": dict(name="Record du Grand Frisson", emoji="skull", unit="marches", fmt=str),
+    "expedition": dict(name="Chefs d'expédition", emoji="key", unit="missions", fmt=config.fmt),
     "cards": dict(name="Collectionneurs", emoji="gift", unit="cartes", fmt=str),
     "duel": dict(name="Duellistes", emoji="vampire", unit="victoires", fmt=config.fmt),
 }
@@ -60,6 +61,7 @@ def value_text(kind, v):
 
 
 class TopView(GameView):
+    kicker = "LE PANTHÉON"
     owner_hint = "Ouvre ton propre classement avec /classement."
 
     def __init__(self, bot, interaction, kind="candies"):
@@ -115,7 +117,7 @@ class Leaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         bot.openers["top"] = self.open
-        bot.openers["top_manor"] = lambda interaction, edit=False: self.open(interaction, edit, kind="manor")
+        bot.openers["top_exp"] = lambda interaction, edit=False: self.open(interaction, edit, kind="expedition")
 
     async def open(self, interaction, edit=False, kind="candies"):
         await interaction.response.defer(thinking=not edit)
