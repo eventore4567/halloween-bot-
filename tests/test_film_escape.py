@@ -1,5 +1,6 @@
 """« Le Film de ta Nuit » and the cooperative escape game."""
 import asyncio
+import random
 import unittest
 from io import BytesIO
 from unittest import mock
@@ -150,3 +151,35 @@ class CutsceneTest(unittest.TestCase):
             r = Reward(candies=120 if won else 0, xp=10)
             img = Image.open(BytesIO(cutscene_for(key, r, 1)))
             self.assertGreater(img.n_frames, 20)
+
+
+class ActionClipTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+
+    def test_house_room_plays_a_clip(self):
+        from halloween.cogs import house
+        from halloween.content import house as H
+        from halloween.ui import ACTION
+
+        async def go():
+            v = house.HouseView(self.bot, FakeInteraction(user=FakeUser(9711), client=self.bot), True)
+            v.render()
+            step = FakeInteraction(user=FakeUser(9711), client=self.bot)
+            with mock.patch.object(H, "outcome", lambda d, k, rnd=random: "treasure"):
+                await v._choose(0)(step)
+            kind, kwargs = step.response.sent[-1]
+            self.assertEqual(kind, "edit_original")
+            self.assertEqual([f.filename for f in kwargs["attachments"]], [ACTION])
+            urls = [it.media.url for c in v.walk_children() if isinstance(c, discord.ui.MediaGallery) for it in c.items]
+            self.assertEqual(urls, [f"attachment://{ACTION}"])
+            check_layout(v)
+        asyncio.run(go())
+
+    def test_clips(self):
+        from halloween.art import neon, scroller
+        for prop in ("door", "tomb", "chest"):
+            img = Image.open(BytesIO(scroller.action_gif(prop, neon.PURPLE, "key", neon.YELLOW, "TEST", prop != "tomb")))
+            self.assertGreaterEqual(img.n_frames, 15)

@@ -12,7 +12,8 @@ from discord.ext import commands
 from .. import config
 from ..emojis import E
 from ..rewards import grant
-from ..ui import GameView, Panel, nav, relative
+from ..art import neon, scroller
+from ..ui import ACTION, GameView, Panel, image_file, nav, relative
 
 
 def daily_amount(streak: int, rnd=random) -> int:
@@ -89,9 +90,12 @@ class DailyView(GameView):
         self.result = dict(reward=reward, booster=booster)
         self.state = "opening"
         await self.start(interaction, edit)
-        await asyncio.sleep(1.6)
+        # 2D clip: the hero runs to the chest, the lid pops, the candies fly out
+        clip = await asyncio.to_thread(scroller.action_gif, "chest", neon.YELLOW, "candy_bag", neon.PINK,
+                                       f"+{reward.candies} BONBONS", True, False, random.randrange(1000))
         self.state = "opened"
-        await self.push()
+        self._action = ACTION
+        await self.push(attachments=[image_file(clip, ACTION)])
 
 
 class Daily(commands.Cog):

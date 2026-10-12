@@ -21,10 +21,13 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 - **Un vrai jeu vidéo 2D sur Discord** : à la fin de chaque partie, une **cinématique à défilement
   parallaxe** (ciel, collines, cimetière, sol) : le héros court, saute sur le monstre du jeu qui
   explose en bonbons, ou se fait renverser. Le score, le niveau gagné et les succès s'affichent dans la scène.
+  Et **pendant** la partie, chaque action est une vidéo 2D : chaque porte de la Maison hantée,
+  chaque tombe creusée à la Chasse, l'ouverture du coffre du jour.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
-- **Emojis néon maison** : chaque emoji est une petite enseigne néon sur une tuile sombre
+- **Emojis néon maison** : chaque emoji est une petite enseigne néon sur une tuile de verre teintée
+  (dégradé, reflet brillant, corps coloré lisible même en 22 px)
   (lisible en thème clair comme sombre), dessinée par le bot lui-même ; les animés grésillent.
 - **Emojis personnalisés automatiques** : au démarrage, le bot dessine et envoie ses
   74 emojis dans *Developer Portal → ton application → Emojis*. Ils marchent dans
@@ -56,6 +59,8 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 ![Roulette des potions](docs/apercu-roulette.gif)
 
 ![Cinématique de fin de partie](docs/apercu-cinematique.gif)
+
+![Vidéo d'action](docs/apercu-action.gif)
 
 ![Le Film de ta Nuit](docs/apercu-film.gif)
 

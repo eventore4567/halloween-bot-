@@ -254,3 +254,112 @@ def cutscene_gif(monster: str, color: tuple, won: bool, candies: int = 0, headli
                  seed: int = 0) -> bytes:
     frames, durations = cutscene_frames(monster, color, won, candies, headline, subline, seed)
     return _gif(frames, durations)
+
+
+# --------------------------------------------------------------------------- action scenes
+@lru_cache(maxsize=4)
+def _hall(period: int = 340) -> Image.Image:
+    """Inside the haunted house: a dark brick wall with candle sconces, tiles every ``period``."""
+    w = period * 3
+    img = neon.wall(w, H, 4).convert("RGBA")
+    img.alpha_composite(Image.new("RGBA", (w, H), (8, 3, 14, 120)))
+    m = Image.new("L", (w, H), 0)
+    d = ImageDraw.Draw(m)
+    for k in range(3):
+        x = k * period + 80
+        d.rectangle((x - 3, 120, x + 3, 150), fill=255)  # sconce
+        d.ellipse((x - 5, 104, x + 5, 120), outline=255, width=2)  # flame
+        fx = k * period + 200  # picture frame
+        d.rectangle((fx, 70, fx + 70, 150), outline=255, width=3)
+    img.alpha_composite(neon.dim(neon.glow(m, neon.YELLOW, 3), 0.6))
+    return img
+
+
+def interior(t_px: float) -> Image.Image:
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
+    _scroll(img, _hall(340), t_px * 0.5, 340)
+    _scroll(img, ground_strip(48, W, H, GROUND), t_px, 48)
+    return img
+
+
+def _prop(kind: str, opened: float, color) -> Image.Image:
+    """A door, a tombstone or a chest, ``opened`` from 0 (closed) to 1 (open)."""
+    s = 150
+    m = Image.new("L", (s, s), 0)
+    d = ImageDraw.Draw(m)
+    if kind == "door":
+        d.rectangle((40, 18, 110, s - 2), outline=255, width=4)
+        leaf = 70 * (1 - opened)
+        d.polygon([(40, 18), (40 + leaf, 18 + 10 * opened), (40 + leaf, s - 2 - 10 * opened), (40, s - 2)], outline=255)
+        if opened < 0.5:
+            d.ellipse((40 + leaf - 14, 84, 40 + leaf - 6, 92), fill=255)
+    elif kind == "tomb":
+        d.rounded_rectangle((45, 40, 105, s - 2), 26, outline=255, width=4)
+        d.line((62, 70, 88, 70), fill=255, width=3)
+        if opened:
+            d.arc((20, s - 30, 130, s + 20), 180, 360, fill=255, width=3)  # dug earth
+    else:  # chest
+        d.rectangle((30, 80, 120, s - 4), outline=255, width=4)
+        lift = 50 * opened
+        d.polygon([(30, 80), (120, 80), (120 - 10 * opened, 80 - lift), (30 + 10 * opened, 80 - lift)], outline=255)
+        d.rectangle((68, 92, 82, 108), outline=255, width=3)
+    return neon.glow(m, color, 4)
+
+
+def _put_prop(img, prop_img, x):
+    img.alpha_composite(prop_img, (round(x - prop_img.width / 2), GROUND - prop_img.height + 2))
+
+
+def action_frames(prop: str, color, reveal: str, reveal_color, label: str, good: bool, inside=False, seed=0):
+    rnd = random.Random(seed)
+    bg = interior if inside else world
+    frames, durations = [], []
+    travel, speed = 0.0, 14
+    px_end = 450
+    for f in range(9):  # run towards the prop
+        travel += speed
+        img = bg(travel)
+        px = W + 80 - (W + 80 - px_end) * min(1.0, (f + 1) / 9)
+        _put_prop(img, _prop(prop, 0, color), px)
+        place(img, hero(f % 6), 300, GROUND)
+        frames.append(img)
+        durations.append(65)
+    dirt = [(rnd.uniform(-1, 1), rnd.uniform(3, 7)) for _ in range(14)]
+    for f in range(6):  # open / dig
+        img = bg(travel)
+        t = (f + 1) / 6
+        _put_prop(img, _prop(prop, t, color), px_end)
+        place(img, hero(f % 2 * 3, pose="jump" if prop == "tomb" and f % 2 else "run"), 360, GROUND)
+        if prop == "tomb":
+            over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            od = ImageDraw.Draw(over)
+            for vx, vy in dirt:
+                x = px_end + vx * 40 * t
+                y = GROUND - vy * 14 * math.sin(math.pi * t)
+                od.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(150, 110, 70, 230))
+            img.alpha_composite(over)
+        frames.append(img)
+        durations.append(80)
+    icon = neon.icon_light(reveal, 86, tuple(reveal_color))
+    for f in range(8):  # the reveal rises from the prop
+        img = bg(travel)
+        if f == 0:
+            img.alpha_composite(Image.new("RGBA", (W, H), tuple(reveal_color) + (60,)))
+        _put_prop(img, _prop(prop, 1, color), px_end)
+        place(img, hero(0, pose="jump" if good and f in (2, 3) else ("fall" if not good and f > 2 else "run")),
+              360 - (0 if good else min(30, 6 * f)), GROUND)
+        rise = min(1.0, (f + 1) / 5)
+        img.alpha_composite(icon, (px_end - icon.width // 2, round(GROUND - 70 - 70 * rise - icon.height / 2)))
+        k = min(1.0, (f + 1) / 4)
+        img.alpha_composite(_neon_layer((W, H), label, (W // 2, 46), int(24 + 12 * k),
+                                        tuple(neon.YELLOW if good else neon.RED), "mm"))
+        frames.append(img)
+        durations.append(80)
+    durations[-1] = 1500
+    return frames, durations
+
+
+def action_gif(prop: str, color, reveal: str, reveal_color, label: str, good: bool, inside=False, seed=0) -> bytes:
+    """Short 2D clip of one action: the hero reaches a door / tomb / chest, it opens, something comes out."""
+    frames, durations = action_frames(prop, color, reveal, reveal_color, label, good, inside, seed)
+    return _gif(frames, durations)

@@ -11,7 +11,26 @@ from .. import config
 from ..content import house as H
 from ..emojis import E
 from ..rewards import grant
+from ..art import neon, scroller
 from ..ui import GameView, Panel, button, nav, relative
+
+
+CLIPS = {  # outcome -> what comes out of the door, its colour, the caption, good news?
+    "treasure": ("candy_bag", neon.YELLOW, "+{n} BONBONS", True),
+    "key": ("key", neon.YELLOW, "LA CLÉ DE LA CRYPTE !", True),
+    "item": ("gift", neon.PINK, "UN OBJET !", True),
+    "trap": ("spider", neon.RED, "UN PIÈGE !", False),
+    "monster": ("demon", neon.RED, "UN MONSTRE !", False),
+    "ghost": ("ghost", neon.CYAN, "UN FANTÔME AMI", True),
+    "empty": ("eye", neon.PURPLE, "RIEN… POUR L'INSTANT", True),
+}
+
+
+def clip_for(kind: str, gained: int):
+    icon, color, text, good = CLIPS.get(kind, CLIPS["empty"])
+    if kind == "trap" and gained < 0:
+        text = f"PIÈGE ! {gained} BONBONS"
+    return icon, color, text.format(n=max(0, gained)), good
 
 
 class HouseView(GameView):
@@ -91,12 +110,19 @@ class HouseView(GameView):
             async with self.lock:
                 if self.state != "room":
                     return await interaction.response.defer()
-                self._resolve(H.outcome(self.depth + 1, self.key))
+                kind = H.outcome(self.depth + 1, self.key)
+                gained = self.bag
+                self._resolve(kind)
+                gained = self.bag - gained
                 if self.state == "room":
                     self.depth += 1
                     if self.depth >= H.DEPTH:
                         self.state = "crypt"
-                await self.refresh(interaction)
+                if self.state == "end":
+                    return await self.refresh(interaction)  # the end-of-game cutscene takes over
+                await interaction.response.defer()
+                await self.play_action(interaction, scroller.action_gif, "door", neon.PURPLE, *clip_for(kind, gained),
+                                       True, random.randrange(1000))
         return cb
 
     def _resolve(self, kind):
