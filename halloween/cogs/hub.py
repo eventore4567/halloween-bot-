@@ -33,6 +33,8 @@ GAMES = [
     ("maze", "Labyrinthe hanté", "key", "Trouve la clé et la sortie, le fantôme te traque"),
     ("pet", "Familier hanté", "bat", "Adopte un monstre, nourris-le, fais-le évoluer"),
     ("roulette", "Roulette des potions", "potion_green", "Une fiole sur six est empoisonnée"),
+    ("escape", "Escape Game", "lock", "En équipe : 3 salles, indices secrets, 10 minutes"),
+    ("film", "Le Film de ta Nuit", "eye", "Ta saison d'Halloween en film animé"),
     ("connect4", "Puissance 4 maudit", "pumpkin_lit", "Aligne 4 citrouilles contre la Sorcière"),
     ("defis", "Défis du jour", "scroll", "3 défis par jour, 2 par semaine, gros bonus"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
@@ -41,7 +43,7 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "41 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "42 trophées à débloquer"),
 ]
 
 GAME = {key: (name, icon, desc) for key, name, icon, desc in GAMES}
@@ -51,9 +53,9 @@ CATEGORIES = [
     ("quiz", "Quiz & vidéo", "skull", ["quiz", "ouija", "shell", "motus", "hangman"]),
     ("luck", "Hasard & mises", "dice", ["slots", "roulette", "hilo", "race", "wheel", "hunt"]),
     ("brain", "Mémoire & réflexes", "eye", ["memory", "ritual", "reflex", "maze", "cauldron"]),
-    ("adventure", "Aventure & collection", "key", ["house", "manor", "cards", "connect4"]),
+    ("adventure", "Aventure & collection", "key", ["escape", "house", "manor", "cards", "connect4"]),
     ("night", "Rendez-vous de la nuit", "moon", ["pet", "defis", "daily", "calendar", "giant"]),
-    ("me", "Ma progression", "trophy", ["profile", "trophies", "top", "shop"]),
+    ("me", "Ma progression", "trophy", ["film", "profile", "trophies", "top", "shop"]),
 ]
 CATEGORY = {c[0]: c for c in CATEGORIES}
 
@@ -143,7 +145,7 @@ class HubView(GameView):
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
             f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
-            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · Labyrinthe **{L['maze']}** · Puissance 4 **{L['connect4']}** · Roulette **{L['roulette']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · Labyrinthe **{L['maze']}** · Puissance 4 **{L['connect4']}** · Roulette **{L['roulette']}** · Escape **{L['escape']}** · "
             f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "

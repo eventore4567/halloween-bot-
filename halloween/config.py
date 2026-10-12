@@ -80,6 +80,7 @@ LIMITS = {
     "maze": 4,
     "connect4": 5,
     "roulette": 8,
+    "escape": 3,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -231,6 +232,7 @@ ACHIEVEMENTS = [
     ("c4_5", "Stratège des citrouilles", "Gagner 5 parties de Puissance 4", "pumpkin_lit", "c4_win", 5, 450),
     ("pet_12", "Dresseur de l'au-delà", "Faire grandir son familier jusqu'au niveau 12", "heart", "pet_level", 12, 500),
     ("roulette_5", "Estomac d'acier", "Boire 5 fioles saines à la Roulette des potions", "potion_green", "roulette_best", 5, 400),
+    ("escape_3", "Maître de l'évasion", "S'échapper 3 fois de la crypte en équipe (/escape)", "key", "escape_win", 3, 500),
 ]
 
 

@@ -69,7 +69,8 @@ class ProfileView(GameView):
                  ("crystal", "Ouija", "ouija"), ("pumpkin", "Bonneteau", "shell"),
                  ("gem", "Machine", "slots"), ("book", "Motus", "motus"), ("star", "Plus/Moins", "hilo"),
                  ("key", "Labyrinthe", "maze"), ("pumpkin_lit", "Puissance 4", "connect4"),
-                 ("potion_green", "Roulette", "roulette")]
+                 ("potion_green", "Roulette", "roulette"),
+                 ("lock", "Escape", "escape")]
         out = []
         for icon, name, key in cells:
             left = s.remaining(g, u, key)

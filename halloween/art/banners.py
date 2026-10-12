@@ -60,7 +60,8 @@ THEMES: dict[str, Theme] = {
     "connect4": Theme("PUISSANCE 4 MAUDIT", "ALIGNE QUATRE CITROUILLES", N.ORANGE, N.GREEN, "pumpkin_lit", "potion_green", N.CYAN),
     "pet": Theme("FAMILIER HANTÉ", "ADOPTE · NOURRIS · FAIS ÉVOLUER", N.PINK, N.CYAN, "bat", "heart", N.PURPLE),
     "roulette": Theme("ROULETTE DES POTIONS", "UNE FIOLE SUR SIX EST EMPOISONNÉE", N.GREEN, N.PINK, "potion_green", "skull", N.YELLOW),
-    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 41 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
+    "escape": Theme("ESCAPE GAME", "3 SALLES · 10 MINUTES · EN ÉQUIPE", N.CYAN, N.ORANGE, "lock", "key", N.PURPLE),
+    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 42 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
 W2, H2 = 760, 300
