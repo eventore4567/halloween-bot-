@@ -11,13 +11,11 @@ import math
 import random
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from . import neon
 from .canvas import banner_gif_bytes
 
-W, H = 800, 250
-FRAMES = 12
 
 
 @dataclass(frozen=True)
@@ -56,68 +54,119 @@ THEMES: dict[str, Theme] = {
     "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 29 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
-# Per-frame brightness of the title / subtitle / frame: a buzzing sign that sometimes stutters.
-FLICKER = [1, 1, 0.92, 1, 1, 0.25, 1, 0.55, 1, 1, 0.95, 1]
+W2, H2 = 760, 300
+W, H = W2, H2
+FLOOR = 214  # y where the wet street starts
+FRAMES2 = FRAMES = 20
 
 
-def _scene(key: str, theme: Theme, title: str, subtitle: str):
-    seed = sum(map(ord, key))
-    base = neon.wall(W, H, seed % 5).copy()
-    size = neon.fit_text(title, 76, W - 400)
-    title_mask = neon.text_mask((W, H), title, size, (W // 2, 102))
-    title_light = neon.glow(title_mask, theme.color, 9)
-    sub_size = neon.fit_text(subtitle, 25, W - 420)
-    sub_light = neon.glow(neon.text_mask((W, H), subtitle, sub_size, (W // 2, 168)), theme.color2, 5)
-    frame_light = None
-    if theme.frame:
-        frame_light = neon.glow(neon.rounded_frame_mask((W, H), (182, 34, W - 182, 206), 28, 4), theme.frame, 6)
-    return seed, base, title_light, sub_light, frame_light
+def _letters(text: str, size: int, cx: int, cy: int):
+    """One glowing mask per letter, so letters can buzz independently."""
+    f = neon.font("neon", size)
+    total = f.getlength(text)
+    x = cx - total / 2
+    out = []
+    for ch in text:
+        w = f.getlength(ch)
+        if ch.strip():
+            m = Image.new("L", (W2, FLOOR), 0)
+            ImageDraw.Draw(m).text((x, cy), ch, font=f, fill=255, anchor="lm")
+            out.append(m)
+        x += w
+    return out
+
+
+def _street(seed: int):
+    """Brick wall, wet street and a drain of light under the sign."""
+    img = Image.new("RGBA", (W2, H2), (8, 4, 12, 255))
+    img.alpha_composite(neon.wall(W2, FLOOR, seed % 5))
+    d = ImageDraw.Draw(img)
+    for y in range(FLOOR, H2):
+        k = (y - FLOOR) / (H2 - FLOOR)
+        d.line((0, y, W2, y), fill=(14 + int(10 * k), 10 + int(6 * k), 22 + int(12 * k), 255))
+    d.line((0, FLOOR, W2, FLOOR), fill=(60, 40, 70, 255), width=2)
+    return img
+
+
+def _reflect(layer: Image.Image, strength=0.55) -> Image.Image:
+    """Upside-down, wobbly, faded copy of the sign for the wet street."""
+    top = layer.crop((0, 0, W2, FLOOR))
+    flip = top.transpose(Image.FLIP_TOP_BOTTOM).crop((0, 0, W2, H2 - FLOOR))
+    flip = flip.filter(ImageFilter.GaussianBlur(2.5))
+    a = flip.getchannel("A")
+    fade = Image.linear_gradient("L").resize(flip.size).transpose(Image.FLIP_TOP_BOTTOM)
+    flip.putalpha(ImageChops.multiply(a, fade).point(lambda v: int(v * strength)))
+    out = Image.new("RGBA", (W2, H2), (0, 0, 0, 0))
+    out.alpha_composite(flip, (0, FLOOR))
+    return out
 
 
 def banner_bytes_uncached(key: str, **fmt) -> bytes:
     theme = THEMES[key]
     title = theme.title.format(**fmt)
     subtitle = theme.subtitle.format(**fmt)
-    seed, base, title_light, sub_light, frame_light = _scene(key, theme, title, subtitle)
+    seed = sum(map(ord, key))
     rnd = random.Random(seed)
-    shift = rnd.randrange(FRAMES)
-    flicker = FLICKER[shift:] + FLICKER[:shift]
-    fog = neon.fog_strip(W, 90, seed % 7)
-    spark_x = rnd.uniform(W * 0.35, W * 0.65)
-    sparks = [(rnd.uniform(-1.5, 1.5), rnd.uniform(0, 1)) for _ in range(7)]
+    base = _street(seed)
+    size = neon.fit_text(title, 60, W2 - 380)
+    letters = [neon.glow(m, theme.color, 8) for m in _letters(title, size, W2 // 2, 82)]
+    sub_size = neon.fit_text(subtitle, 22, W2 - 360)
+    sub = neon.glow(neon.text_mask((W2, FLOOR), subtitle, sub_size, (W2 // 2, 146)), theme.color2, 5)
+    frame = neon.glow(neon.rounded_frame_mask((W2, FLOOR), (166, 24, W2 - 166, 182), 26, 4),
+                      theme.frame or theme.color2, 5)
+    left_n = neon.icon_frames(theme.left)
+    walker = "ghost"
+    right_n = neon.icon_frames(theme.right)
+    walk_n = neon.icon_frames(walker)
+    eyes = [(rnd.uniform(30, 140), rnd.uniform(20, 70)), (rnd.uniform(W2 - 140, W2 - 30), rnd.uniform(20, 70))]
+    rain = [(rnd.uniform(0, W2), rnd.uniform(0, H2), rnd.uniform(10, 18)) for _ in range(38)]
+    flash_at = rnd.randrange(6, FRAMES2 - 3)
+    buzz = [rnd.randrange(len(letters)) if letters else 0 for _ in range(FRAMES2)]
     frames = []
-    for i in range(FRAMES):
-        t = i / FRAMES
+    for i in range(FRAMES2):
+        t = i / FRAMES2
+        sign = Image.new("RGBA", (W2, H2), (0, 0, 0, 0))
+        sign.alpha_composite(neon.dim(frame, 0.75 + 0.25 * math.sin(t * math.tau)), (0, 0))
+        for k, lt in enumerate(letters):
+            on = 1.0
+            if k == buzz[i] and i % 3 == 0:
+                on = 0.2
+            if i in (flash_at + 1,):
+                on = 0.45
+            sign.alpha_composite(neon.dim(lt, on), (0, 0))
+        sign.alpha_composite(neon.dim(sub, 0.9), (0, 0))
+        # big creature on the left, gently swaying
+        lf = int(t * left_n) % left_n if left_n > 1 else 0
+        big = neon.icon_light(theme.left, 128, theme.color, lf)
+        bob = 0 if left_n > 1 else round(4 * math.sin(t * math.tau))
+        sign.alpha_composite(big, (8, 30 + bob - big.height // 8))
+        rf = int(t * right_n) % right_n if right_n > 1 else 0
+        right = neon.icon_light(theme.right, 112, theme.color2, rf)
+        rbob = 0 if right_n > 1 else round(4 * math.sin((t + 0.5) * math.tau))
+        sign.alpha_composite(right, (W2 - 150, 40 + rbob - right.height // 8))
         img = base.copy()
-        f = flicker[i]
-        if frame_light is not None:
-            img.alpha_composite(neon.dim(frame_light, 0.4 + 0.6 * flicker[(i + 4) % FRAMES]))
-        img.alpha_composite(neon.dim(sub_light, 0.85 + 0.15 * math.sin(t * math.tau)))
-        img.alpha_composite(neon.dim(title_light, f))
-        # creatures: animated emojis move, the others gently sway
-        for name, size, (x, y), phase in ((theme.left, 150, (22, 52), 0.0), (theme.right, 128, (W - 160, 70), 0.5)):
-            frames_n = neon.icon_frames(name)
-            frame = int(t * frames_n) % frames_n if frames_n > 1 else 0
-            light = neon.icon_light(name, size, theme.color if x < W / 2 else theme.color2, frame)
-            pad = size // 4
-            bob = 0 if frames_n > 1 else round(4 * math.sin((t + phase) * math.tau))
-            img.alpha_composite(light, (x - pad, y - pad + bob))
-        # sparks dripping from the sign when it stutters
-        if f < 0.6 or flicker[i - 1] < 0.6:
-            for vx, ph in sparks:
-                age = (t * 3 + ph) % 1
-                sx = spark_x + vx * 40 * age
-                sy = 125 + 160 * age * age
-                if sy < H:
-                    r = 2.2 * (1 - age) + 0.6
-                    dot = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
-                    ImageDraw.Draw(dot).ellipse((4 - r, 4 - r, 4 + r, 4 + r), fill=(255, 236, 170, 255))
-                    img.alpha_composite(dot, (int(sx) - 4, int(sy) - 4))
-        # fog rolling at the bottom
-        off = int(t * W)
-        img.alpha_composite(fog.crop((off, 0, off + W, 90)), (0, H - 90))
+        if i == flash_at:  # lightning flash on the wall
+            img.alpha_composite(Image.new("RGBA", (W2, FLOOR), (200, 190, 255, 45)))
+        img.alpha_composite(sign)
+        img.alpha_composite(_reflect(sign))
+        # a monster crossing the street
+        wf = int(t * walk_n * 2) % walk_n if walk_n > 1 else 0
+        small = neon.icon_light(walker, 64, neon.WHITE, wf)
+        x = int(-80 + (W2 + 100) * t)
+        img.alpha_composite(small, (x, FLOOR - 52 + round(3 * math.sin(t * math.tau * 4))))
+        # eyes blinking in the dark
+        d = ImageDraw.Draw(img)
+        for j, (ex, ey) in enumerate(eyes):
+            if (i + j * 7) % 10 not in (0, 1):
+                for dx in (0, 14):
+                    d.ellipse((ex + dx - 3, ey - 2, ex + dx + 3, ey + 2), fill=(255, 220, 90, 255))
+        # rain
+        for (rx, ry, ln) in rain:
+            y = (ry + t * H2 * 2) % H2
+            x0 = (rx - y * 0.25) % W2
+            d.line((x0, y, x0 - ln * 0.25, y + ln), fill=(150, 160, 210, 120), width=1)
         frames.append(img)
-    return banner_gif_bytes(frames, duration=110)
+    return banner_gif_bytes(frames, duration=95)
 
 
 _cache: dict[tuple, bytes] = {}

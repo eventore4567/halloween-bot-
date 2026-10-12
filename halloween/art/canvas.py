@@ -316,7 +316,7 @@ def banner_gif_bytes(frames, duration=90) -> bytes:
     frames = [f.convert("RGB") for f in frames]
     # Build the palette from a mosaic of several frames so moving parts get colours too.
     w, h = frames[0].size
-    picks = frames[:: max(1, len(frames) // 4)][:4]
+    picks = frames[::2][:10]
     mosaic = Image.new("RGB", (w, h * len(picks)))
     for i, f in enumerate(picks):
         mosaic.paste(f, (0, h * i))
