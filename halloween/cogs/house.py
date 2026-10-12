@@ -11,26 +11,23 @@ from .. import config
 from ..content import house as H
 from ..emojis import E
 from ..rewards import grant
-from ..art import neon, scroller
+from ..art import scenes
 from ..ui import GameView, Panel, button, nav, relative
 
 
-CLIPS = {  # outcome -> what comes out of the door, its colour, the caption, good news?
-    "treasure": ("candy_bag", neon.YELLOW, "+{n} BONBONS", True),
-    "key": ("key", neon.YELLOW, "LA CLÉ DE LA CRYPTE !", True),
-    "item": ("gift", neon.PINK, "UN OBJET !", True),
-    "trap": ("spider", neon.RED, "UN PIÈGE !", False),
-    "monster": ("demon", neon.RED, "UN MONSTRE !", False),
-    "ghost": ("ghost", neon.CYAN, "UN FANTÔME AMI", True),
-    "empty": ("eye", neon.PURPLE, "RIEN… POUR L'INSTANT", True),
-}
-
-
-def clip_for(kind: str, gained: int):
-    icon, color, text, good = CLIPS.get(kind, CLIPS["empty"])
+def clip_sub(kind: str, gained: int, lives: int) -> str:
+    """Second line of the action clip: what the outcome changed."""
+    if kind in ("treasure", "ghost") and gained > 0:
+        return f"+{gained} BONBONS"
     if kind == "trap" and gained < 0:
-        text = f"PIÈGE ! {gained} BONBONS"
-    return icon, color, text.format(n=max(0, gained)), good
+        return f"{gained} BONBONS"
+    if kind == "monster":
+        return f"UNE BOUGIE S'ÉTEINT · {lives} RESTANTE{'S' if lives > 1 else ''}"
+    if kind == "ghost":
+        return "UNE BOUGIE SE RALLUME"
+    if kind == "item":
+        return "AJOUTÉ À TON SAC"
+    return ""
 
 
 class HouseView(GameView):
@@ -111,6 +108,7 @@ class HouseView(GameView):
                 if self.state != "room":
                     return await interaction.response.defer()
                 kind = H.outcome(self.depth + 1, self.key)
+                room, icon = self.rooms[self.depth]["name"], self.rooms[self.depth]["choices"][index][1]
                 gained = self.bag
                 self._resolve(kind)
                 gained = self.bag - gained
@@ -121,8 +119,8 @@ class HouseView(GameView):
                 if self.state == "end":
                     return await self.refresh(interaction)  # the end-of-game cutscene takes over
                 await interaction.response.defer()
-                await self.play_action(interaction, scroller.action_gif, "door", neon.PURPLE, *clip_for(kind, gained),
-                                       True, random.randrange(1000))
+                await self.play_action(interaction, scenes.room_clip, room, icon, kind, None,
+                                       clip_sub(kind, gained, self.lives), random.randrange(10**6))
         return cb
 
     def _resolve(self, kind):

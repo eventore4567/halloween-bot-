@@ -168,7 +168,7 @@ def banner_bytes_uncached(key: str, **fmt) -> bytes:
         cf = int(t * chase_n * 2) % chase_n if chase_n > 1 else 0
         monster = neon.icon_light(chaser, 46, theme.color2, cf)
         img.alpha_composite(monster, (18, RUN_FLOOR - monster.height + 6 + round(4 * math.sin(t * math.tau * 3))))
-        scroller.place(img, scroller.hero(i % 6, 46), 128, RUN_FLOOR)
+        scroller.place(img, scroller.hero(i % 4 * 2, 50), 128, RUN_FLOOR)
         # eyes blinking in the dark
         d = ImageDraw.Draw(img)
         for j, (ex, ey) in enumerate(eyes):
