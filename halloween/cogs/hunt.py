@@ -10,7 +10,7 @@ from discord.ext import commands
 from .. import config
 from ..emojis import E
 from ..rewards import grant
-from ..art import neon, scroller
+from ..art import scenes
 from ..ui import GameView, Panel, button, nav, relative
 
 ROWS, COLS = 4, 5
@@ -114,11 +114,11 @@ class HuntView(GameView):
                     return await self.refresh(interaction)  # the end-of-game cutscene takes over
                 await interaction.response.defer()
                 if kind == "chest":
-                    clip = ("chest", neon.YELLOW, "BUTIN DOUBLÉ !")
+                    clip = ("chest", "COFFRE MAUDIT : BUTIN DOUBLÉ !", f"BUTIN : {self.pot} BONBONS")
                 else:
-                    clip = ("ghost_still", neon.CYAN, f"+{gain} · BUTIN {self.pot}")
-                await self.play_action(interaction, scroller.action_gif, "tomb", neon.GREEN, *clip, True, False,
-                                       random.randrange(1000))
+                    clip = ("ghost", random.choice(["UN FANTÔME S'ÉCHAPPE !", "BOUH ! UN FANTÔME !", "UNE ÂME ERRANTE !"]),
+                            f"+{gain} · BUTIN : {self.pot}")
+                await self.play_action(interaction, scenes.grave_clip, *clip, random.randrange(10**6))
         return cb
 
     def _cash_out(self):

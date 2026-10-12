@@ -180,9 +180,17 @@ class ActionClipTest(unittest.TestCase):
 
     def test_clips(self):
         from halloween.art import neon, scroller
-        for prop in ("door", "tomb", "chest"):
-            img = Image.open(BytesIO(scroller.action_gif(prop, neon.PURPLE, "key", neon.YELLOW, "TEST", prop != "tomb")))
-            self.assertGreaterEqual(img.n_frames, 15)
+        from halloween.art import scenes
+        from halloween.content.house import ROOMS
+        kinds = ["treasure", "key", "item", "trap", "monster", "ghost", "empty"]
+        for i, room in enumerate(ROOMS):  # every room decor and every outcome animation
+            data = scenes.room_clip(room["name"], room["choices"][i % 3][1], kinds[i % len(kinds)], None, "SUB", i)
+            self.assertGreaterEqual(Image.open(BytesIO(data)).n_frames, 15)
+        for icon in set(scenes.PROP_OF):  # every object can be drawn opening
+            for t in (0, 0.5, 1):
+                scenes.prop(scenes.PROP_OF[icon], t, neon.PURPLE)
+        self.assertGreaterEqual(Image.open(BytesIO(scenes.grave_clip("chest", "X", "Y", 3))).n_frames, 15)
+        self.assertGreaterEqual(Image.open(BytesIO(scenes.chest_clip("X", "Y", 7, 3))).n_frames, 15)
         clash = Image.open(BytesIO(scroller.clash_gif("vampire", neon.RED, "hunter", neon.ORANGE, 1, "TEST")))
         march = Image.open(BytesIO(scroller.march_gif([("bat", neon.PURPLE)], "EN ROUTE", neon.CYAN, True)))
         self.assertGreaterEqual(clash.n_frames, 15)

@@ -12,7 +12,7 @@ from discord.ext import commands
 from .. import config
 from ..emojis import E
 from ..rewards import grant
-from ..art import neon, scroller
+from ..art import scenes
 from ..ui import ACTION, GameView, Panel, image_file, nav, relative
 
 
@@ -91,8 +91,9 @@ class DailyView(GameView):
         self.state = "opening"
         await self.start(interaction, edit)
         # 2D clip: the hero runs to the chest, the lid pops, the candies fly out
-        clip = await asyncio.to_thread(scroller.action_gif, "chest", neon.YELLOW, "candy_bag", neon.PINK,
-                                       f"+{reward.candies} BONBONS", True, False, random.randrange(1000))
+        caption = "COFFRE EN OR !" if streak >= 5 else random.choice(["LE COFFRE DU JOUR !", "UNE PLUIE DE BONBONS !"])
+        clip = await asyncio.to_thread(scenes.chest_clip, caption, f"+{reward.candies} BONBONS · SÉRIE {streak}",
+                                       streak, random.randrange(10**6))
         self.state = "opened"
         self._action = ACTION
         await self.push(attachments=[image_file(clip, ACTION)])

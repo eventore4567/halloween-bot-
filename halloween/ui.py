@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import random
 import re
 from io import BytesIO
 from typing import Awaitable, Callable
@@ -245,7 +246,7 @@ class GameView(discord.ui.LayoutView):
         if not self._wants_scene(attachments):
             return attachments
         try:
-            data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, self.owner_id)
+            data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, random.randrange(10**6))
         except Exception:  # noqa: BLE001 - a cutscene must never break the game
             LOG.exception("cutscene failed")
             return attachments

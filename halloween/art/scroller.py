@@ -113,39 +113,108 @@ def world(t_px: float, w: int = W, h: int = H, ground: int = GROUND, with_sky=Tr
 
 
 # --------------------------------------------------------------------------- hero
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=96)
 def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
-    """Pumpkin-head hero with a cape; ``phase`` 0..5 animates the run cycle."""
+    """Pumpkin-head hero in a tunic and a long cape, drawn as a filled neon sprite.
+
+    ``phase`` 0..7 animates the run cycle (knees bend, arms swing, the cape flaps).
+    Poses: run, jump, fall, idle, cheer (arms up), hit (recoils backwards).
+    The feet stand 18 px above the bottom of the image (see :func:`place`).
+    """
+    k = 2  # drawn at twice the size, then reduced: smooth lines
     pad = 18
-    cw, ch = size + 2 * pad, int(size * 1.36) + 2 * pad
-    m = Image.new("L", (cw, ch), 0)
-    d = ImageDraw.Draw(m)
-    cx = cw // 2
-    head_r = size * 0.28
-    hy = pad + head_r
-    body_top, hip = hy + head_r, hy + head_r + size * 0.42
-    a = math.sin(phase / 6 * math.tau)
-    if pose == "jump":
-        a = 0.9
-    if pose == "fall":
-        a = 0.0
-    lw = max(4, size // 13)
-    d.line((cx, body_top, cx, hip), fill=255, width=lw)
-    leg = size * 0.36
-    for s in (1, -1):  # legs
-        ang = (0.55 * a * s) if pose == "run" else (0.6 * s if pose == "jump" else 1.2 * s)
-        d.line((cx, hip, cx + leg * math.sin(ang), hip + leg * math.cos(ang)), fill=255, width=lw)
-    arm = size * 0.3
-    for s in (1, -1):  # arms swing against the legs
-        ang = -0.7 * a * s if pose == "run" else (-2.4 * s if pose == "jump" else 1.4 * s)
-        d.line((cx, body_top + 6, cx + arm * math.sin(ang), body_top + 6 + arm * math.cos(ang)), fill=255, width=lw)
-    # cape flapping behind
-    flap = 6 * math.sin(phase / 6 * math.tau * 2)
-    d.line((cx - 2, body_top + 2, cx - size * 0.38, hip + 4 + flap, cx - 4, hip - 2), fill=255, width=2)
-    body = neon.glow(m, neon.CYAN, 3)
-    head = neon.icon_light("pumpkin_lit", int(head_r * 2.6), neon.ORANGE)
-    body.alpha_composite(head, (cx - head.width // 2, int(hy - head.height / 2)))
-    return body
+    u = size / 64 * k
+    cw, ch = int(size * 1.6) + 2 * pad, int(size * 1.7) + 2 * pad
+    big = (cw * k, ch * k)
+    cape_f, body_f = Image.new("L", big, 0), Image.new("L", big, 0)
+    cape_l, line = Image.new("L", big, 0), Image.new("L", big, 0)
+    dcf, dbf, dcl, dl = (ImageDraw.Draw(i) for i in (cape_f, body_f, cape_l, line))
+    p = phase / 8 * math.tau
+    cx = big[0] / 2
+    foot_y = big[1] - pad * k
+    thigh = shin = 14 * u
+    bob = 3 * u * abs(math.cos(p)) if pose == "run" else 0
+    lean = {"run": 0.16, "jump": 0.05, "fall": -0.45, "idle": 0.0, "cheer": 0.0, "hit": -0.3}.get(pose, 0)
+    hip = (cx, foot_y - thigh - shin + 2 * u - bob - (4 * u if pose == "jump" else 0))
+    top = (hip[0] + 26 * u * math.sin(lean), hip[1] - 26 * u * math.cos(lean))
+    lw = max(3, int(4.5 * u))
+    thin = max(2, int(3 * u))
+    # cape, behind everything, flapping in the wind
+    flap = 6 * u * math.sin(p * 2) + (8 * u if pose == "jump" else 0)
+    cape = [(top[0] - 4 * u, top[1] + 2 * u), (top[0] - 12 * u, top[1] + 10 * u),
+            (hip[0] - 26 * u - flap, hip[1] + 12 * u + flap / 2), (hip[0] - 34 * u - flap, hip[1] + 2 * u),
+            (hip[0] - 18 * u, hip[1] - 16 * u)]
+    dcf.polygon(cape, fill=255)
+    dcl.line(cape + [cape[0]], fill=255, width=thin, joint="curve")
+
+    def leg(angle, knee):
+        kx, ky = hip[0] + thigh * math.sin(angle), hip[1] + thigh * math.cos(angle)
+        a2 = angle - knee
+        fx, fy = kx + shin * math.sin(a2), ky + shin * math.cos(a2)
+        dl.line((hip, (kx, ky), (fx, fy)), fill=255, width=lw, joint="curve")
+        boot = (fx - 3 * u, fy - 5 * u, fx + 9 * u, fy + 2 * u)
+        dbf.rounded_rectangle(boot, radius=2 * u, fill=255)
+        dl.rounded_rectangle(boot, radius=2 * u, outline=255, width=thin)
+
+    if pose == "run":
+        for off in (0.0, math.pi):
+            leg(0.75 * math.sin(p + off), -(0.2 + 1.0 * max(0.0, math.cos(p + off))))
+    elif pose == "jump":
+        leg(1.0, -1.6)
+        leg(-0.2, -1.1)
+    elif pose in ("fall", "hit"):
+        leg(1.2, -0.3)
+        leg(0.7, -0.6)
+    else:
+        leg(0.12, -0.05)
+        leg(-0.12, -0.05)
+    # tunic (a trapezoid from the shoulders to the belt)
+    perp = (math.cos(lean), math.sin(lean))
+    tunic = [(top[0] - 10 * u * perp[0], top[1] - 10 * u * perp[1]),
+             (top[0] + 10 * u * perp[0], top[1] + 10 * u * perp[1]),
+             (hip[0] + 9 * u, hip[1] + 4 * u), (hip[0] - 9 * u, hip[1] + 4 * u)]
+    dbf.polygon(tunic, fill=255)
+    dl.line(tunic + [tunic[0]], fill=255, width=thin, joint="curve")
+    dl.line(((hip[0] - 9 * u, hip[1] - 2 * u), (hip[0] + 9 * u, hip[1] - 2 * u)), fill=255, width=thin)  # belt
+    # arms
+    sh = (top[0] + 4 * u * perp[0], top[1] + 5 * u)
+    if pose == "run":
+        arms = [(-1.0 * math.sin(p), 1.0), (1.0 * math.sin(p), 1.0)]
+    elif pose in ("cheer", "jump"):
+        arms = [(2.7, 0.3), (-2.7, -0.3)]
+    elif pose in ("fall", "hit"):
+        arms = [(2.3, -0.6), (-2.0, 0.6)]
+    else:
+        arms = [(0.25, 0.3), (-0.25, 0.3)]
+    for a, bend in arms:
+        ex, ey = sh[0] + 12 * u * math.sin(a), sh[1] + 12 * u * math.cos(a)
+        hx, hy = ex + 11 * u * math.sin(a + bend), ey + 11 * u * math.cos(a + bend)
+        dl.line((sh, (ex, ey), (hx, hy)), fill=255, width=lw, joint="curve")
+        dbf.ellipse((hx - 4 * u, hy - 4 * u, hx + 4 * u, hy + 4 * u), fill=255)  # glove
+        dl.ellipse((hx - 4 * u, hy - 4 * u, hx + 4 * u, hy + 4 * u), outline=255, width=thin)
+    small = (cw, ch)
+    out = Image.new("RGBA", small, (0, 0, 0, 0))
+    for mask, color in ((cape_f, (70, 18, 96)), (body_f, (22, 38, 72))):
+        layer = Image.new("RGBA", small, color + (255,))
+        layer.putalpha(mask.resize(small, Image.LANCZOS))
+        out.alpha_composite(layer)
+    out.alpha_composite(neon.glow(cape_l.resize(small, Image.LANCZOS), neon.PURPLE, 2.2))
+    out.alpha_composite(neon.glow(line.resize(small, Image.LANCZOS), neon.CYAN, 2.2))
+    # the pumpkin head, with a dark core so the face reads clearly
+    head_size = int(size * 0.66)
+    head = neon.icon_light("pumpkin_lit", head_size, neon.ORANGE)
+    core = Image.new("L", head.size, 0)
+    r = head_size * 0.4
+    hc = (head.width / 2, head.height / 2)
+    ImageDraw.Draw(core).ellipse((hc[0] - r, hc[1] - r, hc[0] + r, hc[1] + r), fill=255)
+    dark = Image.new("RGBA", head.size, (44, 18, 6, 255))
+    dark.putalpha(core)
+    hx = top[0] / k + 3 * math.sin(lean)
+    hy = top[1] / k - head_size * 0.36
+    pos = (round(hx - head.width / 2), round(hy - head.height / 2))
+    out.alpha_composite(dark, pos)
+    out.alpha_composite(head, pos)
+    return out
 
 
 def place(img, sprite, x, foot_y):
@@ -168,42 +237,82 @@ def _gif(frames, durations) -> bytes:
 
 def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "",
                     subline: str = "", seed: int = 0):
+    """End-of-game cutscene, with a random finishing move (or way of losing) and a random night sky."""
+    from .scenes import night_bg  # late import: scenes builds on this module
     rnd = random.Random(seed)
+    variant = rnd.randrange(5)
+    move = rnd.choice(["stomp", "throw", "dash"]) if won else rnd.choice(["knock", "steal", "flee"])
+    size = 76
     frames, durations = [], []
-    speed = 14
-    mon_size = 92
-    mons = neon.icon_light(monster, mon_size, tuple(color))
-    hero_x, travel = 150, 0.0
+    mons = neon.icon_light(monster, 96, tuple(color))
+    hero_x, travel, speed = 150, 0.0, 14
     candy = neon.icon_light("candy", 30, neon.PINK)
-    shake = 0
-    # 1. run in, the monster comes into view
-    for f in range(12):
-        travel += speed
-        img = world(travel)
-        mx = W + 60 - (W + 60 - 500) * min(1.0, f / 10)
-        place(img, mons, mx, GROUND + 4 * math.sin(f))
-        place(img, hero(f % 6), hero_x, GROUND)
-        frames.append(img)
-        durations.append(70)
     mx = 500
+
+    def bg():
+        return night_bg(variant, travel)
+
+    def title(img, f0, f, good):
+        if f >= f0:
+            k = min(1.0, (f - f0 + 1) / 4)
+            img.alpha_composite(_neon_layer((W, H), headline, (W // 2, 64), int(neon.fit_text(headline, 44, 620) * (0.7 + 0.3 * k)),
+                                            tuple(neon.YELLOW if good else neon.RED), "mm"))
+            if subline:
+                img.alpha_composite(_neon_layer((W, H), subline, (W // 2, 110), 20,
+                                                tuple(neon.PINK if good else neon.PURPLE), "mm"))
+
+    # 1. run in, the monster comes into view
+    for f in range(11):
+        travel += speed
+        img = bg()
+        x = W + 60 - (W + 60 - mx) * min(1.0, f / 9)
+        place(img, mons, x, GROUND + 4 * math.sin(f))
+        place(img, hero(f % 8, size), hero_x, GROUND)
+        frames.append(img)
+        durations.append(65)
     if won:
-        # 2. jump attack
-        for f in range(6):
-            t = (f + 1) / 6
-            x = hero_x + (mx - 60 - hero_x) * t
-            y = GROUND - 110 * math.sin(math.pi * min(1.0, t * 0.9))
-            img = world(travel)
-            place(img, mons, mx, GROUND)
-            place(img, hero(0, pose="jump"), x, y)
-            frames.append(img)
-            durations.append(60)
-        # 3. burst: the monster explodes into candies that fly to the hero
-        parts = [(rnd.uniform(0, math.tau), rnd.uniform(4, 11)) for _ in range(26)]
-        n_candy = min(10, max(3, candies // 40))
+        hx = hero_x
+        if move == "stomp":  # jump and land on its head
+            for f in range(6):
+                t = (f + 1) / 6
+                img = bg()
+                place(img, mons, mx, GROUND)
+                hx = hero_x + (mx - 40 - hero_x) * t
+                place(img, hero(0, size, "jump"), hx, GROUND - 120 * math.sin(math.pi * min(1.0, t * 0.9)))
+                frames.append(img)
+                durations.append(60)
+        elif move == "throw":  # a glowing pumpkin flies in an arc and explodes
+            bomb = neon.icon_light("pumpkin_lit", 44, neon.ORANGE)
+            for f in range(7):
+                t = (f + 1) / 7
+                img = bg()
+                place(img, mons, mx, GROUND)
+                place(img, hero(0, size, "cheer" if f < 2 else "idle"), hero_x, GROUND)
+                bx = hero_x + 30 + (mx - hero_x - 30) * t
+                by = GROUND - 110 - 120 * math.sin(math.pi * t) + 80 * t
+                rot = bomb.rotate(-60 * f, expand=True)
+                img.alpha_composite(rot, (round(bx - rot.width / 2), round(by - rot.height / 2)))
+                frames.append(img)
+                durations.append(60)
+        else:  # dash: the hero turns into a streak of light
+            for f in range(5):
+                t = (f + 1) / 5
+                img = bg()
+                place(img, mons, mx, GROUND)
+                hx = hero_x + (mx - 60 - hero_x) * t
+                for k in range(4):  # motion trail
+                    ghost = neon.dim(hero(f % 8, size), 0.18 * (4 - k))
+                    place(img, ghost, hx - 30 * (k + 1), GROUND)
+                place(img, hero(f % 8, size), hx, GROUND)
+                frames.append(img)
+                durations.append(50)
+        # burst: the monster explodes into candies flying to the hero
+        parts = [(rnd.uniform(0, math.tau), rnd.uniform(4, 11)) for _ in range(28)]
+        n_candy = min(12, max(3, candies // 40))
         flying = [(mx + rnd.uniform(-30, 30), GROUND - 50 + rnd.uniform(-30, 30)) for _ in range(n_candy)]
-        hx = mx - 70
+        hx = min(hx, mx - 70)
         for f in range(14):
-            img = world(travel)
+            img = bg()
             if f == 0:
                 img.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, 120)))
             over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -211,41 +320,41 @@ def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, hea
             for ang, v in parts:
                 r = v * (f + 1)
                 px, py = mx + r * math.cos(ang), GROUND - 50 + r * math.sin(ang) + 0.6 * (f ** 2)
-                a = max(0, 255 - f * 18)
-                od.ellipse((px - 3, py - 3, px + 3, py + 3), fill=tuple(color) + (a,))
+                od.ellipse((px - 3, py - 3, px + 3, py + 3), fill=tuple(color) + (max(0, 255 - f * 18),))
             img.alpha_composite(over)
             t = min(1.0, f / 10)
             for sx, sy in flying:
-                cx = sx + (hx - sx) * t
-                cy = sy + (GROUND - 60 - sy) * t - 60 * math.sin(math.pi * t)
                 if t < 1:
+                    cx = sx + (hx - sx) * t
+                    cy = sy + (GROUND - 60 - sy) * t - 60 * math.sin(math.pi * t)
                     img.alpha_composite(candy, (round(cx - candy.width / 2), round(cy - candy.height / 2)))
-            place(img, hero(f % 6 if f > 3 else 0, pose="run" if f > 3 else "jump"), hx,
-                  GROUND - max(0, 40 - 10 * f))
-            if f >= 6:
-                k = min(1.0, (f - 5) / 4)
-                size = int(30 + 18 * k)
-                img.alpha_composite(_neon_layer((W, H), headline, (W // 2, 70), size, tuple(neon.YELLOW), "mm"))
-                if subline:
-                    img.alpha_composite(_neon_layer((W, H), subline, (W // 2, 118), 20, tuple(neon.PINK), "mm"))
+            place(img, hero(0, size, "cheer" if f > 3 else "jump"), hx, GROUND - max(0, 40 - 10 * f))
+            title(img, 6, f, True)
             frames.append(img)
             durations.append(70)
     else:
-        # 2. the monster charges, the hero is knocked back
-        for f in range(10):
-            t = (f + 1) / 10
-            img = world(travel)
-            shake = rnd.randint(-6, 6) if 3 <= f <= 6 else 0
-            x = mx - (mx - hero_x - 40) * min(1.0, t * 1.6)
-            place(img, mons, x + shake, GROUND)
-            hx = hero_x - (60 * max(0.0, t - 0.4))
-            place(img, hero(0, pose="fall" if t > 0.4 else "run"), hx + shake, GROUND + (10 if t > 0.5 else 0))
-            if f >= 4:
-                img.alpha_composite(_neon_layer((W, H), headline, (W // 2, 70), 40, tuple(neon.RED), "mm"))
-                if subline:
-                    img.alpha_composite(_neon_layer((W, H), subline, (W // 2, 118), 20, tuple(neon.PURPLE), "mm"))
+        bag = neon.icon_light("candy_bag", 44, neon.ORANGE)
+        for f in range(12):
+            t = (f + 1) / 12
+            img = bg()
+            shake = rnd.randint(-6, 6) if 3 <= f <= 6 and move != "flee" else 0
+            if move == "flee":  # the hero runs away to the left, the monster chases him off-screen
+                hx = hero_x - 260 * t
+                place(img, hero(f % 8, size).transpose(Image.FLIP_LEFT_RIGHT), hx, GROUND)
+                place(img, mons, mx - 300 * t, GROUND - 10 * abs(math.sin(f)))
+            else:
+                x = mx - (mx - hero_x - 40) * min(1.0, t * 1.6)
+                place(img, mons, x + shake, GROUND)
+                hx = hero_x - 60 * max(0.0, t - 0.4)
+                place(img, hero(0, size, "fall" if t > 0.4 else "idle"), hx + shake, GROUND + (8 if t > 0.5 else 0))
+                if move == "steal" and t > 0.4:  # the monster runs off with the candy bag
+                    k = (t - 0.4) / 0.6
+                    img.alpha_composite(bag, (round(x + 40 + 200 * k), round(GROUND - 110 - 60 * math.sin(math.pi * k))))
+            if f in (4, 5) and move != "flee":
+                img.alpha_composite(Image.new("RGBA", (W, H), (255, 30, 50, 60)))
+            title(img, 4, f, False)
             frames.append(img)
-            durations.append(70 if f < 9 else 80)
+            durations.append(75)
     durations[-1] = 1800
     return frames, durations
 
@@ -253,115 +362,6 @@ def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, hea
 def cutscene_gif(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "", subline: str = "",
                  seed: int = 0) -> bytes:
     frames, durations = cutscene_frames(monster, color, won, candies, headline, subline, seed)
-    return _gif(frames, durations)
-
-
-# --------------------------------------------------------------------------- action scenes
-@lru_cache(maxsize=4)
-def _hall(period: int = 340) -> Image.Image:
-    """Inside the haunted house: a dark brick wall with candle sconces, tiles every ``period``."""
-    w = period * 3
-    img = neon.wall(w, H, 4).convert("RGBA")
-    img.alpha_composite(Image.new("RGBA", (w, H), (8, 3, 14, 120)))
-    m = Image.new("L", (w, H), 0)
-    d = ImageDraw.Draw(m)
-    for k in range(3):
-        x = k * period + 80
-        d.rectangle((x - 3, 120, x + 3, 150), fill=255)  # sconce
-        d.ellipse((x - 5, 104, x + 5, 120), outline=255, width=2)  # flame
-        fx = k * period + 200  # picture frame
-        d.rectangle((fx, 70, fx + 70, 150), outline=255, width=3)
-    img.alpha_composite(neon.dim(neon.glow(m, neon.YELLOW, 3), 0.6))
-    return img
-
-
-def interior(t_px: float) -> Image.Image:
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
-    _scroll(img, _hall(340), t_px * 0.5, 340)
-    _scroll(img, ground_strip(48, W, H, GROUND), t_px, 48)
-    return img
-
-
-def _prop(kind: str, opened: float, color) -> Image.Image:
-    """A door, a tombstone or a chest, ``opened`` from 0 (closed) to 1 (open)."""
-    s = 150
-    m = Image.new("L", (s, s), 0)
-    d = ImageDraw.Draw(m)
-    if kind == "door":
-        d.rectangle((40, 18, 110, s - 2), outline=255, width=4)
-        leaf = 70 * (1 - opened)
-        d.polygon([(40, 18), (40 + leaf, 18 + 10 * opened), (40 + leaf, s - 2 - 10 * opened), (40, s - 2)], outline=255)
-        if opened < 0.5:
-            d.ellipse((40 + leaf - 14, 84, 40 + leaf - 6, 92), fill=255)
-    elif kind == "tomb":
-        d.rounded_rectangle((45, 40, 105, s - 2), 26, outline=255, width=4)
-        d.line((62, 70, 88, 70), fill=255, width=3)
-        if opened:
-            d.arc((20, s - 30, 130, s + 20), 180, 360, fill=255, width=3)  # dug earth
-    else:  # chest
-        d.rectangle((30, 80, 120, s - 4), outline=255, width=4)
-        lift = 50 * opened
-        d.polygon([(30, 80), (120, 80), (120 - 10 * opened, 80 - lift), (30 + 10 * opened, 80 - lift)], outline=255)
-        d.rectangle((68, 92, 82, 108), outline=255, width=3)
-    return neon.glow(m, color, 4)
-
-
-def _put_prop(img, prop_img, x):
-    img.alpha_composite(prop_img, (round(x - prop_img.width / 2), GROUND - prop_img.height + 2))
-
-
-def action_frames(prop: str, color, reveal: str, reveal_color, label: str, good: bool, inside=False, seed=0):
-    rnd = random.Random(seed)
-    bg = interior if inside else world
-    frames, durations = [], []
-    travel, speed = 0.0, 14
-    px_end = 450
-    for f in range(9):  # run towards the prop
-        travel += speed
-        img = bg(travel)
-        px = W + 80 - (W + 80 - px_end) * min(1.0, (f + 1) / 9)
-        _put_prop(img, _prop(prop, 0, color), px)
-        place(img, hero(f % 6), 300, GROUND)
-        frames.append(img)
-        durations.append(65)
-    dirt = [(rnd.uniform(-1, 1), rnd.uniform(3, 7)) for _ in range(14)]
-    for f in range(6):  # open / dig
-        img = bg(travel)
-        t = (f + 1) / 6
-        _put_prop(img, _prop(prop, t, color), px_end)
-        place(img, hero(f % 2 * 3, pose="jump" if prop == "tomb" and f % 2 else "run"), 360, GROUND)
-        if prop == "tomb":
-            over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            od = ImageDraw.Draw(over)
-            for vx, vy in dirt:
-                x = px_end + vx * 40 * t
-                y = GROUND - vy * 14 * math.sin(math.pi * t)
-                od.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(150, 110, 70, 230))
-            img.alpha_composite(over)
-        frames.append(img)
-        durations.append(80)
-    icon = neon.icon_light(reveal, 86, tuple(reveal_color))
-    for f in range(8):  # the reveal rises from the prop
-        img = bg(travel)
-        if f == 0:
-            img.alpha_composite(Image.new("RGBA", (W, H), tuple(reveal_color) + (60,)))
-        _put_prop(img, _prop(prop, 1, color), px_end)
-        place(img, hero(0, pose="jump" if good and f in (2, 3) else ("fall" if not good and f > 2 else "run")),
-              360 - (0 if good else min(30, 6 * f)), GROUND)
-        rise = min(1.0, (f + 1) / 5)
-        img.alpha_composite(icon, (px_end - icon.width // 2, round(GROUND - 70 - 70 * rise - icon.height / 2)))
-        k = min(1.0, (f + 1) / 4)
-        img.alpha_composite(_neon_layer((W, H), label, (W // 2, 46), int(24 + 12 * k),
-                                        tuple(neon.YELLOW if good else neon.RED), "mm"))
-        frames.append(img)
-        durations.append(80)
-    durations[-1] = 1500
-    return frames, durations
-
-
-def action_gif(prop: str, color, reveal: str, reveal_color, label: str, good: bool, inside=False, seed=0) -> bytes:
-    """Short 2D clip of one action: the hero reaches a door / tomb / chest, it opens, something comes out."""
-    frames, durations = action_frames(prop, color, reveal, reveal_color, label, good, inside, seed)
     return _gif(frames, durations)
 
 
