@@ -17,8 +17,9 @@ from .. import config
 from ..content import quiz_bank
 from ..content.games import DROP_SCENES
 from ..emojis import E
+from ..art import neon, scroller
 from ..rewards import grant
-from ..ui import NO_PINGS, Panel, banner_file, button, notice, relative
+from ..ui import NO_PINGS, SCENE, Panel, banner_file, button, image_file, notice, relative
 
 LOG = logging.getLogger(__name__)
 MIN_GAP = 240  # seconds between two automatic events
@@ -46,13 +47,16 @@ class EventView(discord.ui.LayoutView):
         self.clear_items()
         self.add_item(self.build().container())
 
-    async def push(self, interaction=None):
+    async def push(self, interaction=None, attachments=None):
         self.render()
+        kwargs = dict(view=self, allowed_mentions=NO_PINGS)
+        if attachments is not None:
+            kwargs["attachments"] = attachments
         try:
             if interaction and not interaction.response.is_done():
-                await interaction.response.edit_message(view=self, allowed_mentions=NO_PINGS)
+                await interaction.response.edit_message(**kwargs)
             elif self.message:
-                await self.message.edit(view=self, allowed_mentions=NO_PINGS)
+                await self.message.edit(**kwargs)
         except discord.HTTPException as exc:
             LOG.debug("event edit failed: %s", exc)
 
@@ -183,7 +187,11 @@ class BossView(EventView):
         self.rewards: list[str] = []
 
     def build(self) -> Panel:
-        p = Panel("red").banner("boss")
+        p = Panel("red")
+        if self.defeated:
+            p.image(SCENE)
+        else:
+            p.banner("boss")
         hp_line = f"{E.bar(self.hp, self.hp_max, 10)} **{config.fmt(self.hp)}** / {config.fmt(self.hp_max)} PV"
         top = sorted(self.damage.items(), key=lambda kv: -kv[1])[:5]
         medals = [E.medal1, E.medal2, E.medal3, E.skull, E.skull]
@@ -257,7 +265,10 @@ class BossView(EventView):
                 self.rewards.append(f"{E.candy} <@{uid}> · {r.line().splitlines()[0]}"
                                     + (f" {E.crown} *meilleur combattant*" if i == 0 else ""))
             self.close()
-            await self.push()
+            # 2D cutscene: the hero jumps on the Pumpkin King, who bursts into candies
+            data = await asyncio.to_thread(scroller.cutscene_gif, "pumpkin_angry", neon.ORANGE, True, 400,
+                                           "ROI CITROUILLE VAINCU !", f"{len(self.damage)} COMBATTANTS", 7)
+            await self.push(attachments=[image_file(data, SCENE)])
 
     async def expire(self):
         for uid in self.damage:

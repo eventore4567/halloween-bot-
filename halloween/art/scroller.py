@@ -363,3 +363,93 @@ def action_gif(prop: str, color, reveal: str, reveal_color, label: str, good: bo
     """Short 2D clip of one action: the hero reaches a door / tomb / chest, it opens, something comes out."""
     frames, durations = action_frames(prop, color, reveal, reveal_color, label, good, inside, seed)
     return _gif(frames, durations)
+
+
+# --------------------------------------------------------------------------- clash (duels)
+def clash_frames(left: str, left_color, right: str, right_color, winner: int | None, caption: str, seed=0):
+    """Two creatures charge at each other; the winner (0 left, 1 right, None draw) knocks the other away."""
+    rnd = random.Random(seed)
+    a = neon.icon_light(left, 96, tuple(left_color))
+    b = neon.icon_light(right, 96, tuple(right_color)).transpose(Image.FLIP_LEFT_RIGHT)
+    frames, durations = [], []
+    meet = W // 2
+    for f in range(9):  # charge
+        t = (f + 1) / 9
+        img = world(f * 4)
+        xa = 60 + (meet - 56 - 60) * t * t
+        xb = W - 60 - (W - 60 - meet - 56) * t * t
+        hop = abs(math.sin(f * 1.3)) * 10
+        img.alpha_composite(a, (round(xa - a.width / 2), round(GROUND - a.height + 14 - hop)))
+        img.alpha_composite(b, (round(xb - b.width / 2), round(GROUND - b.height + 14 - hop)))
+        frames.append(img)
+        durations.append(60)
+    sparks = [(rnd.uniform(0, math.tau), rnd.uniform(5, 12)) for _ in range(22)]
+    for f in range(12):  # impact, then knock-back
+        img = world(36)
+        if f < 2:
+            img.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, 110 - 50 * f)))
+        over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        od = ImageDraw.Draw(over)
+        for ang, v in sparks:
+            r = v * (f + 1)
+            px, py = meet + r * math.cos(ang), GROUND - 50 + r * math.sin(ang)
+            od.ellipse((px - 3, py - 3, px + 3, py + 3), fill=(255, 240, 160, max(0, 255 - 22 * f)))
+        img.alpha_composite(over)
+        k = (f + 1) / 12
+        for side, sprite in ((0, a), (1, b)):
+            base = meet - 56 if side == 0 else meet + 56
+            direction = -1 if side == 0 else 1
+            if winner is None:  # both bounce back
+                x, y, spr = base + direction * 70 * k, GROUND - 40 * math.sin(math.pi * k), sprite
+            elif side == winner:  # the winner stands its ground, small victory hop
+                x, y, spr = base, GROUND - 18 * abs(math.sin(k * math.pi * 2)), sprite
+            else:  # the loser flies away spinning
+                x = base + direction * 260 * k
+                y = GROUND - 120 * math.sin(math.pi * min(1.0, k * 1.2))
+                spr = sprite.rotate(direction * -300 * k, expand=True)
+            img.alpha_composite(spr, (round(x - spr.width / 2), round(y - spr.height + 14)))
+        if f >= 3:
+            color = neon.YELLOW if winner is None else (left_color if winner == 0 else right_color)
+            img.alpha_composite(_neon_layer((W, H), caption, (W // 2, 54), neon.fit_text(caption, 34, 620),
+                                            tuple(color), "mm"))
+        frames.append(img)
+        durations.append(70)
+    durations[-1] = 1500
+    return frames, durations
+
+
+def clash_gif(left, left_color, right, right_color, winner, caption, seed=0) -> bytes:
+    frames, durations = clash_frames(left, left_color, right, right_color, winner, caption, seed)
+    return _gif(frames, durations)
+
+
+# --------------------------------------------------------------------------- march (expeditions)
+def march_frames(team: list[tuple[str, tuple]], caption: str, caption_color, rain: bool = False, seed=0):
+    """A team of monsters marching across the scrolling world; candies rain down on a happy return."""
+    rnd = random.Random(seed)
+    sprites = [neon.icon_light(icon, 70, tuple(color)) for icon, color in team] or [neon.icon_light("ghost", 70, neon.WHITE)]
+    candy = neon.icon_light("candy", 28, neon.PINK)
+    drops = [(rnd.uniform(40, W - 40), rnd.uniform(-H, 0), rnd.uniform(6, 12)) for _ in range(16)]
+    frames, durations = [], []
+    for f in range(20):
+        img = world(f * 12)
+        for k, spr in enumerate(sprites):
+            x = 150 + k * 110
+            hop = abs(math.sin((f + k * 2) * 0.9)) * 16
+            img.alpha_composite(spr, (round(x - spr.width / 2), round(GROUND - spr.height + 12 - hop)))
+        if rain:
+            for x, y, v in drops:
+                yy = (y + f * v * 6) % (GROUND + 30)
+                img.alpha_composite(candy, (round(x), round(yy) - 30))
+        if f >= 3:
+            img.alpha_composite(_neon_layer((W, H), caption, (W // 2, 50), neon.fit_text(caption, 32, 620),
+                                            tuple(caption_color), "mm"))
+        frames.append(img)
+        durations.append(80)
+    durations[-1] = 1400
+    return frames, durations
+
+
+def march_gif(team, caption, caption_color, rain=False, seed=0) -> bytes:
+    frames, durations = march_frames(team, caption, caption_color, rain, seed)
+    return _gif(frames, durations)

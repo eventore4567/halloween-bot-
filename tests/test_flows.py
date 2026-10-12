@@ -262,11 +262,13 @@ class FlowsTest(unittest.TestCase):
             other = FakeUser(self.uid + 7, "Rival")
             self.store.add_candies(999, other.id, 1000, "t", boost=False)
             v = DuelView(self.bot, self.i(), other, 300)
+            v.arm = lambda seconds, token: None  # round timers are not under test here
             await v._accept(FakeInteraction(user=other, client=self.bot))
             self.assertEqual(v.state, "play")
             for _ in range(2):
                 await v._play("hunter")(self.i())
                 await v._play("vampire")(FakeInteraction(user=other, client=self.bot))
+            self.assertTrue(v.clip)
             self.assertEqual(v.state, "over")
             self.assertEqual(v.winner.id, self.uid)
             self.assertEqual(self.store.candies(999, other.id), 700)

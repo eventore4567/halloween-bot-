@@ -22,7 +22,9 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
   parallaxe** (ciel, collines, cimetière, sol) : le héros court, saute sur le monstre du jeu qui
   explose en bonbons, ou se fait renverser. Le score, le niveau gagné et les succès s'affichent dans la scène.
   Et **pendant** la partie, chaque action est une vidéo 2D : chaque porte de la Maison hantée,
-  chaque tombe creusée à la Chasse, l'ouverture du coffre du jour.
+  chaque tombe creusée à la Chasse, l'ouverture du coffre du jour, chaque manche de `/duel` (les deux
+  monstres se chargent, le perdant s'envole), le départ et le retour des expéditions, et la chute
+  du Roi Citrouille.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
@@ -61,6 +63,8 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 ![Cinématique de fin de partie](docs/apercu-cinematique.gif)
 
 ![Vidéo d'action](docs/apercu-action.gif)
+
+![Duel en vidéo](docs/apercu-duel.gif)
 
 ![Le Film de ta Nuit](docs/apercu-film.gif)
 

@@ -183,3 +183,7 @@ class ActionClipTest(unittest.TestCase):
         for prop in ("door", "tomb", "chest"):
             img = Image.open(BytesIO(scroller.action_gif(prop, neon.PURPLE, "key", neon.YELLOW, "TEST", prop != "tomb")))
             self.assertGreaterEqual(img.n_frames, 15)
+        clash = Image.open(BytesIO(scroller.clash_gif("vampire", neon.RED, "hunter", neon.ORANGE, 1, "TEST")))
+        march = Image.open(BytesIO(scroller.march_gif([("bat", neon.PURPLE)], "EN ROUTE", neon.CYAN, True)))
+        self.assertGreaterEqual(clash.n_frames, 15)
+        self.assertGreaterEqual(march.n_frames, 15)

@@ -11,6 +11,7 @@ from discord.ext import commands
 from ..content.games import CARD, RARITIES
 from ..emojis import E
 from ..rewards import grant
+from ..art import neon, scroller
 from ..ui import GameView, Panel, button, nav, relative
 
 DESTINATIONS = [
@@ -144,7 +145,9 @@ class ExpeditionView(GameView):
             self.store.meta_set(meta_key(g, u), dict(dest=d["key"], team=self.team, chance=chance, mult=mult,
                                                       ends=time.time() + d["minutes"] * 60))
             self.report = ""
-            await self.refresh(interaction)
+            await interaction.response.defer()
+            await self.play_action(interaction, scroller.march_gif, self._team_sprites(self.team),
+                                   f"EN ROUTE : {d['name'].upper()} !", neon.CYAN, False, random.randrange(1000))
 
     async def _claim(self, interaction):
         async with self.lock:
@@ -162,12 +165,20 @@ class ExpeditionView(GameView):
                     extra = f"\n{E.gift} Ils ramènent aussi un **booster de cartes** !"
                 r = grant(self.store, g, u, amount, d["xp"], "expedition", stats={"exp_win": 1})
                 self.report = f"### {E.trophy} {random.choice(SUCCESS_TALES)}\n{r.line()}{extra}"
+                clip = (f"+{r.candies} BONBONS !", neon.YELLOW, True)
             else:
                 consolation = d["reward"][0] // 5
                 r = grant(self.store, g, u, consolation, d["xp"] // 3, "expedition", stats={"exp_fail": 1})
                 self.report = f"### {E.skull} {random.choice(FAIL_TALES)}\n{r.line()}"
+                clip = ("RETOUR BREDOUILLE…", neon.RED, False)
             self.team = [k for k in trip["team"] if k in self.store.cards(g, u)]
-            await self.refresh(interaction)
+            await interaction.response.defer()
+            await self.play_action(interaction, scroller.march_gif, self._team_sprites(trip["team"]), *clip,
+                                   random.randrange(1000))
+
+    @staticmethod
+    def _team_sprites(keys):
+        return [(CARD[k]["emoji"], RARITIES[CARD[k]["rarity"]]["color"]) for k in keys if k in CARD]
 
 
 class Expedition(commands.Cog):

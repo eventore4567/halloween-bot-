@@ -12,12 +12,13 @@ from .. import config
 from ..db import NotEnough
 from ..emojis import E
 from ..rewards import grant
-from ..ui import NO_PINGS, Panel, banner_file, button, notice, relative, stable_message
+from ..art import neon, scroller
+from ..ui import ACTION, NO_PINGS, Panel, banner_file, button, image_file, notice, relative, stable_message
 
 MOVES = {
-    "vampire": dict(name="Vampire", emoji="vampire", beats="werewolf", verb="mord"),
-    "werewolf": dict(name="Loup-garou", emoji="werewolf", beats="hunter", verb="dévore"),
-    "hunter": dict(name="Chasseur", emoji="hunter", beats="vampire", verb="plante un pieu dans"),
+    "vampire": dict(name="Vampire", emoji="vampire", beats="werewolf", verb="mord", color=neon.RED),
+    "werewolf": dict(name="Loup-garou", emoji="werewolf", beats="hunter", verb="dévore", color=neon.PINK),
+    "hunter": dict(name="Chasseur", emoji="hunter", beats="vampire", verb="plante un pieu dans", color=neon.ORANGE),
 }
 ROUND_TIME = 45
 WINS_NEEDED = 2
@@ -51,12 +52,17 @@ class DuelView(discord.ui.LayoutView):
         self.note = ""
         self.task: asyncio.Task | None = None
         self.escrow_key = None
+        self.clip = None  # (left move, right move, winner side) of the last round, played as a 2D clash
         self.render()
 
     # ------------------------------------------------------------------ render
     def render(self):
         self.clear_items()
-        p = Panel("red").banner("duel")
+        p = Panel("red")
+        if self.clip:
+            p.image(ACTION)
+        else:
+            p.banner("duel")
         a, b = self.p1, self.p2
         stake_txt = f"**{config.fmt(self.stake)}** {E.candy}" if self.stake else "l'honneur"
         rules = (f"{E.hunter} Chasseur bat {E.vampire} Vampire · {E.vampire} Vampire bat {E.werewolf} Loup-garou · "
@@ -94,13 +100,16 @@ class DuelView(discord.ui.LayoutView):
         p.footer(f"{a.mention} contre {b.mention}")
         self.add_item(p.container())
 
-    async def update(self, interaction=None):
+    async def update(self, interaction=None, attachments=None):
         self.render()
+        kwargs = dict(view=self, allowed_mentions=NO_PINGS)
+        if attachments is not None:
+            kwargs["attachments"] = attachments
         try:
             if interaction and not interaction.response.is_done():
-                await interaction.response.edit_message(view=self, allowed_mentions=NO_PINGS)
+                await interaction.response.edit_message(**kwargs)
             elif self.message:
-                await self.message.edit(view=self, allowed_mentions=NO_PINGS)
+                await self.message.edit(**kwargs)
         except discord.HTTPException:
             pass
 
@@ -190,10 +199,27 @@ class DuelView(discord.ui.LayoutView):
                 m = MOVES[move]
                 await notice(interaction, f"Tu joues **{m['name']}** {E(m['emoji'])} en secret…", icon="check",
                              color="green")
+                files = None
                 if len(self.choice) == 2:
+                    ca, cb_ = self.choice[self.p1.id], self.choice[self.p2.id]
                     self._resolve_round()
-                await self.update()
+                    files = [await self._clash(ca, cb_)]
+                await self.update(attachments=files)
         return cb
+
+    async def _clash(self, ca: str, cb_: str):
+        """2D clip of the round: both monsters charge, the winner knocks the other away."""
+        res = judge(ca, cb_)
+        ma, mb = MOVES[ca], MOVES[cb_]
+        if res == 0:
+            caption, winner = "ÉGALITÉ !", None
+        else:
+            w, l = (ma, mb) if res > 0 else (mb, ma)
+            caption, winner = f"LE {w['name'].upper()} {w['verb'].upper()} LE {l['name'].upper()} !", 0 if res > 0 else 1
+        data = await asyncio.to_thread(scroller.clash_gif, ma["emoji"], ma["color"], mb["emoji"], mb["color"],
+                                       winner, caption, self.round)
+        self.clip = True
+        return image_file(data, ACTION)
 
     def _resolve_round(self):
         a, b = self.p1, self.p2
