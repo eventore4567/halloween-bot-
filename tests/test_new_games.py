@@ -186,7 +186,7 @@ class NewGamesTest(unittest.TestCase):
     def test_achievement_keys_are_measurable(self):
         known = {"quiz_right", "quiz_best_streak", "memory_win", "hunt_best", "hangman_win", "house_escape", "crypt",
                  "duel_win", "boss_win", "drops", "potions", "boosters", "cards", "jackpot", "gifts", "streak",
-                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed", "ouija_best", "ouija_words", "shell_best"}
+                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed", "ouija_best", "ouija_words", "shell_best", "slots_jackpot", "motus_win", "hilo_best", "quests_done"}
         keys = [a[0] for a in config.ACHIEVEMENTS]
         self.assertEqual(len(keys), len(set(keys)))
         for a in config.ACHIEVEMENTS:

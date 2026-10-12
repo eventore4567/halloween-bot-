@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **21 jeux** et **32 succès** à débloquer.
+collectionner), **24 jeux** et **36 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -39,6 +39,12 @@ collectionner), **21 jeux** et **32 succès** à débloquer.
 
 ![Le Bonneteau](docs/apercu-bonneteau.gif)
 
+![La Machine hantée](docs/apercu-machine.gif)
+
+![Défis](docs/apercu-defis.png)
+
+![Motus des ombres](docs/apercu-motus.png)
+
 ![Emojis](docs/apercu-emojis.png)
 
 ## 🕹️ Les jeux
@@ -56,6 +62,10 @@ collectionner), **21 jeux** et **32 succès** à débloquer.
 | `/rituel` | **Le Rituel** : mémorise la formule maudite qui s'efface, répète-la, elle s'allonge à chaque manche |
 | `/ouija` | **La Planche Ouija** : une vidéo où l'esprit épelle un mot lettre par lettre (la 3ᵉ manche à l'envers !), retrouve-le parmi 4 |
 | `/bonneteau` | **Le Bonneteau des Citrouilles** : un bonbon sous 3 citrouilles néon qui se mélangent en vidéo, de plus en plus vite. Suis-le ! |
+| `/defis` | **Défis** : 3 défis du jour et 2 de la semaine, suivis automatiquement dans tous les jeux, avec bonus si tu fais les 3 |
+| `/machine` | **La Machine hantée** : machine à sous néon, les rouleaux tournent et s'arrêtent un par un (jackpot ×150) |
+| `/motus` | **Motus des ombres** : trouve le mot d'Halloween en 6 essais, les lettres se retournent en animation |
+| `/plusoumoins` | **Plus ou Moins** : la carte suivante est-elle plus haute ou plus basse ? Encaisse avant de tout perdre |
 | `/reflexe` | **Réflexe du fantôme** : clique dès que le bouton passe au vert, 3 manches chronométrées |
 | `/memoire` | **Mémoire d'outre-tombe** : 8 paires sur une grille de 16 boutons |
 | `/chasse` | **Chasse aux fantômes** : creuse des tombes, double ton butin… évite les 3 Faucheuses |
@@ -66,7 +76,7 @@ collectionner), **21 jeux** et **32 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **32 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **36 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |

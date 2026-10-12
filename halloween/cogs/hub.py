@@ -26,14 +26,18 @@ GAMES = [
     ("ritual", "Le Rituel", "candle", "Mémorise la formule maudite et répète-la"),
     ("ouija", "La Planche Ouija", "crystal", "L'esprit épelle un mot en vidéo : devine lequel"),
     ("shell", "Le Bonneteau", "pumpkin", "Suis le bonbon sous les citrouilles qui se mélangent"),
+    ("slots", "Machine hantée", "gem", "Tire le levier, aligne trois monstres"),
+    ("motus", "Motus des ombres", "book", "Trouve le mot d'Halloween en 6 essais"),
+    ("hilo", "Plus ou Moins", "star", "Devine la carte suivante, fais grossir le pot"),
     ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
+    ("defis", "Défis du jour", "scroll", "3 défis par jour, 2 par semaine, gros bonus"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
     ("calendar", "Calendrier d'octobre", "gift", "Une case par jour, jackpot le 31"),
     ("giant", "Citrouille géante", "pumpkin_lit", "Tout le serveur la nourrit ensemble"),
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "32 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "36 trophées à débloquer"),
 ]
 
 TIPS = [
@@ -76,6 +80,7 @@ class HubView(GameView):
                                   style=discord.ButtonStyle.secondary)
         guide.callback = self.toggle
         p.row(nav("daily", self.owner_id, "Coffre du jour", "chest", "success"),
+              nav("defis", self.owner_id, "Défis", "scroll", "success"),
               nav("profile", self.owner_id, "Profil", "pumpkin_lit", "primary"), guide)
         p.footer(f"{self.footer()} · {random.choice(TIPS)}")
         return p
@@ -103,7 +108,7 @@ class HubView(GameView):
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
             f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
-            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Réflexe **{L['reflex']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · "
             f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import config
+from . import challenges, config
 from .emojis import E
 
 
@@ -15,6 +15,7 @@ class Reward:
     new_level: int = 1
     level_bonus: int = 0
     achievements: list = field(default_factory=list)
+    quests: list = field(default_factory=list)
 
     @property
     def leveled(self) -> bool:
@@ -32,6 +33,8 @@ class Reward:
                      f"**{config.rank_title(self.new_level)}** · bonus **+{config.fmt(self.level_bonus)}** {E.candy}")
         for ach in self.achievements:
             text += f"\n{E.trophy} **Succès débloqué : {ach[1]}** {E(ach[3])} · **+{config.fmt(ach[6])}** {E.candy}"
+        for q in self.quests:
+            text += f"\n{E.scroll} **Défi accompli : {q.text}** · récupère **+{config.fmt(q.reward)}** {E.candy} avec `/defis`"
         return text.strip()
 
 
@@ -77,5 +80,6 @@ def grant(store, guild_id: int, user_id: int, candies: int = 0, xp: int = 0, rea
         if r.leveled:
             bonus = sum(50 * lvl for lvl in range(r.old_level + 1, r.new_level + 1))
             r.level_bonus = store.add_candies(guild_id, user_id, bonus, "niveau", boost=False)
+    r.quests = challenges.track(store, guild_id, user_id, reason, stats, r.candies)
     r.achievements = check_achievements(store, guild_id, user_id)
     return r
