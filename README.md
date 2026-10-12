@@ -19,6 +19,8 @@ collectionner), **17 jeux** et **27 succès** à débloquer.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
+- **Emojis néon maison** : chaque emoji est une petite enseigne néon sur une tuile sombre
+  (lisible en thème clair comme sombre), dessinée par le bot lui-même ; les animés grésillent.
 - **Emojis personnalisés automatiques** : au démarrage, le bot dessine et envoie ses
   74 emojis dans *Developer Portal → ton application → Emojis*. Ils marchent dans
   **tous les serveurs**, sans Nitro et sans prendre de place sur le serveur.

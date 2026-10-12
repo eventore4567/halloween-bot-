@@ -9,7 +9,6 @@ from PIL import Image, ImageDraw
 from . import neon
 from .canvas import Canvas
 from .cards import _gif_once, _neon_text
-from .emoji_art import emoji_image
 
 W, H = 680, 360
 LANES = 4
@@ -24,8 +23,8 @@ def _rider(color, size=58):
     c.poly([(0, size * 0.66), (14, size * 0.72), (0, size * 0.94)], (220, 180, 90), (60, 40, 20), 2)
     c.line([(size * 0.3, size * 0.8), (size * 0.15, size * 0.95)], tuple(color), 6)
     img = c.result()
-    head = emoji_image("witch", size)
-    img.alpha_composite(head, (16, 0))
+    head = neon.icon_light("witch", size - 10, tuple(color))
+    img.alpha_composite(head, (16 - head.width // 5, -head.height // 5))
     return img
 
 

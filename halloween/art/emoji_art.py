@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Callable
 
+from PIL import Image
+
 from .canvas import Canvas, Grad, gif_bytes, png_bytes
 
 INK = (30, 16, 40)
@@ -941,18 +943,24 @@ def render_frame(name: str, t: float = 0.0, size: int = 128):
 
 @lru_cache(maxsize=None)
 def render_emoji(name: str) -> bytes:
-    """Bytes ready for ``create_application_emoji`` (PNG or animated GIF)."""
+    """Bytes ready for ``create_application_emoji``: the neon tile version (PNG or animated GIF)."""
+    from .neon import emoji_tile
     spec = EMOJIS[name]
     if spec.frames == 1:
-        return png_bytes(render_frame(name))
-    frames = [render_frame(name, i / spec.frames) for i in range(spec.frames)]
+        return png_bytes(emoji_tile(name))
+    frames = []
+    for i in range(spec.frames):
+        flick = 1.0 - 0.18 * (0.5 + 0.5 * math.sin(i / spec.frames * math.tau * 2))
+        frames.append(emoji_tile(name, i, flick))
     return gif_bytes(frames, duration=spec.duration)
 
 
 @lru_cache(maxsize=None)
 def emoji_image(name: str, size: int = 128):
-    """Static RGBA image of an emoji for compositing into banners/cards."""
-    return render_frame(name, 0.0, size)
+    """Static neon emoji for compositing into banners and cards."""
+    from .neon import emoji_tile
+    img = emoji_tile(name)
+    return img if size == 128 else img.resize((size, size), Image.LANCZOS)
 
 
 def is_animated(name: str) -> bool:
