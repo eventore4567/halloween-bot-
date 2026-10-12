@@ -77,6 +77,8 @@ LIMITS = {
     "slots": 15,
     "motus": 3,
     "hilo": 6,
+    "maze": 4,
+    "connect4": 5,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -224,6 +226,8 @@ ACHIEVEMENTS = [
     ("hilo_6", "Devin", "Enchaîner 6 bonnes réponses à Plus ou Moins", "star", "hilo_best", 6, 400),
     ("quests_20", "Chasseur de défis", "Accomplir 20 défis du jour", "scroll", "quests_done", 20, 600),
     ("versus_5", "Roi des défis", "Gagner 5 défis en direct (/defi)", "crown", "versus_win", 5, 500),
+    ("maze_5", "Fil d'Ariane", "S'échapper 5 fois du Labyrinthe hanté", "key", "maze_escape", 5, 450),
+    ("c4_5", "Stratège des citrouilles", "Gagner 5 parties de Puissance 4", "pumpkin_lit", "c4_win", 5, 450),
 ]
 
 

@@ -316,7 +316,7 @@ async def notice(interaction: discord.Interaction, text: str, icon="cross", colo
 # Persistent navigation buttons (keep working after a restart)
 # ---------------------------------------------------------------------------
 
-class NavButton(discord.ui.DynamicItem[discord.ui.Button], template=r"nh:go:(?P<game>[a-z_]+):(?P<owner>\d+)"):
+class NavButton(discord.ui.DynamicItem[discord.ui.Button], template=r"nh:go:(?P<game>[a-z0-9_]+):(?P<owner>\d+)"):
     def __init__(self, game: str, owner: int, label: str, emoji: str, style="secondary"):
         super().__init__(discord.ui.Button(
             label=label, emoji=E.partial(emoji), style=STYLE.get(style, style),
