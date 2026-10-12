@@ -115,6 +115,9 @@ def _reflect(layer: Image.Image, strength=0.55) -> Image.Image:
 
 
 def banner_bytes_uncached(key: str, **fmt) -> bytes:
+    if key == "hub":  # the title screen of /jeux
+        from .menu import menu_frames
+        return banner_gif_bytes(menu_frames(), duration=80)
     theme = THEMES[key]
     title = theme.title.format(**fmt)
     subtitle = theme.subtitle.format(**fmt)
@@ -166,9 +169,9 @@ def banner_bytes_uncached(key: str, **fmt) -> bytes:
         # the running strip: the world scrolls (seamless loop), the hero runs, a monster chases him
         scroller._scroll(img, yard, i * 190 / FRAMES2, 190)
         cf = int(t * chase_n * 2) % chase_n if chase_n > 1 else 0
-        monster = neon.icon_light(chaser, 46, theme.color2, cf)
+        monster = neon.icon_light(chaser, 54, theme.color2, cf)
         img.alpha_composite(monster, (18, RUN_FLOOR - monster.height + 6 + round(4 * math.sin(t * math.tau * 3))))
-        scroller.place(img, scroller.hero(i % 4 * 2, 50), 128, RUN_FLOOR)
+        scroller.place(img, scroller.hero(i % 4 * 2, 62), 140, RUN_FLOOR)
         # eyes blinking in the dark
         d = ImageDraw.Draw(img)
         for j, (ex, ey) in enumerate(eyes):

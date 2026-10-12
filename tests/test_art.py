@@ -26,7 +26,8 @@ class ArtTest(unittest.TestCase):
             data = banners.banner_bytes(key, **({"questions": quiz_bank.TOTAL} if key == "quiz" else {}))
             img = Image.open(BytesIO(data))
             self.assertEqual(img.format, "GIF")
-            self.assertEqual(img.n_frames, banners.FRAMES)
+            from halloween.art import menu
+            self.assertEqual(img.n_frames, menu.FRAMES if key == "hub" else banners.FRAMES)
             self.assertLess(len(data), 1_500_000, key)
 
     def test_generated_pictures(self):

@@ -317,9 +317,17 @@ def banner_gif_bytes(frames, duration=90) -> bytes:
     # Build the palette from a mosaic of several frames so moving parts get colours too.
     w, h = frames[0].size
     picks = frames[::2][:10]
-    mosaic = Image.new("RGB", (w, h * len(picks)))
+    # The running strip at the bottom (hero, monster) is small but moving: weigh it more in the palette.
+    strips = [f.crop((0, int(h * 0.7), w, h)) for f in picks]
+    sh = strips[0].height
+    mosaic = Image.new("RGB", (w, h * len(picks) + sh * len(strips) * 3))
     for i, f in enumerate(picks):
         mosaic.paste(f, (0, h * i))
+    y = h * len(picks)
+    for _ in range(3):
+        for s in strips:
+            mosaic.paste(s, (0, y))
+            y += sh
     pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
     out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in frames]
     buf = BytesIO()
