@@ -30,6 +30,8 @@ GAMES = [
     ("motus", "Motus des ombres", "book", "Trouve le mot d'Halloween en 6 essais"),
     ("hilo", "Plus ou Moins", "star", "Devine la carte suivante, fais grossir le pot"),
     ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
+    ("maze", "Labyrinthe hanté", "key", "Trouve la clé et la sortie, le fantôme te traque"),
+    ("connect4", "Puissance 4 maudit", "pumpkin_lit", "Aligne 4 citrouilles contre la Sorcière"),
     ("defis", "Défis du jour", "scroll", "3 défis par jour, 2 par semaine, gros bonus"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
     ("calendar", "Calendrier d'octobre", "gift", "Une case par jour, jackpot le 31"),
@@ -37,8 +39,21 @@ GAMES = [
     ("shop", "La Boutique", "witch", "Jokers, potions, titres et thèmes"),
     ("top", "Le Panthéon", "trophy", "Les classements du serveur"),
     ("profile", "Mon profil", "pumpkin_lit", "Ta carte de chasseur et tes quotas"),
-    ("trophies", "Succès", "medal1", "37 trophées à débloquer"),
+    ("trophies", "Succès", "medal1", "39 trophées à débloquer"),
 ]
+
+GAME = {key: (name, icon, desc) for key, name, icon, desc in GAMES}
+
+# The select menu holds 25 options at most: games are grouped by category.
+CATEGORIES = [
+    ("quiz", "Quiz & vidéo", "skull", ["quiz", "ouija", "shell", "motus", "hangman"]),
+    ("luck", "Hasard & mises", "dice", ["slots", "hilo", "race", "wheel", "hunt"]),
+    ("brain", "Mémoire & réflexes", "eye", ["memory", "ritual", "reflex", "maze", "cauldron"]),
+    ("adventure", "Aventure & collection", "key", ["house", "manor", "cards", "connect4"]),
+    ("night", "Rendez-vous de la nuit", "moon", ["defis", "daily", "calendar", "giant"]),
+    ("me", "Ma progression", "trophy", ["profile", "trophies", "top", "shop"]),
+]
+CATEGORY = {c[0]: c for c in CATEGORIES}
 
 TIPS = [
     "Au Grand Frisson, les marches 5 et 9 sont des paliers : tu ne redescends jamais en dessous.",
@@ -65,18 +80,29 @@ class HubView(GameView):
 
     def build(self) -> Panel:
         p = Panel("orange").banner(self.banner_key)
+        cat = CATEGORY.get(self.page[4:]) if self.page.startswith("cat:") else None
         if self.page == "guide":
             self._guide(p)
+        elif cat:
+            self._category(p, cat)
         else:
             self._home(p)
         p.sep()
-        select = discord.ui.Select(placeholder="Choisis un jeu…", options=[
-            discord.SelectOption(label=name, value=key, emoji=E.partial(icon), description=desc[:100])
-            for key, name, icon, desc in GAMES])
-        select.callback = self.on_pick
+        if cat:
+            select = discord.ui.Select(placeholder=f"Choisis un jeu : {cat[1]}…", options=[
+                discord.SelectOption(label=GAME[k][0], value=k, emoji=E.partial(GAME[k][1]), description=GAME[k][2][:100])
+                for k in cat[3]])
+            select.callback = self.on_pick
+        else:
+            select = discord.ui.Select(placeholder="Choisis une catégorie de jeux…", options=[
+                discord.SelectOption(label=name, value=key, emoji=E.partial(icon),
+                                     description=" · ".join(GAME[k][0] for k in games)[:100])
+                for key, name, icon, games in CATEGORIES])
+            select.callback = self.on_category
         p.row(select)
-        guide = discord.ui.Button(label="Accueil" if self.page == "guide" else "Guide du joueur",
-                                  emoji=E.partial("pumpkin" if self.page == "guide" else "book"),
+        home = self.page != "home"
+        guide = discord.ui.Button(label="Accueil" if home else "Guide du joueur",
+                                  emoji=E.partial("pumpkin" if home else "book"),
                                   style=discord.ButtonStyle.secondary)
         guide.callback = self.toggle
         p.row(nav("daily", self.owner_id, "Coffre du jour", "chest", "success"),
@@ -90,10 +116,17 @@ class HubView(GameView):
                 body="Gagne des **bonbons**, monte de niveau et deviens la terreur du serveur.\n"
                      "Tout se joue avec des boutons, directement ici.")
         p.sep()
-        lines = [f"{E(icon)} **{name}** — {desc}" for key, name, icon, desc in GAMES if key not in ("shop", "top", "profile", "trophies")]
-        p.text("\n".join(lines))
-        p.text(f"-# Et aussi : {E.lightning} `/defi` pour un face-à-face en direct · {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
+        lines = [f"{E(icon)} **{name}** — " + " · ".join(GAME[k][0] for k in games)
+                 for key, name, icon, games in CATEGORIES]
+        p.text(f"**{len(GAMES)} activités** dans {len(CATEGORIES)} catégories :\n" + "\n".join(lines))
+        p.text(f"-# Et aussi : {E.lightning} `/defi` pour un face-à-face en direct · {E.pumpkin_lit} `/puissance4 @membre` · {E.vampire} `/duel` pour défier un membre · {E.skull} `/sort` pour maudire un rival · "
                f"{E.gift} `/donner` pour offrir des bonbons")
+
+    def _category(self, p: Panel, cat):
+        key, name, icon, games = cat
+        p.title(name, icon=icon, body="Choisis ton jeu dans le menu ci-dessous.")
+        p.sep()
+        p.text("\n".join(f"{E(GAME[k][1])} **{GAME[k][0]}** — {GAME[k][2]}" for k in games))
 
     def _guide(self, p: Panel):
         L = config.LIMITS
@@ -108,7 +141,7 @@ class HubView(GameView):
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
             f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
-            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · Labyrinthe **{L['maze']}** · Puissance 4 **{L['connect4']}** · "
             f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "
@@ -125,11 +158,18 @@ class HubView(GameView):
                 self.finish()
             await opener(interaction, edit=interaction.user.id == self.owner_id)
 
-    async def toggle(self, interaction: discord.Interaction):
+    async def on_category(self, interaction: discord.Interaction):
+        page = "cat:" + interaction.data["values"][0]
         if interaction.user.id != self.owner_id:
-            view = HubView(self.bot, interaction, page="guide")
-            return await view.start(interaction)
-        self.page = "home" if self.page == "guide" else "guide"
+            return await HubView(self.bot, interaction, page=page).start(interaction)
+        self.page = page
+        await self.refresh(interaction)
+
+    async def toggle(self, interaction: discord.Interaction):
+        page = "guide" if self.page == "home" else "home"
+        if interaction.user.id != self.owner_id:
+            return await HubView(self.bot, interaction, page=page).start(interaction)
+        self.page = page
         await self.refresh(interaction)
 
 
