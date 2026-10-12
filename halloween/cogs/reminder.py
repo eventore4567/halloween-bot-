@@ -64,31 +64,49 @@ def pending(store, g, now: dt.datetime) -> list[tuple[int, list[str]]]:
     return out
 
 
-def reminder_view(day: int | None, mentions: list[int], server: str | None = None) -> discord.ui.LayoutView:
-    """The reminder panel; ``server`` is set for a private message (no buttons: games live in the server)."""
+def reminder_view(day: int | None, todo: tuple[str, ...], mentions: list[int],
+                  server: str | None = None) -> discord.ui.LayoutView:
+    """The reminder panel for members who still have ``todo`` (calendar and/or daily) to open.
+
+    ``server`` is set for a private message: no buttons there, the games live in the server.
+    """
     view = discord.ui.LayoutView(timeout=None)
     p = Panel("orange").banner("daily")
-    if day is not None:
-        left = 31 - day
+    calendar, daily = "calendar" in todo and day is not None, "daily" in todo
+    if calendar:
         title = "C'EST HALLOWEEN ! Ta dernière case t'attend" if day == 31 else f"La case du {day} octobre t'attend !"
-        body = (f"{E.gift} Ouvre ta case du **calendrier d'octobre** et ton **coffre du jour** avant minuit."
-                + (f"\n{E.pumpkin_lit} Plus que **{left}** nuit{'s' if left > 1 else ''} avant Halloween…" if left else ""))
+        what = "ta case du **calendrier d'octobre**" + (" et ton **coffre du jour**" if daily else "")
+        body = f"{E.gift} Ouvre {what} avant minuit."
+        left = 31 - day
+        if left:
+            body += f"\n{E.pumpkin_lit} Plus que **{left}** nuit{'s' if left > 1 else ''} avant Halloween…"
     else:
         title = "Ton coffre du jour t'attend !"
-        body = f"{E.chest} N'oublie pas ton **coffre du jour** : ta série de jours en dépend !"
+        body = f"{E.chest} N'oublie pas ton **coffre du jour** avant minuit : ta série de jours en dépend !"
     p.title(title, icon="gift", body=body)
     if mentions:
         p.text(" ".join(f"<@{u}>" for u in mentions))
     if server:
-        p.text(f"{E.lightning} Rendez-vous sur **{server}** : `/calendrier` et `/quotidien`.")
+        cmds = " et ".join(c for c, on in (("`/calendrier`", calendar), ("`/quotidien`", daily)) if on)
+        p.text(f"{E.lightning} Rendez-vous sur **{server}** : {cmds}.")
     p.text(f"-# {E.lock} Tu reçois ce rappel parce que tu l'as activé. `/rappel` pour l'arrêter.")
     if not server:  # anyone clicking opens their own panel
-        buttons = [nav("daily", 0, "Coffre du jour", "chest", "success")]
-        if day is not None:
-            buttons.insert(0, nav("calendar", 0, "Ouvrir ma case", "gift", "primary"))
+        buttons = []
+        if calendar:
+            buttons.append(nav("calendar", 0, "Ouvrir ma case", "gift", "primary"))
+        if daily:
+            buttons.append(nav("daily", 0, "Coffre du jour", "chest", "success"))
         p.row(*buttons)
     view.add_item(p.container())
     return view
+
+
+class _NoChannel(Exception):
+    """No events channel is configured (or it disappeared)."""
+
+
+def tz_name() -> str:
+    return getattr(config.TZ, "key", None) or str(config.TZ)
 
 
 class Reminder(commands.Cog):
@@ -112,35 +130,70 @@ class Reminder(commands.Cog):
             except Exception:  # noqa: BLE001 - one guild must not stop the others
                 LOG.exception("reminder failed for guild %s", guild.id)
 
+    async def _members(self, g: int, users: list[int]) -> list[int]:
+        """Keep the members still in the guild; unsubscribe the ones who left."""
+        guild = self.bot.get_guild(g)
+        if guild is None:
+            return []
+        kept = []
+        for u in users:
+            if guild.get_member(u) is None:
+                try:
+                    await guild.fetch_member(u)
+                except discord.NotFound:
+                    toggle(self.bot.store, g, u)  # left the server: stop reminding them
+                    continue
+                except discord.HTTPException:
+                    pass  # unknown for now: still remind them
+            kept.append(u)
+        return kept
+
     async def maybe_remind(self, g: int, now: dt.datetime) -> int:
-        """Send today's reminder once, at or after the guild's hour. Returns how many members were reminded."""
+        """Send today's reminder once, at or after the guild's hour. Returns how many members were reminded.
+
+        The day is only marked as done once the messages went out, so a failure is retried a minute later.
+        """
         store = self.bot.store
         today = config.today(now)
         if now.hour < reminder_hour(store, g) or store.meta_get(f"remind_sent:{g}") == today:
             return 0
-        store.meta_set(f"remind_sent:{g}", today)
-        todo = pending(store, g, now)
-        if not todo:
-            return 0
         _year, day = october_day(now)
-        users = [u for u, _what in todo]
-        channel = self.bot.get_channel(store.guild(g)["drop_channel"] or 0)
-        if channel is not None:
-            for i in range(0, len(users), MAX_MENTIONS):
-                chunk = users[i:i + MAX_MENTIONS]
-                await channel.send(view=reminder_view(day, chunk), files=[await banner_file("daily")],
-                                   allowed_mentions=discord.AllowedMentions(users=[discord.Object(u) for u in chunk]))
-            return len(users)
-        sent = 0
+        groups: dict[tuple[str, ...], list[int]] = {}
+        for u, todo in pending(store, g, now):
+            groups.setdefault(tuple(todo), []).append(u)
+        for todo in list(groups):
+            groups[todo] = await self._members(g, groups[todo])
+        total = sum(len(v) for v in groups.values())
+        reached = 0
+        if total:
+            channel = self.bot.get_channel(store.guild(g)["drop_channel"] or 0)
+            try:
+                if channel is None:
+                    raise _NoChannel
+                for todo, users in groups.items():
+                    for i in range(0, len(users), MAX_MENTIONS):
+                        chunk = users[i:i + MAX_MENTIONS]
+                        await channel.send(view=reminder_view(day, todo, chunk), files=[await banner_file("daily")],
+                                           allowed_mentions=discord.AllowedMentions(
+                                               users=[discord.Object(u) for u in chunk]))
+                reached = total
+            except (_NoChannel, discord.Forbidden, discord.HTTPException):
+                reached = await self._private(g, day, groups)  # channel missing or unusable: private messages
+        store.meta_set(f"remind_sent:{g}", today)
+        return reached
+
+    async def _private(self, g: int, day, groups) -> int:
         guild = self.bot.get_guild(g)
         name = guild.name if guild else "ton serveur"
-        for u in users:  # no events channel: private messages
-            try:
-                user = self.bot.get_user(u) or await self.bot.fetch_user(u)
-                await user.send(view=reminder_view(day, [], name), files=[await banner_file("daily")])
-                sent += 1
-            except (discord.Forbidden, discord.HTTPException):
-                continue
+        sent = 0
+        for todo, users in groups.items():
+            for u in users:
+                try:
+                    user = self.bot.get_user(u) or await self.bot.fetch_user(u)
+                    await user.send(view=reminder_view(day, todo, [], name), files=[await banner_file("daily")])
+                    sent += 1
+                except (discord.Forbidden, discord.HTTPException):
+                    continue
         return sent
 
     @app_commands.command(name="rappel", description="🔔 Active ou coupe ton rappel quotidien (calendrier et coffre du jour)")
@@ -150,7 +203,7 @@ class Reminder(commands.Cog):
         on = toggle(store, interaction.guild_id, interaction.user.id)
         hour = reminder_hour(store, interaction.guild_id)
         if on:
-            await notice(interaction, f"{E.check} **Rappel activé !** Chaque jour vers **{hour} h**, je te préviens si ta "
+            await notice(interaction, f"{E.check} **Rappel activé !** Chaque jour vers **{hour} h** ({tz_name()}), je te préviens si ta "
                                       f"case du calendrier ou ton coffre du jour t'attendent encore.\n"
                                       f"-# Refais `/rappel` pour l'arrêter.", icon="gift", color="green")
         else:
