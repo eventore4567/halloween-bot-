@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **30 jeux** et **43 succès** à débloquer.
+collectionner), **31 jeux** et **45 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -52,6 +52,8 @@ collectionner), **30 jeux** et **43 succès** à débloquer.
 
 ![Défi en direct](docs/apercu-defi.gif)
 
+![La Grande Fuite](docs/apercu-fuite.gif)
+
 ![Labyrinthe hanté](docs/apercu-labyrinthe.png)
 
 ![Puissance 4 maudit](docs/apercu-puissance4.gif)
@@ -92,6 +94,7 @@ collectionner), **30 jeux** et **43 succès** à débloquer.
 | `/ouija` | **La Planche Ouija** : une vidéo où l'esprit épelle un mot lettre par lettre (la 3ᵉ manche à l'envers !), retrouve-le parmi 4 |
 | `/bonneteau` | **Le Bonneteau des Citrouilles** : un bonbon sous 3 citrouilles néon qui se mélangent en vidéo, de plus en plus vite. Suis-le ! |
 | `/defi` | **Défi en direct** : face-à-face contre un membre dans un seul panneau, quiz éclair (le premier qui trouve marque) ou réflexes (faux départ = point pour l'autre), intro « VS » animée avec vos avatars, mise de bonbons |
+| `/fuite` | **La Grande Fuite**, un vrai **runner 2D** : la Faucheuse te poursuit dans le cimetière, chaque obstacle arrive en vidéo qui défile. **Saute** (tombes, fosses, crânes en feu), **glisse** (chauves-souris, araignées, cercueils) ou **frappe** (zombies, citrouilles, momies) avant la fin du chrono, qui raccourcit à mesure que tu accélères. 3 vies, les boutons se mélangent à partir du 8ᵉ obstacle, encaisse quand tu veux ou atteins la chapelle (25 obstacles, +400) |
 | `/labyrinthe` | **Le Labyrinthe hanté** : brouillard néon, trouve la clé puis la porte, le fantôme te traque (la bougie sacrée le fait fuir) |
 | `/puissance4` | **Puissance 4 maudit** : pions néon qui tombent en animation, contre la Sorcière (IA) ou contre un membre avec mise |
 | `/familier` | **Familier hanté** : adopte un fantôme, une chauve-souris, une citrouille, une araignée ou un loup-garou animé. Nourris-le, joue avec lui, il te rapporte des bonbons et évolue jusqu'à la forme légendaire couronnée |
@@ -114,7 +117,7 @@ collectionner), **30 jeux** et **43 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **43 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **45 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |

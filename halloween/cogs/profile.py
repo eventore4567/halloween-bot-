@@ -68,7 +68,7 @@ class ProfileView(GameView):
                  ("bone", "Pendu", "hangman"), ("candle", "Rituel", "ritual"), ("lightning", "Réflexe", "reflex"),
                  ("crystal", "Ouija", "ouija"), ("pumpkin", "Bonneteau", "shell"),
                  ("gem", "Machine", "slots"), ("book", "Motus", "motus"), ("star", "Plus/Moins", "hilo"),
-                 ("key", "Labyrinthe", "maze"), ("pumpkin_lit", "Puissance 4", "connect4"),
+                 ("key", "Labyrinthe", "maze"), ("reaper", "Fuite", "fuite"), ("pumpkin_lit", "Puissance 4", "connect4"),
                  ("potion_green", "Roulette", "roulette"),
                  ("lock", "Escape", "escape")]
         out = []

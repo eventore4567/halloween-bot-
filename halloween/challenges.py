@@ -41,6 +41,7 @@ DAILY = [
     Quest("d_slots", "Joue 5 fois à la Machine hantée", "play:machine", 5, 120, "gem", "slots"),
     Quest("d_motus", "Trouve 1 mot au Motus des ombres", "stat:motus_win", 1, 160, "book", "motus"),
     Quest("d_hilo", "Donne 5 bonnes réponses à Plus ou Moins", "stat:hilo_right", 5, 130, "star", "hilo"),
+    Quest("d_fuite", "Franchis 12 obstacles à La Grande Fuite", "stat:run_obstacles", 12, 140, "reaper", "fuite"),
     Quest("d_candies", "Gagne 600 bonbons aujourd'hui", "candies", 600, 150, "candy_bag", None),
     Quest("d_games", "Joue 6 parties, tous jeux confondus", "play:any", 6, 140, "dice", "hub"),
 ]
@@ -57,7 +58,7 @@ ALL_DONE_BONUS = 200  # + one wheel ticket when the 3 daily challenges are claim
 
 # Reasons of `grant` that mean "one game was played".
 GAME_REASONS = {"grand-frisson", "maison", "course", "rituel", "reflexe", "ouija", "bonneteau", "memoire", "pendu",
-                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition"}
+                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition", "fuite"}
 
 
 def week_key(day: str | None = None) -> str:
