@@ -8,14 +8,15 @@ from halloween.cogs.duel import MOVES, judge
 from halloween.cogs.hangman import hangman_reward, reveal, solved
 from halloween.cogs.hunt import REAPERS, make_board
 from halloween.cogs.memory import memory_reward
-from halloween.cogs.quiz import combo_multiplier, compute_gain
+from halloween.cogs.formula import formula_reward, score
+from halloween.cogs.quiz import audience_poll, ghost_hint
 from halloween.content import quiz_bank
-from halloween.content.games import CARDS, HANGMAN, INGREDIENTS, POTIONS, RARITIES, daily_recipes, draw_card
+from halloween.content.games import CARDS, HANGMAN, RARITIES, SHADOWS, draw_card
 
 
 class QuizBankTest(unittest.TestCase):
     def test_bank_is_big_and_balanced(self):
-        self.assertGreaterEqual(quiz_bank.TOTAL, 640)
+        self.assertGreaterEqual(quiz_bank.TOTAL, 680)
         self.assertEqual(sorted(quiz_bank.BY_LEVEL), [1, 2, 3, 4, 5])
         for level, qs in quiz_bank.BY_LEVEL.items():
             self.assertGreaterEqual(len(qs), 80, level)
@@ -47,13 +48,39 @@ class QuizBankTest(unittest.TestCase):
 
 
 class GameLogicTest(unittest.TestCase):
-    def test_quiz_gain(self):
-        self.assertEqual(combo_multiplier(1), 1.0)
-        self.assertAlmostEqual(combo_multiplier(30), 2.0)
-        lo, hi = config.QUIZ_LEVELS[5]["reward"]
-        gain, fast = compute_gain(5, 30, 0.1, random.Random(1))
-        self.assertTrue(fast)
-        self.assertGreaterEqual(gain, lo * 2 * 1.2 - 1)
+    def test_show_ladder(self):
+        self.assertEqual(len(config.SHOW_LADDER), len(config.SHOW_LEVELS))
+        self.assertEqual(config.SHOW_LADDER, sorted(config.SHOW_LADDER))
+        self.assertEqual(config.show_safe_amount(0), 0)
+        self.assertEqual(config.show_safe_amount(4), 0)
+        self.assertEqual(config.show_safe_amount(5), config.SHOW_LADDER[4])
+        self.assertEqual(config.show_safe_amount(11), config.SHOW_LADDER[8])
+        for lvl in config.SHOW_LEVELS:
+            self.assertIn(lvl, quiz_bank.BY_LEVEL)
+
+    def test_lifelines(self):
+        rnd = random.Random(2)
+        for level in range(1, 6):
+            poll = audience_poll(1, {0, 3}, level, rnd)
+            self.assertEqual(sorted(poll), [1, 2])
+            self.assertEqual(sum(poll.values()), 100)
+            self.assertIn(ghost_hint(2, {0}, level, rnd), (1, 2, 3))
+        hits = sum(ghost_hint(0, set(), 1, rnd) == 0 for _ in range(500))
+        self.assertGreater(hits, 430)
+
+    def test_shadow_creatures(self):
+        from halloween.art.emoji_art import EMOJIS
+        self.assertGreaterEqual(len(SHADOWS), 20)
+        for key, name in SHADOWS:
+            self.assertIn(key, EMOJIS)
+        self.assertEqual(len({n for _, n in SHADOWS}), len(SHADOWS))
+
+    def test_formula_scoring(self):
+        self.assertEqual(score(["a", "b", "c", "d"], ["a", "b", "c", "d"]), (4, 0))
+        self.assertEqual(score(["a", "b", "c", "d"], ["d", "c", "b", "a"]), (0, 4))
+        self.assertEqual(score(["a", "b", "c", "d"], ["a", "c", "e", "f"]), (1, 1))
+        self.assertGreater(formula_reward(1), formula_reward(8))
+        self.assertGreaterEqual(formula_reward(20), 50)
 
     def test_memory_reward_bounds(self):
         self.assertEqual(memory_reward(8), 240)
@@ -87,17 +114,6 @@ class GameLogicTest(unittest.TestCase):
 
 
 class ContentTest(unittest.TestCase):
-    def test_recipes_daily_and_per_server(self):
-        a = daily_recipes(1, "2026-10-31")
-        self.assertEqual(len(a), len(POTIONS))
-        self.assertEqual(sorted(a.values()), sorted(p["key"] for p in POTIONS))
-        self.assertEqual(a, daily_recipes(1, "2026-10-31"))
-        self.assertNotEqual(a, daily_recipes(1, "2026-11-01"))
-        keys = {i["key"] for i in INGREDIENTS}
-        for pair in a:
-            self.assertEqual(len(set(pair)), 2)
-            self.assertTrue(set(pair) <= keys)
-
     def test_cards(self):
         self.assertEqual(len(CARDS), 24)
         self.assertEqual(len({c["key"] for c in CARDS}), 24)
@@ -117,10 +133,6 @@ class ContentTest(unittest.TestCase):
         self.assertEqual(config.level_from_xp(total)[0], 10)
         self.assertEqual(config.rank_title(1), "Petit Fantôme")
         self.assertEqual(config.rank_title(99), "Légende d'Halloween")
-
-    def test_unit_costs_grow(self):
-        self.assertLess(config.unit_cost(15, 0), config.unit_cost(15, 10))
-        self.assertEqual(config.unit_cost(100, 0, 2), round(100 + 115))
 
 
 if __name__ == "__main__":

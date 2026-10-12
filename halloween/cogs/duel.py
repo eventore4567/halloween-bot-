@@ -224,10 +224,8 @@ class DuelView(discord.ui.LayoutView):
         self.winner = winner
         if self.stake:
             self.store.add_candies(g, winner.id, self.stake * 2, "duel-gain", boost=False)
-        r = grant(self.store, g, winner.id, 0, 20, "duel")
-        grant(self.store, g, loser.id, 0, 6, "duel")
-        self.store.stat_add(g, winner.id, "duel_win")
-        self.store.stat_add(g, loser.id, "duel_loss")
+        r = grant(self.store, g, winner.id, 0, 20, "duel", stats={"duel_win": 1})
+        grant(self.store, g, loser.id, 0, 6, "duel", stats={"duel_loss": 1})
         gain = f"**+{config.fmt(self.stake * 2)}** {E.candy} · " if self.stake else ""
         self.note = (self.note + "\n" if self.note else "") + f"{E.trophy} {gain}{r.line()}"
         if self.task and not self.task.done() and self.task is not asyncio.current_task():

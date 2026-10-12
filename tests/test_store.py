@@ -1,4 +1,3 @@
-import time
 import unittest
 
 from halloween import config
@@ -72,32 +71,6 @@ class StoreTest(unittest.TestCase):
         self.s.add_xp(G, A, 10)
         self.assertEqual(self.s.player(G, A)["xp"], config.xp_for_next(1) + 20)
 
-    def test_manor_production_and_purchase(self):
-        st, _ = self.s.manor_tick(G, A, click=20)
-        self.assertEqual(st["souls"], 20)
-        self.s.manor_buy_unit(G, A, "wisp")
-        with self.assertRaises(NotEnough):
-            self.s.manor_buy_unit(G, A, "reaper")
-        # pretend one minute passed
-        self.s.db.execute("UPDATE manor SET last_tick=last_tick-60")
-        st, gained = self.s.manor_tick(G, A)
-        self.assertAlmostEqual(gained, 1.0, places=1)
-        self.assertEqual(st["units"]["wisp"], 1)
-
-    def test_manor_offline_cap(self):
-        self.s.manor_tick(G, A)
-        self.s.db.execute("INSERT INTO manor_units VALUES(?,?,?,?)", (G, A, "wisp", 1))
-        self.s.db.execute("UPDATE manor SET last_tick=?", (time.time() - 10 * 24 * 3600,))
-        _, gained = self.s.manor_tick(G, A)
-        self.assertAlmostEqual(gained, config.MANOR_OFFLINE_CAP / 60, delta=1)
-
-    def test_manor_milestones_pay_once(self):
-        self.s.manor_add(G, A, 15_000)
-        paid = self.s.manor_claim_milestones(G, A)
-        self.assertEqual([p[0] for p in paid], [1_000, 10_000])
-        self.assertEqual(self.s.manor_claim_milestones(G, A), [])
-        self.assertEqual(self.s.candies(G, A), sum(config.MANOR_MILESTONE_REWARD[:2]))
-
     def test_rank_with_ties(self):
         self.s.add_candies(G, A, 100, "t")
         self.s.add_candies(G, B, 100, "t")
@@ -111,12 +84,14 @@ class StoreTest(unittest.TestCase):
         self.s.add_candies(1, A, 100, "t")
         self.assertEqual(self.s.candies(2, A), 0)
 
-    def test_cards_and_recipes(self):
+    def test_cards(self):
         self.assertEqual(self.s.add_card(G, A, "c_bat"), 1)
         self.assertEqual(self.s.add_card(G, A, "c_bat"), 2)
-        self.assertTrue(self.s.add_recipe(G, A, "fortune", day="d"))
-        self.assertFalse(self.s.add_recipe(G, A, "fortune", day="d"))
-        self.assertEqual(self.s.recipes_found(G, A, day="d"), {"fortune"})
+        self.assertEqual(self.s.cards(G, A), {"c_bat": 2})
+
+    def test_unlock_once(self):
+        self.assertTrue(self.s.unlock(G, A, "ach:x"))
+        self.assertFalse(self.s.unlock(G, A, "ach:x"))
 
     def test_meta_prefix(self):
         self.s.meta_set("duel:1", {"x": 1})

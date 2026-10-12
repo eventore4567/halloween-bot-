@@ -29,6 +29,7 @@ def make_board(rnd=random):
 
 class HuntView(GameView):
     banner_key = "hunt"
+    kicker = "CHASSE AUX FANTÔMES"
     owner_hint = "Lance ta propre chasse avec /chasse."
 
     def __init__(self, bot, interaction, allowed: bool):
@@ -83,7 +84,7 @@ class HuntView(GameView):
         else:
             p.row(button(f"Encaisser {config.fmt(self.pot)} bonbons", "candy_bag", "success", self._cash,
                          disabled=self.pot <= 0))
-        p.footer(self.footer("Seul toi peux creuser ici"))
+        p.footer(self.footer())
         return p
 
     def _dig(self, i):
@@ -96,8 +97,7 @@ class HuntView(GameView):
                 g, u = self.guild_id, self.owner_id
                 if kind == "reaper":
                     self.state = "dead"
-                    self.reward = grant(self.store, g, u, 0, 5, "chasse")
-                    self.store.stat_add(g, u, "hunt_dead")
+                    self.reward = grant(self.store, g, u, 0, 5, "chasse", stats={"hunt_dead": 1})
                     self.finish()
                 elif kind == "chest":
                     self.pot = max(self.pot * 2, 40)
@@ -116,8 +116,7 @@ class HuntView(GameView):
         g, u = self.guild_id, self.owner_id
         self.state = "cashed"
         self.flash = ""
-        self.reward = grant(self.store, g, u, self.pot, 8 + len(self.dug), "chasse")
-        self.store.stat_max(g, u, "hunt_best", self.pot)
+        self.reward = grant(self.store, g, u, self.pot, 8 + len(self.dug), "chasse", best={"hunt_best": self.pot})
         self.finish()
 
     async def _cash(self, interaction):

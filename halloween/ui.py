@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import re
 from io import BytesIO
@@ -39,6 +40,9 @@ STYLE = {
 }
 
 Callback = Callable[[discord.Interaction], Awaitable[None]]
+
+# Small caps line printed above every title ("◆ LE GRAND FRISSON"), set by the view being drawn.
+KICKER: contextvars.ContextVar[str | None] = contextvars.ContextVar("kicker", default=None)
 
 
 async def banner_file(key: str, **fmt) -> discord.File:
@@ -81,7 +85,9 @@ class Panel:
 
     # text ---------------------------------------------------------------
     def title(self, title: str, body: str = "", icon: str | None = None, thumb: str | None = None):
-        head = f"## {E(icon) + ' ' if icon else ''}{title}"
+        kicker = KICKER.get()
+        top = f"-# {E(icon) + ' ' if icon else ''}{kicker or 'NUIT HANTÉE'}"
+        head = f"{top}\n## {title}"
         content = head + ("\n" + body if body else "")
         if thumb:
             self.children.append(discord.ui.Section(discord.ui.TextDisplay(content),
@@ -100,7 +106,7 @@ class Panel:
             self.children.append(discord.ui.TextDisplay(content))
         return self
 
-    def sep(self, visible=True, large=False):
+    def sep(self, visible=False, large=True):
         self.children.append(discord.ui.Separator(
             visible=visible, spacing=discord.SeparatorSpacing.large if large else discord.SeparatorSpacing.small))
         return self
@@ -118,21 +124,31 @@ class Panel:
         return self
 
     def footer(self, text: str):
-        self.children.append(discord.ui.TextDisplay(f"-# {text}"))
+        """The player HUD. Whatever the call order, it is shown right under the banner."""
+        self.hud = discord.ui.TextDisplay(text)
         return self
 
     def container(self) -> discord.ui.Container:
-        return discord.ui.Container(*self.children, accent_colour=self.color)
+        children = list(self.children)
+        hud = getattr(self, "hud", None)
+        if hud is not None:
+            at = 1 if children and isinstance(children[0], discord.ui.MediaGallery) else 0
+            children.insert(at, hud)
+        return discord.ui.Container(*children)
 
 
 def footer_for(store, guild_id: int, user: discord.abc.User, hint: str = "") -> str:
-    bal = store.candies(guild_id, user.id)
-    parts = [user.mention, f"Tu as **{config.fmt(bal)}** {E.candy}"]
+    """HUD line: balance, level and active boosts, in the bot's own ┃ style."""
+    p = store.player(guild_id, user.id)
+    level = config.level_from_xp(p["xp"])[0]
+    parts = [f"{E.candy} **{config.fmt(p['candies'])}**", f"{E.star} niv. **{level}**"]
     if store.effect_active(guild_id, user.id, "luck"):
-        parts.append(f"{E.potion_gold} **×2**")
+        parts.append(f"{E.potion_gold} gains **×2**")
+    if store.effect_active(guild_id, user.id, "wisdom"):
+        parts.append(f"{E.potion_green} XP **×2**")
     if hint:
         parts.append(hint)
-    return " · ".join(parts)
+    return "  ┃  ".join(parts)
 
 
 class GameView(discord.ui.LayoutView):
@@ -156,9 +172,15 @@ class GameView(discord.ui.LayoutView):
         raise NotImplementedError
 
     # helpers ---------------------------------------------------------------
+    kicker: str | None = None
+
     def render(self):
         self.clear_items()
-        self.add_item(self.build().container())
+        token = KICKER.set(self.kicker)
+        try:
+            self.add_item(self.build().container())
+        finally:
+            KICKER.reset(token)
 
     def footer(self, hint=""):
         return footer_for(self.store, self.guild_id, self.user, hint)

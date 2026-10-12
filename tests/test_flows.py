@@ -6,8 +6,7 @@ from unittest import mock
 from helpers import FakeInteraction, FakeUser, install_fake_emojis, make_bot
 
 from halloween import config
-from halloween.cogs import cards, cauldron, hangman, hub, hunt, memory, quiz, shop, wheel
-from halloween.content.games import daily_recipes
+from halloween.cogs import cards, expedition, formula, hangman, hub, hunt, memory, quiz, shop, wheel
 
 _real_sleep = asyncio.sleep
 
@@ -32,7 +31,8 @@ class FlowsTest(unittest.TestCase):
         return FakeInteraction(user=self.user, client=self.bot, **kw)
 
     def run_async(self, coro):
-        with mock.patch("asyncio.sleep", fast_sleep):
+        # countdown timers are not under test here: keep them from firing instantly
+        with mock.patch("asyncio.sleep", fast_sleep), mock.patch.object(quiz.ShowView, "_arm", lambda *a: None):
             return asyncio.run(coro)
 
     def test_every_opener_starts(self):
@@ -52,37 +52,69 @@ class FlowsTest(unittest.TestCase):
             self.assertEqual(inter.response.sent[0][0], "edit")
         self.run_async(go())
 
-    def test_quiz_full_session(self):
+    def test_show_climb_and_cash(self):
         async def go():
-            v = quiz.QuizView(self.bot, self.i())
-            await v._choose(3)(self.i())
-            for n in range(5):
+            v = quiz.ShowView(self.bot, self.i())
+            before = self.store.candies(999, self.uid)
+            await v._start(self.i())
+            self.assertEqual(v.state, "question")
+            for _ in range(6):
                 await v._answer(v.correct)(self.i())
-                self.assertTrue(v.last["ok"])
+                self.assertEqual(v.state, "answer")
                 await v._next(self.i())
-            self.assertEqual(v.streak, 5)
-            self.store.give_item(999, self.uid, "joker")
-            await v._joker(self.i())
+            self.assertEqual(v.correct_count, 6)
+            await v._ghost(self.i())
+            await v._public(self.i())
+            self.assertIn("public", v.hint)
+            await v._fifty(self.i())
             self.assertEqual(len(v.removed), 2)
             self.assertNotIn(v.correct, v.removed)
-            self.store.give_item(999, self.uid, "shield")
-            await v._answer(next(i for i in range(4) if i != v.correct))(self.i())
-            self.assertTrue(v.last.get("shielded"))
-            self.assertEqual(v.streak, 5)
+            await v._cash(self.i())
+            self.assertEqual(v.state, "end")
+            self.assertEqual(v.final["amount"], config.SHOW_LADDER[5])
+            self.assertGreaterEqual(self.store.candies(999, self.uid) - before, config.SHOW_LADDER[5])
+            v.render()
             v.timer and v.timer.cancel()
         self.run_async(go())
 
-    def test_quiz_daily_limit(self):
+    def test_show_fall_to_safe_rung_and_shield(self):
         async def go():
-            v = quiz.QuizView(self.bot, self.i())
-            v.level = 1
+            v = quiz.ShowView(self.bot, self.i())
+            await v._start(self.i())
+            for _ in range(6):
+                await v._answer(v.correct)(self.i())
+                await v._next(self.i())
+            self.store.give_item(999, self.uid, "shield")
+            await v._answer((v.correct + 1) % 4)(self.i())
+            self.assertEqual(v.state, "answer")  # the shield saved the run
+            await v._next(self.i())
+            await v._answer((v.correct + 1) % 4)(self.i())
+            self.assertEqual((v.state, v.final["how"]), ("end", "fall"))
+            self.assertEqual(v.final["amount"], config.SHOW_LADDER[4])
+            v.timer and v.timer.cancel()
+        self.run_async(go())
+
+    def test_show_top_of_ladder(self):
+        async def go():
+            v = quiz.ShowView(self.bot, self.i())
+            await v._start(self.i())
+            for _ in range(11):
+                await v._answer(v.correct)(self.i())
+                await v._next(self.i())
+            await v._answer(v.correct)(self.i())
+            self.assertEqual((v.state, v.final["how"]), ("end", "top"))
+            self.assertEqual(self.store.stats(999, self.uid).get("show_top"), 1)
+            v.timer and v.timer.cancel()
+        self.run_async(go())
+
+    def test_show_daily_limit(self):
+        async def go():
             for _ in range(self.store.limit_for(999, self.uid, "quiz")):
-                await v._ask(self.i())
-                v._resolve(v.correct)
-            await v._ask(self.i())
+                self.assertTrue(self.store.use_play(999, self.uid, "quiz"))
+            v = quiz.ShowView(self.bot, self.i())
+            await v._start(self.i())
             self.assertEqual(v.state, "empty")
             v.render()
-            v.timer and v.timer.cancel()
         self.run_async(go())
 
     def test_memory_win(self):
@@ -97,7 +129,8 @@ class FlowsTest(unittest.TestCase):
                 await v._flip(b)(self.i())
             self.assertEqual(v.state, "won")
             self.assertEqual(v.moves, 8)
-            self.assertEqual(self.store.candies(999, self.uid) - before, 240)
+            self.assertEqual(v.reward.candies, 240)
+            self.assertGreaterEqual(self.store.candies(999, self.uid) - before, 240)
             v.render()
         self.run_async(go())
 
@@ -123,7 +156,8 @@ class FlowsTest(unittest.TestCase):
             before = self.store.candies(999, self.uid)
             await v._cash(self.i())
             self.assertEqual(v.state, "cashed")
-            self.assertEqual(self.store.candies(999, self.uid) - before, pot)
+            self.assertEqual(v.reward.candies, pot)
+            self.assertGreaterEqual(self.store.candies(999, self.uid) - before, pot)
             v2 = hunt.HuntView(self.bot, self.i(), True)
             await v2._dig(v2.board.index("reaper"))(self.i())
             self.assertEqual(v2.state, "dead")
@@ -148,15 +182,40 @@ class FlowsTest(unittest.TestCase):
             self.assertEqual(v3.state, "lost")
         self.run_async(go())
 
-    def test_cauldron_secret_recipe(self):
+    def test_formula_solve(self):
         async def go():
-            v = cauldron.CauldronView(self.bot, self.i())
-            pair, key = next(iter(daily_recipes(999, config.today()).items()))
-            await v._brew(self.i(data={"values": list(pair)}))
-            self.assertEqual(v.state, "result")
-            self.assertEqual(v.result["potion"], key)
-            self.assertIn(key, self.store.recipes_found(999, self.uid))
+            v = formula.FormulaView(self.bot, self.i(), True)
+            wrong = [k for k in formula.FORMULA_INGREDIENTS if k not in v.secret][:2] + v.secret[:2]
+            for k in wrong:
+                await v._add(k)(self.i())
+            self.assertEqual(len(v.history), 1)
+            for k in v.secret:
+                await v._add(k)(self.i())
+            self.assertEqual(v.state, "won")
+            self.assertEqual(v.reward.candies, formula.formula_reward(2))
+            self.assertTrue(v.effect)
             v.render()
+        self.run_async(go())
+
+    def test_expedition_round_trip(self):
+        async def go():
+            self.store.add_card(999, self.uid, "l_reaper")
+            v = expedition.ExpeditionView(self.bot, self.i())
+            await v._team(self.i(data={"values": ["l_reaper"]}))
+            await v._pick("castle")(self.i())
+            await v._go(self.i())
+            trip = v.trip
+            self.assertEqual(trip["dest"], "castle")
+            self.assertAlmostEqual(trip["chance"], 0.72)
+            await v._claim(self.i())  # too early: nothing happens
+            self.assertIsNotNone(v.trip)
+            trip["ends"] = 0
+            self.store.meta_set(f"exp:999:{self.uid}", trip)
+            with mock.patch("halloween.cogs.expedition.random.random", lambda: 0.0):
+                await v._claim(self.i())
+            self.assertIsNone(v.trip)
+            self.assertIn("###", v.report)
+            self.assertEqual(self.store.stats(999, self.uid).get("exp_win"), 1)
         self.run_async(go())
 
     def test_wheel_spin_and_cooldown(self):

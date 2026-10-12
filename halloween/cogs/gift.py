@@ -8,6 +8,7 @@ from discord.ext import commands
 from .. import config
 from ..db import NotEnough
 from ..emojis import E
+from ..rewards import grant
 from ..ui import Panel, notice
 
 
@@ -33,12 +34,12 @@ class Gift(commands.Cog):
         except NotEnough:
             s.bump(g, u, "gift_out", amount=-montant)
             return await notice(interaction, f"Tu n'as pas **{config.fmt(montant)}** bonbons.")
-        s.stat_add(g, u, "gifts")
+        reward = grant(s, g, u, 0, 0, "don", stats={"gifts": 1})
         view = discord.ui.LayoutView()
         p = Panel("orange")
         p.title("Un cadeau d'Halloween !", icon="gift", thumb=E.url("gift"),
                 body=f"{interaction.user.mention} offre **{config.fmt(montant)}** {E.candy} à {membre.mention} !\n"
-                     f"{E.heart} Quelle générosité monstrueuse.")
+                     f"{E.heart} Quelle générosité monstrueuse." + (f"\n{reward.line()}" if reward.line() else ""))
         p.footer(f"{membre.mention} a maintenant **{config.fmt(s.candies(g, membre.id))}** {E.candy}")
         view.add_item(p.container())
         await interaction.response.send_message(view=view, allowed_mentions=discord.AllowedMentions(users=[membre]))

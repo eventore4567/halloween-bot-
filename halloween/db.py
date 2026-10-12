@@ -40,18 +40,6 @@ CREATE TABLE IF NOT EXISTS effects(
 CREATE TABLE IF NOT EXISTS quiz_seen(
     guild_id INTEGER, user_id INTEGER, qid TEXT,
     PRIMARY KEY (guild_id, user_id, qid));
-CREATE TABLE IF NOT EXISTS manor(
-    guild_id INTEGER, user_id INTEGER,
-    souls REAL NOT NULL DEFAULT 0, lifetime REAL NOT NULL DEFAULT 0,
-    click_level INTEGER NOT NULL DEFAULT 0, clicks INTEGER NOT NULL DEFAULT 0,
-    milestone INTEGER NOT NULL DEFAULT 0, last_tick REAL NOT NULL,
-    PRIMARY KEY (guild_id, user_id));
-CREATE TABLE IF NOT EXISTS manor_units(
-    guild_id INTEGER, user_id INTEGER, unit TEXT, count INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (guild_id, user_id, unit));
-CREATE TABLE IF NOT EXISTS recipes(
-    guild_id INTEGER, user_id INTEGER, day TEXT, recipe TEXT,
-    PRIMARY KEY (guild_id, user_id, day, recipe));
 CREATE TABLE IF NOT EXISTS cards(
     guild_id INTEGER, user_id INTEGER, card TEXT, count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (guild_id, user_id, card));
@@ -316,6 +304,12 @@ class Store:
             db.execute("INSERT INTO ledger(guild_id,user_id,delta,reason,ts) VALUES(?,?,?,?,?)",
                        (g, u, -price, reason, time.time()))
 
+    def unlock(self, g, u, thing) -> bool:
+        """Grant a permanent thing; True only the first time."""
+        with self.tx() as db:
+            return db.execute("INSERT OR IGNORE INTO owned(guild_id,user_id,thing) VALUES(?,?,?)",
+                              (g, u, thing)).rowcount > 0
+
     def owns(self, g, u, thing) -> bool:
         return self.one("SELECT 1 FROM owned WHERE guild_id=? AND user_id=? AND thing=?", g, u, thing) is not None
 
@@ -356,100 +350,6 @@ class Store:
             db.executemany("DELETE FROM quiz_seen WHERE guild_id=? AND user_id=? AND qid=?",
                            [(g, u, q) for q in qids])
 
-    # ----------------------------------------------------------------- manor
-    def manor(self, g, u) -> dict:
-        with self.tx() as db:
-            db.execute("INSERT OR IGNORE INTO manor(guild_id,user_id,last_tick) VALUES(?,?,?)", (g, u, time.time()))
-            row = dict(db.execute("SELECT * FROM manor WHERE guild_id=? AND user_id=?", (g, u)).fetchone())
-            row["units"] = {r["unit"]: r["count"] for r in
-                            db.execute("SELECT unit,count FROM manor_units WHERE guild_id=? AND user_id=?", (g, u))}
-            return row
-
-    @staticmethod
-    def manor_rate(units: dict) -> float:
-        return float(sum(u["rate"] * units.get(u["key"], 0) for u in config.MANOR_UNITS))
-
-    def manor_tick(self, g, u, click: int = 0):
-        """Accrue offline production (+ optional clicks). Returns (state, gained_offline)."""
-        now = time.time()
-        with self.tx() as db:
-            db.execute("INSERT OR IGNORE INTO manor(guild_id,user_id,last_tick) VALUES(?,?,?)", (g, u, now))
-            row = db.execute("SELECT * FROM manor WHERE guild_id=? AND user_id=?", (g, u)).fetchone()
-            units = {r["unit"]: r["count"] for r in
-                     db.execute("SELECT unit,count FROM manor_units WHERE guild_id=? AND user_id=?", (g, u))}
-            elapsed = min(max(0.0, now - row["last_tick"]), config.MANOR_OFFLINE_CAP)
-            gained = self.manor_rate(units) * elapsed / 60.0
-            add = gained
-            clicks = 0
-            if click:
-                add += config.click_power(row["click_level"]) * click
-                clicks = click
-            db.execute("UPDATE manor SET souls=souls+?, lifetime=lifetime+?, clicks=clicks+?, last_tick=? "
-                       "WHERE guild_id=? AND user_id=?", (add, add, clicks, now, g, u))
-        state = self.manor(g, u)
-        return state, gained
-
-    def manor_add(self, g, u, amount: float):
-        self.manor_tick(g, u)
-        with self.tx() as db:
-            db.execute("UPDATE manor SET souls=souls+?, lifetime=lifetime+? WHERE guild_id=? AND user_id=?",
-                       (amount, amount, g, u))
-
-    def manor_buy_unit(self, g, u, key) -> int:
-        unit = next(x for x in config.MANOR_UNITS if x["key"] == key)
-        self.manor_tick(g, u)
-        with self.tx() as db:
-            row = db.execute("SELECT count FROM manor_units WHERE guild_id=? AND user_id=? AND unit=?",
-                             (g, u, key)).fetchone()
-            owned = row["count"] if row else 0
-            cost = config.unit_cost(unit["cost"], owned)
-            cur = db.execute("UPDATE manor SET souls=souls-? WHERE guild_id=? AND user_id=? AND souls>=?",
-                             (cost, g, u, cost))
-            if cur.rowcount == 0:
-                raise NotEnough()
-            db.execute("INSERT INTO manor_units(guild_id,user_id,unit,count) VALUES(?,?,?,1) "
-                       "ON CONFLICT(guild_id,user_id,unit) DO UPDATE SET count=count+1", (g, u, key))
-            return cost
-
-    def manor_upgrade_click(self, g, u) -> int:
-        self.manor_tick(g, u)
-        with self.tx() as db:
-            lvl = db.execute("SELECT click_level FROM manor WHERE guild_id=? AND user_id=?", (g, u)).fetchone()[0]
-            cost = config.click_upgrade_cost(lvl)
-            cur = db.execute("UPDATE manor SET souls=souls-?, click_level=click_level+1 "
-                             "WHERE guild_id=? AND user_id=? AND souls>=?", (cost, g, u, cost))
-            if cur.rowcount == 0:
-                raise NotEnough()
-            return cost
-
-    def manor_claim_milestones(self, g, u):
-        """Pay candies for every lifetime milestone reached. Returns list of (threshold, reward)."""
-        paid = []
-        with self.tx() as db:
-            row = db.execute("SELECT lifetime, milestone FROM manor WHERE guild_id=? AND user_id=?", (g, u)).fetchone()
-            if not row:
-                return paid
-            idx = row["milestone"]
-            while idx < len(config.MANOR_MILESTONES) and row["lifetime"] >= config.MANOR_MILESTONES[idx]:
-                paid.append((config.MANOR_MILESTONES[idx], config.MANOR_MILESTONE_REWARD[idx]))
-                idx += 1
-            if paid:
-                db.execute("UPDATE manor SET milestone=? WHERE guild_id=? AND user_id=?", (idx, g, u))
-        for _, reward in paid:
-            self.add_candies(g, u, reward, "manoir", boost=False)
-        return paid
-
-    # --------------------------------------------------------------- recipes
-    def recipes_found(self, g, u, day=None) -> set:
-        return {r["recipe"] for r in self.q("SELECT recipe FROM recipes WHERE guild_id=? AND user_id=? AND day=?",
-                                            g, u, day or config.today())}
-
-    def add_recipe(self, g, u, recipe, day=None) -> bool:
-        with self.tx() as db:
-            cur = db.execute("INSERT OR IGNORE INTO recipes(guild_id,user_id,day,recipe) VALUES(?,?,?,?)",
-                             (g, u, day or config.today(), recipe))
-            return cur.rowcount > 0
-
     # ----------------------------------------------------------------- cards
     def cards(self, g, u) -> dict:
         return {r["card"]: r["count"] for r in
@@ -467,8 +367,10 @@ class Store:
         "candies": "SELECT user_id, candies AS v FROM players WHERE guild_id=? AND candies>0 ORDER BY v DESC, user_id",
         "earned": "SELECT user_id, earned AS v FROM players WHERE guild_id=? AND earned>0 ORDER BY v DESC, user_id",
         "xp": "SELECT user_id, xp AS v FROM players WHERE guild_id=? AND xp>0 ORDER BY v DESC, user_id",
-        "manor": "SELECT user_id, CAST(lifetime AS INTEGER) AS v FROM manor WHERE guild_id=? AND lifetime>=1 "
-                 "ORDER BY v DESC, user_id",
+        "expedition": "SELECT user_id, value AS v FROM stats WHERE guild_id=? AND key='exp_win' AND value>0 "
+                      "ORDER BY v DESC, user_id",
+        "show": "SELECT user_id, value AS v FROM stats WHERE guild_id=? AND key='show_best' AND value>0 "
+                "ORDER BY v DESC, user_id",
         "cards": "SELECT user_id, COUNT(*) AS v FROM cards WHERE guild_id=? AND count>0 GROUP BY user_id "
                  "ORDER BY v DESC, user_id",
         "quiz": "SELECT user_id, value AS v FROM stats WHERE guild_id=? AND key='quiz_right' AND value>0 "

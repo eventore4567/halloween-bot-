@@ -11,9 +11,9 @@ import hashlib
 import random
 from dataclasses import dataclass
 
-from . import quiz_text, quiz_text_hard
+from . import quiz_text, quiz_text_games, quiz_text_hard
 
-RAW = "\n".join(quiz_text.RAW_PARTS + quiz_text_hard.RAW_PARTS)
+RAW = "\n".join(quiz_text.RAW_PARTS + quiz_text_hard.RAW_PARTS + quiz_text_games.RAW_PARTS)
 
 
 @dataclass(frozen=True)

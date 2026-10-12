@@ -777,6 +777,35 @@ def draw_cookie(c, t):  # spooky gingerbread skull cookie
     c.circle(71, 66, 4, INK)
 
 
+def draw_house(c, t):
+    glow = (255, 214, 90) if t < 0.5 else (255, 190, 70)
+    c.rect((82, 18, 96, 50), Grad((90, 60, 110), (50, 30, 70)), INK, OW)
+    c.rect((22, 58, 106, 120), Grad((140, 96, 196), (74, 44, 120)), INK, OW)
+    c.poly([(10, 64), (64, 12), (118, 64)], Grad((86, 52, 130), (44, 24, 70)), INK, OW)
+    c.circle(64, 44, 9, glow, INK, 3)
+    for x in (32, 76):
+        c.rect((x, 70, x + 20, 90), glow, INK, 3)
+        c.line([(x + 10, 70), (x + 10, 90)], INK, 2.5)
+        c.line([(x, 80), (x + 20, 80)], INK, 2.5)
+    c.rect((54, 94, 74, 120), Grad((150, 92, 52), BROWN_D), INK, 3)
+    c.chord((54, 84, 74, 104), 180, 360, Grad((150, 92, 52), BROWN_D), INK, 3)
+    c.circle(69, 108, 2.2, GOLD)
+    c.line([(26, 62), (40, 74)], (40, 24, 56), 2)
+
+
+def draw_door(c, t):
+    wood = Grad((196, 128, 70), (110, 62, 30), "h")
+    c.rect((22, 40, 106, 122), wood, INK, OW)
+    c.chord((22, 4, 106, 76), 180, 360, wood, INK, OW)
+    c.rect((25, 38, 103, 44), (176, 112, 60))
+    for x in (43, 64, 85):
+        c.line([(x, 12 if x == 64 else 18), (x, 118)], (110, 62, 30), 3)
+    for y in (52, 96):
+        c.rect((24, y, 50, y + 8), Grad((150, 150, 170), (90, 90, 110)), INK, 2)
+    c.circle(88, 76, 6, Grad(GOLD_L, GOLD_D, "radial"), INK, 2.5)
+    c.rect((60, 26, 68, 34), INK, radius=2)
+
+
 def draw_tick_on(c, t):
     bar(c, "m", True)
 
@@ -882,6 +911,8 @@ EMOJIS: dict[str, Spec] = {
     "lightning": Spec(draw_lightning, "⚡"),
     "scroll": Spec(draw_scroll, "📜"),
     "joker": Spec(draw_joker, "🃏"),
+    "house": Spec(draw_house, "🏚️"),
+    "door": Spec(draw_door, "🚪"),
     # progress bar pieces
     "bar_l1": Spec(make_bar("l", True), "🟧", outline=False),
     "bar_m1": Spec(make_bar("m", True), "🟧", outline=False),

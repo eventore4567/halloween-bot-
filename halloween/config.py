@@ -63,11 +63,15 @@ def rank_title(level: int) -> str:
 # Daily limits & cooldowns
 # --------------------------------------------------------------------------
 LIMITS = {
-    "quiz": 25,
+    "quiz": 3,  # « Le Grand Frisson » shows per day
     "memory": 6,
     "hunt": 6,
     "hangman": 6,
     "cauldron": 5,
+    "house": 5,
+    "race": 6,
+    "ritual": 6,
+    "reflex": 8,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -99,16 +103,22 @@ SHOP = {
     "joker": dict(name="Joker 50/50", emoji="joker", price=120,
                   desc="Retire deux mauvaises réponses au quiz."),
     "shield": dict(name="Bouclier de série", emoji="shield", price=150,
-                   desc="Ta série du quiz survit à une erreur."),
+                   desc="Efface une erreur au Grand Frisson."),
     "ticket": dict(name="Ticket de roue", emoji="wheel", price=220,
                    desc="Un tour de roue en plus, sans attendre."),
-    "scroll": dict(name="Parchemin du savoir", emoji="scroll", price=260,
-                   desc="+5 questions de quiz aujourd'hui."),
+    "scroll": dict(name="Ticket du Grand Frisson", emoji="scroll", price=260,
+                   desc="Une émission de quiz en plus aujourd'hui."),
     "luck": dict(name="Philtre de fortune", emoji="potion_gold", price=650,
                  desc="Tous tes gains de bonbons ×2 pendant 30 min."),
     "booster": dict(name="Booster de cartes", emoji="gift", price=250,
                     desc="Une carte de monstre aléatoire."),
+    "amulet": dict(name="Amulette anti-sort", emoji="gem", price=300,
+                   desc="Bloque le prochain mauvais sort lancé contre toi."),
 }
+CURSE_COST = 60
+CURSE_COOLDOWN = 3600
+CURSE_PROTECTION = 2 * 3600
+CURSE_SUCCESS = 0.6
 TITLES_SHOP = {
     "t_glouton": dict(name="Glouton de Bonbons", price=1000),
     "t_farceur": dict(name="Fantôme Farceur", price=1200),
@@ -125,40 +135,6 @@ CARD_THEMES = {
     "gold": dict(name="Trésor", price=1500, colors=((255, 214, 90), (110, 70, 10))),
     "cyan": dict(name="Spectre", price=1500, colors=((120, 240, 240), (20, 70, 100))),
 }
-
-# --------------------------------------------------------------------------
-# Manor (idle game). Production is in souls per minute.
-# --------------------------------------------------------------------------
-MANOR_UNITS = [
-    dict(key="wisp", name="Feu follet", emoji="soul", cost=15, rate=1),
-    dict(key="skeleton", name="Squelette", emoji="skull", cost=110, rate=6),
-    dict(key="zombie", name="Zombie", emoji="zombie", cost=600, rate=24),
-    dict(key="ghost", name="Fantôme", emoji="ghost_still", cost=2600, rate=80),
-    dict(key="witch", name="Sorcière", emoji="witch", cost=11000, rate=270),
-    dict(key="vampire", name="Vampire", emoji="vampire", cost=42000, rate=880),
-    dict(key="werewolf", name="Loup-garou", emoji="werewolf", cost=160000, rate=2900),
-    dict(key="reaper", name="Faucheuse", emoji="reaper", cost=650000, rate=10500),
-]
-MANOR_GROWTH = 1.15
-MANOR_OFFLINE_CAP = 12 * 3600
-MANOR_MILESTONES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000]
-MANOR_MILESTONE_REWARD = [100, 200, 400, 800, 1500, 3000, 6000]
-
-
-def click_upgrade_cost(level: int) -> int:
-    return int(40 * (4 ** level))
-
-
-def click_power(level: int) -> int:
-    return 2 ** level
-
-
-def unit_cost(base: int, owned: int, amount: int = 1) -> int:
-    total = 0.0
-    for i in range(amount):
-        total += base * (MANOR_GROWTH ** (owned + i))
-    return int(round(total))
-
 
 # --------------------------------------------------------------------------
 # Wheel of fortune segments (weight, kind, value, label, emoji)
@@ -199,3 +175,55 @@ def short(n) -> str:
         if abs(n) >= floor:
             return f"{n / div:.1f}".rstrip("0").rstrip(".").replace(".", ",") + f"\u202f{unit}"
     return fmt(n)
+
+
+# --------------------------------------------------------------------------
+# Achievements: (key, name, description, emoji, measured value, goal, reward)
+# --------------------------------------------------------------------------
+ACHIEVEMENTS = [
+    ("first_quiz", "Premier frisson", "Réussir une question de quiz", "crystal", "quiz_right", 1, 50),
+    ("quiz_50", "Érudit des ténèbres", "50 bonnes réponses au quiz", "book", "quiz_right", 50, 300),
+    ("quiz_250", "Oracle maudit", "250 bonnes réponses au quiz", "crystal", "quiz_right", 250, 1000),
+    ("streak_10", "Série infernale", "10 bonnes réponses d'affilée", "fire", "quiz_best_streak", 10, 400),
+    ("memory_1", "Mémoire d'outre-tombe", "Gagner une partie de mémoire", "eye", "memory_win", 1, 100),
+    ("memory_10", "Mémoire éternelle", "Gagner 10 parties de mémoire", "eye", "memory_win", 10, 500),
+    ("hunt_300", "Pilleur de tombes", "Encaisser 300 bonbons à la chasse", "tomb", "hunt_best", 300, 300),
+    ("hangman_5", "Sauveur de squelettes", "Gagner 5 parties de pendu", "skull", "hangman_win", 5, 300),
+    ("house_5", "Explorateur", "Sortir 5 fois vivant de la maison hantée", "house", "house_escape", 5, 300),
+    ("crypt_1", "Pilleur de crypte", "Ouvrir la crypte de la maison hantée", "coffin", "crypt", 1, 400),
+    ("duel_1", "Premier sang", "Gagner un duel", "fang", "duel_win", 1, 100),
+    ("duel_10", "Maître duelliste", "Gagner 10 duels", "vampire", "duel_win", 10, 600),
+    ("boss_1", "Tueur de citrouille", "Vaincre le Roi Citrouille", "pumpkin_angry", "boss_win", 1, 300),
+    ("drops_5", "Main rapide", "Attraper 5 apparitions", "lightning", "drops", 5, 250),
+    ("potions_1", "Apprenti alchimiste", "Déchiffrer une formule", "cauldron", "potions", 1, 100),
+    ("boosters_10", "Collectionneur", "Ouvrir 10 boosters", "gift", "boosters", 10, 300),
+    ("cards_24", "Collection complète", "Posséder les 24 cartes", "crown", "cards", 24, 500),
+    ("jackpot", "Jackpot !", "Toucher le jackpot de la roue", "wheel", "jackpot", 1, 200),
+    ("gift_1", "Cœur sur la main", "Offrir des bonbons", "heart", "gifts", 1, 100),
+    ("daily_7", "Fidèle à la nuit", "7 jours de coffre d'affilée", "chest", "streak", 7, 400),
+    ("level_10", "Monstre confirmé", "Atteindre le niveau 10", "star", "level", 10, 500),
+    ("level_25", "Liche ancienne", "Atteindre le niveau 25", "gem", "level", 25, 1500),
+    ("earned_10k", "Sac plein", "Gagner 10 000 bonbons au total", "candy_bag", "earned", 10_000, 500),
+    ("earned_100k", "Roi des bonbons", "Gagner 100 000 bonbons au total", "crown", "earned", 100_000, 3000),
+    ("exp_10", "Chef d'expédition", "Réussir 10 expéditions", "key", "exp_win", 10, 800),
+    ("show_top", "Maître du Grand Frisson", "Gravir les 12 marches du Grand Frisson", "skull_fire", "show_top", 1, 1500),
+    ("formula_10", "Grand alchimiste", "Déchiffrer 10 formules", "potion_purple", "potions", 10, 400),
+]
+
+
+# --------------------------------------------------------------------------
+# « Le Grand Frisson » (quiz TV show)
+# --------------------------------------------------------------------------
+SHOW_LADDER = [20, 40, 70, 110, 160, 230, 320, 440, 600, 800, 1100, 1500]
+SHOW_SAFE = {5, 9}  # 1-based rungs that are kept even after a wrong answer
+SHOW_LEVELS = [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5]
+SHOW_SHADOW_RUNGS = {3, 6, 9}  # "who hides in the shadows?" video rounds
+
+
+def show_safe_amount(correct_answers: int) -> int:
+    """What a player keeps after a wrong answer, having answered ``correct_answers`` right."""
+    kept = 0
+    for rung in sorted(SHOW_SAFE):
+        if correct_answers >= rung:
+            kept = SHOW_LADDER[rung - 1]
+    return kept

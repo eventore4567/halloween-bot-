@@ -9,6 +9,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from .canvas import Canvas, Grad, mix, png_bytes, rgba
+from . import neon
 from .emoji_art import emoji_image, render_frame
 
 INK = (24, 12, 32)
@@ -46,17 +47,23 @@ def _avatar(data: bytes | None, size: int, ring=(255, 170, 60), ring2=(200, 80, 
     return out
 
 
-def _night(c: Canvas, w, h, top, bottom, seed=3, stars=40):
-    c.rect((0, 0, w, h), Grad(top, bottom, "v"))
-    rnd = random.Random(seed)
-    for _ in range(stars):
-        c.circle(rnd.uniform(0, w), rnd.uniform(0, h * 0.7), rnd.uniform(0.8, 2.2),
-                 (255, 250, 230, rnd.randint(90, 230)))
-    pts = [(0, h)]
-    for x in range(0, w + 31, 30):
-        pts.append((x, h - 36 - 10 * math.sin(x / 60 + seed)))
-    pts.append((w, h))
-    c.poly(pts, mix(bottom, (0, 0, 0), 0.35))
+def _wall(c: Canvas, w, h, seed=3, frame=None):
+    """Haunted brick wall background, optionally with a glowing neon frame."""
+    c.paste(neon.wall(w, h, seed % 5), (0, 0), (w, h))
+    if frame:
+        c.paste(neon.glow(neon.rounded_frame_mask((w, h), (10, 10, w - 10, h - 10), 22, 4), frame, 6), (0, 0), (w, h))
+
+
+@lru_cache(maxsize=128)
+def _neon_layer(wh, text, xy, size, color, anchor):
+    m = neon.text_mask(wh, text, size, xy, anchor)
+    return neon.glow(m, color, max(3, size / 9))
+
+
+def _neon_text(c: Canvas, text, xy, size, color, max_w=None, anchor="mm"):
+    if max_w:
+        size = neon.fit_text(text, size, max_w)
+    c.paste(_neon_layer((c.w, c.h), text, tuple(xy), size, tuple(color), anchor), (0, 0), (c.w, c.h))
 
 
 def _pill(c: Canvas, box, fill=(255, 255, 255, 26), outline=(255, 255, 255, 50)):
@@ -71,9 +78,7 @@ def profile_card(name: str, title: str, level: int, xp: int, xp_need: int, candi
                  stats: list[tuple[str, str, str]], avatar: bytes | None, colors=((255, 150, 50), (120, 40, 10))) -> bytes:
     W, H = 900, 360
     c = Canvas(W, H, ss=2)
-    top = mix(colors[1], (20, 10, 40), 0.55)
-    bottom = mix(colors[1], (10, 4, 20), 0.75)
-    _night(c, W, H, top, bottom, seed=level)
+    _wall(c, W, H, seed=level, frame=colors[0])
     # soft glow behind the avatar
     c.circle(150, 165, 150, rgba(colors[0], 40))
     c.circle(150, 165, 118, rgba(colors[0], 50))
@@ -130,7 +135,7 @@ def podium(entries: list[tuple[str, str, bytes | None]], label: str) -> bytes:
     """entries: up to 3 (name, value, avatar bytes) in rank order."""
     W, H = 900, 400
     c = Canvas(W, H, ss=2)
-    _night(c, W, H, (40, 20, 70), (16, 8, 30), seed=7, stars=50)
+    _wall(c, W, H, seed=7)
     spots = [(450, 150, 120, (255, 214, 90), (190, 110, 10), "medal1"),
              (240, 200, 100, (230, 236, 250), (130, 140, 170), "medal2"),
              (660, 220, 100, (255, 180, 120), (160, 80, 30), "medal3")]
@@ -152,7 +157,7 @@ def podium(entries: list[tuple[str, str, bytes | None]], label: str) -> bytes:
             ns -= 1
         c.text((cx, top + 104), nm, "lilita", ns, CREAM, stroke=3, stroke_fill=INK)
         c.text((cx, top + 136), value, "lilita", 22, col, stroke=3, stroke_fill=INK)
-    c.text((W / 2, 26), label.upper(), "lilita", 22, (255, 220, 120), stroke=3, stroke_fill=INK)
+    _neon_text(c, label.upper(), (W / 2, 30), 30, neon.YELLOW, max_w=W - 120)
     return png_bytes(c.result())
 
 
@@ -201,9 +206,8 @@ def wheel_gif(segments_key: tuple, target: int) -> bytes:
     radius = 118
     disc = _wheel_disc(segments, radius)
     base = Canvas(W, H, ss=2)
-    _night(base, W, H, (44, 22, 80), (18, 8, 34), seed=11, stars=46)
-    base.text((440, 60), "ROUE DU DESTIN", "title", 34, Grad((255, 236, 140), (240, 160, 30), "v"), stroke=5,
-              stroke_fill=INK)
+    _wall(base, W, H, seed=11)
+    _neon_text(base, "ROUE DU DESTIN", (440, 60), 40, neon.YELLOW, max_w=340)
     bg = base.result()
     n = len(segments)
     final = -(target * 360 / n)
@@ -226,17 +230,13 @@ def wheel_gif(segments_key: tuple, target: int) -> bytes:
         c.circle(cx, 12, 6, (255, 220, 120))
         if k == steps:
             seg = segments[target]
-            c.text((440, 122), "TU GAGNES", "lilita", 24, CREAM, stroke=3, stroke_fill=INK)
+            _neon_text(c, "TU GAGNES", (440, 122), 28, neon.PINK)
             icon = emoji_image(seg["emoji"], 96)
             frame.alpha_composite(icon, (440 - 48, 140))
             label = seg["label"].upper()
-            fs = 34
-            while c.text_width(label, "title", fs) > 330 and fs > 18:
-                fs -= 2
-            c.text((440, 258), label, "title", fs, Grad((255, 236, 140), (240, 160, 30), "v"), stroke=4,
-                   stroke_fill=INK)
+            _neon_text(c, label, (440, 258), 38, neon.YELLOW, max_w=330)
         else:
-            c.text((440, 170), "La roue tourne…", "lilita", 26, (230, 220, 245), stroke=3, stroke_fill=INK)
+            _neon_text(c, "La roue tourne…", (440, 170), 30, neon.CYAN)
         frames.append(frame)
         durations.append(60 if k < steps * 0.6 else 60 + int(140 * (k - steps * 0.6) / (steps * 0.4)))
     durations[-1] = 60000
@@ -326,7 +326,7 @@ def card_reveal_gif(card_key: str) -> bytes:
     back = card_back()
     W, H = 520, 470
     base = Canvas(W, H, ss=1)
-    _night(base, W, H, (40, 20, 70), (14, 6, 26), seed=number, stars=40)
+    _wall(base, W, H, seed=number)
     bg = base.result()
     glow_col = rarity["color"]
     frames, durations = [], []

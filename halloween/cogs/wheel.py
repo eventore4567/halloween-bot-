@@ -25,7 +25,7 @@ def spin(rnd=random) -> int:
 def apply_segment(store, g, u, seg) -> str:
     kind = seg["kind"]
     if kind == "candy":
-        r = grant(store, g, u, seg["value"], 10, "roue")
+        r = grant(store, g, u, seg["value"], 10, "roue", stats={"jackpot": 1} if seg["value"] >= 1000 else None)
         return r.line()
     if kind == "xp":
         r = grant(store, g, u, 0, seg["value"], "roue")
@@ -39,6 +39,7 @@ def apply_segment(store, g, u, seg) -> str:
 
 class WheelView(GameView):
     banner_key = "wheel"
+    kicker = "ROUE DU DESTIN"
     owner_hint = "Fais tourner ta propre roue avec /roue."
 
     def __init__(self, bot, interaction):
