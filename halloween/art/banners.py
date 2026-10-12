@@ -51,7 +51,9 @@ THEMES: dict[str, Theme] = {
     "ritual": Theme("LE RITUEL", "RÉPÈTE LA FORMULE MAUDITE", N.PINK, N.CYAN, "book", "candle", N.PURPLE),
     "reflex": Theme("RÉFLEXE", "CLIQUE DÈS QU'IL APPARAÎT", N.CYAN, N.YELLOW, "ghost", "lightning", N.RED),
     "curse": Theme("MAUVAIS SORT", "VOLE LES BONBONS DES AUTRES", N.RED, N.PURPLE, "skull", "shield", N.GREEN),
-    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 29 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
+    "ouija": Theme("PLANCHE OUIJA", "L'ESPRIT ÉPELLE · TOI TU DEVINES", N.PURPLE, N.YELLOW, "crystal", "candle", N.PINK),
+    "shell": Theme("BONNETEAU", "SUIS LE BONBON DES YEUX", N.ORANGE, N.PINK, "pumpkin_lit", "candy", N.PURPLE),
+    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 32 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
 W2, H2 = 760, 300

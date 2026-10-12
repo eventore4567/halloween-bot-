@@ -186,7 +186,7 @@ class NewGamesTest(unittest.TestCase):
     def test_achievement_keys_are_measurable(self):
         known = {"quiz_right", "quiz_best_streak", "memory_win", "hunt_best", "hangman_win", "house_escape", "crypt",
                  "duel_win", "boss_win", "drops", "potions", "boosters", "cards", "jackpot", "gifts", "streak",
-                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed"}
+                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed", "ouija_best", "ouija_words", "shell_best"}
         keys = [a[0] for a in config.ACHIEVEMENTS]
         self.assertEqual(len(keys), len(set(keys)))
         for a in config.ACHIEVEMENTS:
@@ -272,3 +272,137 @@ class SeasonalTest(unittest.TestCase):
     def test_pumpkin_stages(self):
         self.assertEqual(config.pumpkin_stage(0), 0)
         self.assertEqual(config.pumpkin_stage(150_000), len(config.PUMPKIN_STAGES) - 1)
+
+
+class OuijaTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+        cls.store = cls.bot.store
+
+    def i(self, uid):
+        return FakeInteraction(user=FakeUser(uid, "Médium"), client=self.bot)
+
+    def test_rounds_and_choices(self):
+        from halloween.cogs import ouija
+        from halloween.art import ouija as board
+        for index, (words, *_rest) in enumerate(ouija.ROUNDS):
+            self.assertGreaterEqual(len(words), 4)
+            for w in words:
+                self.assertTrue(ouija.spelled(w), w)
+                self.assertTrue(set(ouija.spelled(w)) <= set(board.POSITIONS), w)
+                self.assertLessEqual(len(w), 80)
+            answer, choices = ouija.pick_round(index, random.Random(index))
+            self.assertEqual(len(set(choices)), 4)
+            self.assertIn(answer, choices)
+        self.assertEqual(ouija.ouija_reward(3), 40 + 70 + 120 + ouija.PERFECT_BONUS)
+
+    def test_spell_gif_plays_once(self):
+        from io import BytesIO
+        from PIL import Image
+        from halloween.art import ouija as board
+        data, seconds = board.spell_gif("BOO", 300, 1)
+        img = Image.open(BytesIO(data))
+        self.assertGreater(img.n_frames, 10)
+        self.assertNotIn("loop", img.info)
+        self.assertGreater(seconds, 2)
+
+    def _play(self, uid, wrong_at=None):
+        from halloween.cogs import ouija
+
+        async def go():
+            with mock.patch.object(ouija.OuijaView, "_arm", lambda self, d, t: None), \
+                    mock.patch.object(ouija.board, "spell_gif", lambda w, h, s: (b"GIF", 1.0)), \
+                    mock.patch.object(ouija.board, "board_png", lambda s: b"PNG"):
+                v = ouija.OuijaView(self.bot, self.i(uid), True)
+                v.render()
+                check_layout(v)
+                await v._start(self.i(uid))
+                while v.state == "spell":
+                    v.render()
+                    check_layout(v)
+                    await v._reveal(v.token)
+                    self.assertEqual(v.state, "answer")
+                    v.render()
+                    check_layout(v)
+                    if v.round == wrong_at:
+                        word = next(w for w in v.choices if w != v.answer)
+                    else:
+                        word = v.answer
+                    await v._guess(word)(self.i(uid))
+                self.assertEqual(v.state, "end")
+                v.render()
+                check_layout(v)
+                return v
+        return asyncio.run(go())
+
+    def test_perfect_seance(self):
+        v = self._play(8101)
+        self.assertEqual(v.correct, 3)
+        self.assertGreaterEqual(v.reward.candies, 290)
+        self.assertIn("ach:ouija_perfect", self.store.owned(999, 8101))
+
+    def test_wrong_answer_ends(self):
+        v = self._play(8102, wrong_at=2)
+        self.assertEqual(v.correct, 1)
+        self.assertEqual(self.store.stats(999, 8102).get("ouija_words"), 1)
+
+
+class ShellTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+        cls.store = cls.bot.store
+
+    def test_swaps_track_the_candy(self):
+        from halloween.art import shell as art
+        from halloween.cogs import shell
+        rnd = random.Random(3)
+        swaps = shell.make_swaps(9, rnd)
+        self.assertTrue(all(a != b for a, b in swaps))
+        self.assertTrue(all({*x} != {*y} for x, y in zip(swaps, swaps[1:])))
+        slot = 2
+        for a, b in swaps:
+            slot = b if slot == a else a if slot == b else slot
+        frames, durations, end = art.shuffle_frames(2, swaps, 2)
+        self.assertEqual(end, slot)
+        self.assertEqual(len(frames), len(durations))
+        self.assertTrue(art.reveal_png(end, (end + 1) % 3).startswith(b"\x89PNG"))
+        self.assertEqual(shell.shell_reward(3), 35 + 70 + 130 + shell.PERFECT_BONUS)
+
+    def _play(self, uid, wrong_at=None):
+        from halloween.cogs import shell
+
+        async def go():
+            with mock.patch.object(shell.ShellView, "_arm", lambda self, d, t: None), \
+                    mock.patch.object(shell.art, "shuffle_gif", lambda c, s, st: (b"GIF", 1.0, 1)), \
+                    mock.patch.object(shell.art, "still_png", lambda: b"PNG"), \
+                    mock.patch.object(shell.art, "reveal_png", lambda c, ch: b"PNG"):
+                i = lambda: FakeInteraction(user=FakeUser(uid, "Lynx"), client=self.bot)  # noqa: E731
+                v = shell.ShellView(self.bot, i(), True)
+                v.render()
+                check_layout(v)
+                await v._start(i())
+                while v.state == "shuffle":
+                    v.render()
+                    check_layout(v)
+                    await v._ask(v.token)
+                    v.render()
+                    check_layout(v)
+                    await v._pick(0 if v.round == wrong_at else v.slot)(i())
+                self.assertEqual(v.state, "end")
+                v.render()
+                check_layout(v)
+                return v
+        return asyncio.run(go())
+
+    def test_perfect_game(self):
+        v = self._play(8201)
+        self.assertEqual(v.correct, 3)
+        self.assertIn("ach:shell_perfect", self.store.owned(999, 8201))
+
+    def test_wrong_pick_ends(self):
+        v = self._play(8202, wrong_at=1)
+        self.assertEqual((v.correct, v.reward.candies), (0, 0))
