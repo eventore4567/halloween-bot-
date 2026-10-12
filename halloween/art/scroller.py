@@ -8,11 +8,11 @@ from __future__ import annotations
 import math
 import random
 from functools import lru_cache
-from io import BytesIO
 
 from PIL import Image, ImageDraw
 
 from . import neon
+from .canvas import encode_gif
 from .cards import _neon_layer
 
 W, H = 680, 300
@@ -244,16 +244,7 @@ def place(img, sprite, x, foot_y):
 
 # --------------------------------------------------------------------------- cutscene
 def _gif(frames, durations) -> bytes:
-    rgb = [f.convert("RGB") for f in frames]
-    keys = [rgb[0], rgb[len(rgb) // 2], rgb[-1]]
-    mosaic = Image.new("RGB", (W, H * len(keys)))
-    for i, f in enumerate(keys):
-        mosaic.paste(f, (0, H * i))
-    pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in rgb]
-    buf = BytesIO()
-    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=durations, optimize=True)
-    return buf.getvalue()
+    return encode_gif(frames, durations)
 
 
 def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "",

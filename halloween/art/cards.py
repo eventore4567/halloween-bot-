@@ -8,7 +8,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
-from .canvas import Canvas, Grad, mix, png_bytes, rgba
+from .canvas import Canvas, Grad, encode_gif, mix, png_bytes, rgba
 from . import neon
 from .emoji_art import emoji_image
 
@@ -244,16 +244,7 @@ def wheel_gif(segments_key: tuple, target: int) -> bytes:
 
 
 def _gif_once(frames, durations) -> bytes:
-    frames = [f.convert("RGB") for f in frames]
-    w, h = frames[0].size
-    mosaic = Image.new("RGB", (w, h * 3))
-    for i, f in enumerate((frames[0], frames[len(frames) // 2], frames[-1])):
-        mosaic.paste(f, (0, h * i))
-    pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in frames]
-    buf = BytesIO()
-    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=durations, optimize=True)
-    return buf.getvalue()
+    return encode_gif(frames, durations)
 
 
 # ---------------------------------------------------------------------------

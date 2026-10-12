@@ -1,3 +1,4 @@
 discord.py>=2.6.0,<3
 Pillow>=11.2,<13
+numpy>=1.26
 tzdata>=2024.1
