@@ -1,61 +1,74 @@
-"""Run Halloween Bot with: python3 main.py. Secret: discord_token."""
+"""Nuit Hantée — Discord Halloween bot. Start with: python3 main.py
+
+Secret required: ``discord_token`` (or ``DISCORD_TOKEN``).
+Optional: ``DATA_DIR`` (persistent volume, e.g. /data), ``BOT_TIMEZONE``.
+"""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
 
 import discord
 from discord.ext import commands
-from halloween_bot.storage import Store
-from halloween_bot.competition_store import Competition
-from halloween_bot.round_store import RoundStore
-from halloween_bot.common import ensure_application_emojis
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
-LOG=logging.getLogger("halloween")
+from halloween.art import banners
+from halloween.content import quiz_bank
+from halloween.db import Store
+from halloween.emojis import sync_emojis
+from halloween.ui import notice, register_navigation
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+LOG = logging.getLogger("nuit-hantee")
+
+COGS = (
+    "hub", "profile", "daily", "quiz", "manor", "cauldron", "wheel", "memory", "hunt",
+    "hangman", "duel", "cards", "shop", "leaderboard", "gift", "drops", "admin",
+)
 
 
-class HalloweenBot(commands.Bot):
+class NuitHantee(commands.Bot):
     def __init__(self):
-        intents=discord.Intents.default()
-        super().__init__(command_prefix="!",intents=intents,
-                         allowed_mentions=discord.AllowedMentions(
-                             everyone=False,roles=False,users=True))
-        data_dir=os.environ.get("DATA_DIR","/data" if Path("/data").is_dir() else "data")
-        db_path=os.getenv("DATABASE_PATH",str(Path(data_dir)/"halloween.sqlite3"))
-        self.store=Store(db_path)
-        self.competition=Competition(self.store)
-        self.round_store=RoundStore(self.store)
-        self.active_bosses={}
+        intents = discord.Intents.default()  # no privileged intent needed
+        super().__init__(command_prefix=commands.when_mentioned, intents=intents,
+                         allowed_mentions=discord.AllowedMentions.none(), help_command=None)
+        data_dir = os.environ.get("DATA_DIR", "/data" if Path("/data").is_dir() else "data")
+        db_path = os.getenv("DATABASE_PATH", str(Path(data_dir) / "nuit_hantee.sqlite3"))
+        self.store = Store(db_path)
+        self.openers = {}
+        self._bg_tasks = set()
 
     async def setup_hook(self):
-        await ensure_application_emojis(self)
-        for module in ("economy","games","farming","events","admin","competition","rounds","quiz_games","mini_arcade"):
-            await self.load_extension(f"halloween_bot.{module}")
-        self.get_cog("Events").restore()
-        self.get_cog("Rounds").restore()
-        self.tree.on_error=self.command_error
-        commands_synced=await self.tree.sync()
-        LOG.info("🎃 Synced %s slash commands",len(commands_synced))
+        for name in COGS:
+            await self.load_extension(f"halloween.cogs.{name}")
+        register_navigation(self)
+        self.tree.on_error = self.on_app_command_error
+        synced = await self.tree.sync()
+        LOG.info("Synced %s slash commands", len(synced))
+        self._spawn(sync_emojis(self, self.store))
+        self._spawn(asyncio.to_thread(banners.prerender_all, questions=quiz_bank.TOTAL))
+
+    def _spawn(self, coro):
+        task = asyncio.create_task(coro)
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
 
     async def on_ready(self):
-        LOG.info("🎃 Connected as %s (%s)",self.user,self.user.id)
-        await self.change_presence(
-            activity=discord.Game(name="🏆 Halloween Cup • /competition"))
+        LOG.info("Connected as %s (%s) on %s servers", self.user, self.user.id, len(self.guilds))
+        await self.change_presence(activity=discord.Game(name="🎃 /jeux · Nuit Hantée"))
 
-    async def command_error(self,interaction,error):
-        LOG.error("Slash command error",exc_info=error)
+    async def on_app_command_error(self, interaction: discord.Interaction, error):
+        original = getattr(error, "original", error)
+        if isinstance(error, discord.app_commands.CheckFailure):
+            text = "Tu n'as pas la permission d'utiliser cette commande."
+        elif isinstance(error, discord.app_commands.NoPrivateMessage):
+            text = "Cette commande se joue dans un serveur."
+        else:
+            LOG.error("Slash command error", exc_info=original)
+            text = "Un sortilège a mal tourné… réessaie dans un instant."
         try:
-            if interaction.response.is_done():
-                await interaction.followup.send(
-                    "💀 Une erreur est survenue. Réessaie dans un instant.",
-                    ephemeral=True)
-            else:
-                await interaction.response.send_message(
-                    "💀 Une erreur est survenue. Réessaie dans un instant.",
-                    ephemeral=True)
+            await notice(interaction, text)
         except discord.HTTPException:
             pass
 
@@ -65,12 +78,11 @@ class HalloweenBot(commands.Bot):
 
 
 def main():
-    token=os.getenv("discord_token") or os.getenv("DISCORD_TOKEN")
+    token = os.getenv("discord_token") or os.getenv("DISCORD_TOKEN")
     if not token:
-        raise SystemExit("Variable discord_token manquante sur Railway.")
-    bot=HalloweenBot()
-    bot.run(token,log_handler=None)
+        raise SystemExit("Variable d'environnement discord_token (ou DISCORD_TOKEN) manquante.")
+    NuitHantee().run(token, log_handler=None)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
