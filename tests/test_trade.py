@@ -74,6 +74,41 @@ class TradeTest(unittest.TestCase):
             self.assertEqual(self.store.stats(999, b.id).get("trades"), 1)
         asyncio.run(go())
 
+    def test_trade_xp_is_capped_and_completion_paid_once(self):
+        from halloween.cogs import trade
+        from halloween.content.games import COLLECTION_BONUS
+
+        async def go():
+            a, b = FakeUser(9831, "Collector"), FakeUser(9832, "Friend")
+            for k in KEYS[:-1]:
+                self.store.add_card(999, a.id, k)
+            self.store.add_card(999, a.id, KEYS[0])  # a spare copy to give away
+            self.store.add_card(999, b.id, KEYS[-1])
+
+            async def deal(src, dst, give, take=()):
+                v = trade.TradeView(self.bot, 999, src, dst, 0)
+                v.give, v.take, v.state = list(give), list(take), "offer"
+                await v._accept(FakeInteraction(user=dst, client=self.bot))
+                self.assertEqual(v.state, "done")
+
+            with mock.patch.object(trade.art, "trade_gif", lambda *x, **k: b"GIF"):
+                before = self.store.candies(999, a.id)
+                await deal(a, b, [KEYS[0]], [KEYS[-1]])  # a completes the set through a trade
+                self.assertEqual(len(self.store.cards(999, a.id)), len(KEYS))
+                gained = self.store.candies(999, a.id) - before  # bonus (+ the "all cards" achievement)
+                self.assertTrue(COLLECTION_BONUS <= gained < 2 * COLLECTION_BONUS, gained)
+                await deal(a, b, [KEYS[-1]])  # gives it back…
+                before = self.store.candies(999, a.id)
+                await deal(b, a, [KEYS[-1]])  # …and completes again: not paid twice
+                self.assertLess(self.store.candies(999, a.id) - before, COLLECTION_BONUS)  # (an achievement may pay)
+                xp_before = self.store.player(999, b.id)["xp"]
+                for _ in range(5):  # trading the same card back and forth
+                    await deal(a, b, [KEYS[-1]])
+                    await deal(b, a, [KEYS[-1]])
+                gained = self.store.player(999, b.id)["xp"] - xp_before
+                self.assertLessEqual(gained, 10 * trade.XP_TRADES_PER_DAY)
+        asyncio.run(go())
+
     def test_pictures(self):
         from halloween.art import trade as art
         self.assertTrue(art.offer_png("A", "B", KEYS[:3], [KEYS[-1]], 50).startswith(b"\x89PNG"))

@@ -18,6 +18,13 @@ from ..ui import GameView, Panel, button, image_file, nav, notice
 PRICE = config.SHOP["booster"]["price"]
 
 
+def collection_bonus(store, g, u) -> int:
+    """COLLECTION_BONUS the first time a player owns all the cards (whether from boosters or trades), else 0."""
+    if len(store.cards(g, u)) >= len(CARDS) and store.unlock(g, u, "collection_complete"):
+        return COLLECTION_BONUS
+    return 0
+
+
 class CardsView(GameView):
     banner_key = "cards"
     kicker = "CARTES MAUDITES"
@@ -97,7 +104,6 @@ class CardsView(GameView):
                     return await notice(interaction, f"Il te faut **{PRICE}** bonbons pour un booster.")
             await interaction.response.defer()
             card = draw_card()
-            before = len(self.store.cards(g, u))
             count = self.store.add_card(g, u, card["key"])
             self.pulled = card["key"]
             self.duplicate = 0
@@ -107,7 +113,7 @@ class CardsView(GameView):
                                     stats={"boosters": 1})
                 self.duplicate = self.reward.candies
             else:
-                bonus = COLLECTION_BONUS if before + 1 == len(CARDS) else 0
+                bonus = collection_bonus(self.store, g, u)
                 self.completed = bool(bonus)
                 self.reward = grant(self.store, g, u, bonus, 15 * RARITIES[card["rarity"]]["stars"] + (200 if bonus else 0),
                                     "carte", stats={"boosters": 1})

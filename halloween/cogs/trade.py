@@ -11,13 +11,15 @@ from discord.ext import commands
 
 from .. import config
 from ..art import trade as art
-from ..content.games import CARD, RARITIES
+from ..content.games import CARD, CARDS, RARITIES
 from ..emojis import E
 from ..rewards import grant
 from ..ui import NO_PINGS, Panel, button, image_file, notice, relative, stable_message
+from .cards import collection_bonus
 
 MAX_CARDS = 3
 OFFER_TIME = 300
+XP_TRADES_PER_DAY = 3  # trades that still give XP each day (no farming by trading back and forth)
 GIF_NAME, PNG_NAME = "echange.gif", "echange.png"
 
 
@@ -177,14 +179,23 @@ class TradeView(discord.ui.LayoutView):
                 self.stop()
                 return await self.update(interaction)
             g = self.guild_id
+            owned_before = {u.id: len(self.store.cards(g, u.id)) for u in (self.a, self.b)}
             if not self.store.trade(g, self.a.id, self.b.id, self.give, self.take, self.candies):
                 self.state = "failed"
                 self.note = f"{E.cross} L'un de vous n'a plus les cartes (ou les bonbons) promises."
                 self.stop()
                 return await self.update(interaction)
-            ra = grant(self.store, g, self.a.id, 0, 10, "echange", stats={"trades": 1})
-            rb = grant(self.store, g, self.b.id, 0, 10, "echange", stats={"trades": 1})
-            lines = [f"{u.mention} {r.line()}" for u, r in ((self.a, ra), (self.b, rb)) if r.line()]
+            lines = []
+            for user in (self.a, self.b):
+                xp = 10 if self.store.bump(g, user.id, "trade_xp", limit=XP_TRADES_PER_DAY) else 0
+                # only a trade that completes the set pays (a set completed before is not paid twice)
+                bonus = collection_bonus(self.store, g, user.id) if owned_before[user.id] < len(CARDS) else 0
+                r = grant(self.store, g, user.id, bonus, xp, "echange", stats={"trades": 1})
+                if bonus:
+                    lines.append(f"{E.crown} {user.mention} **COLLECTION COMPLÈTE !** Bonus de "
+                                 f"**{config.fmt(bonus)}** {E.candy} !")
+                if r.line():
+                    lines.append(f"{user.mention} {r.line()}")
             self.note = "\n".join(lines)
             self.state = "done"
             self.stop()
