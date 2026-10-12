@@ -1,6 +1,8 @@
 """Motus des ombres: neon letter grid, the newest row flips tile by tile."""
 from __future__ import annotations
 
+from functools import lru_cache
+
 from PIL import Image, ImageDraw
 
 from . import neon
@@ -20,12 +22,17 @@ def _x0(length):
     return (W - (length * TILE + (length - 1) * GAP)) // 2
 
 
-def _tile(img, box, letter, state, squash=1.0):
-    """Draw one tile; ``squash`` (0..1) flattens it vertically for the flip."""
-    x0, y0, x1, y1 = box
-    cy = (y0 + y1) / 2
-    half = (y1 - y0) / 2 * max(0.06, squash)
-    box = (x0, round(cy - half), x1, round(cy + half))
+PAD = 12
+
+
+@lru_cache(maxsize=512)
+def _tile_img(letter: str, state: str, squash: float) -> Image.Image:
+    """One glowing tile on its own small canvas; ``squash`` (0..1) flattens it for the flip."""
+    size = TILE + 2 * PAD
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    cy = size / 2
+    half = TILE / 2 * max(0.06, squash)
+    box = (PAD, round(cy - half), PAD + TILE, round(cy + half))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle(box, radius=10, fill=FILL[state])
     m = Image.new("L", img.size, 0)
@@ -35,20 +42,31 @@ def _tile(img, box, letter, state, squash=1.0):
     img.alpha_composite(neon.dim(neon.glow(m, color, 3), 0.9 if state in ("good", "near") else 0.45))
     if state == "near" and squash > 0.5:
         ring = Image.new("L", img.size, 0)
-        r = (x1 - x0) / 2 - 7
-        cx = (x0 + x1) / 2
-        ImageDraw.Draw(ring).ellipse((cx - r, cy - r * squash, cx + r, cy + r * squash), outline=255, width=3)
+        r = TILE / 2 - 7
+        ImageDraw.Draw(ring).ellipse((cy - r, cy - r * squash, cy + r, cy + r * squash), outline=255, width=3)
         img.alpha_composite(neon.glow(ring, neon.ORANGE, 3))
     if letter and squash > 0.35:
         fill = (255, 255, 255) if state in ("good", "near") else ((150, 140, 170) if state == "hint" else (190, 180, 210))
-        d.text(((x0 + x1) / 2, cy + 1), letter, font=font("neon", 34), fill=fill, anchor="mm")
+        d = ImageDraw.Draw(img)
+        d.text((cy, cy + 1), letter, font=font("neon", 34), fill=fill, anchor="mm")
+    return img
 
 
-def _base(length, title):
+def _tile(img, box, letter, state, squash=1.0):
+    tile = _tile_img(letter, state, round(squash, 2))
+    img.alpha_composite(tile, (box[0] - PAD, box[1] - PAD))
+
+
+@lru_cache(maxsize=4)
+def _wall(title):
     img = neon.wall(W, H, 1).copy()
     img.alpha_composite(Image.new("RGBA", (W, H), (6, 2, 12, 120)))
     img.alpha_composite(_neon_layer((W, H), title, (W // 2, 42), 34, neon.CYAN, "mm"))
     return img
+
+
+def _base(length, title):
+    return _wall(title).copy()
 
 
 def _grid(rows, length, first, flip_row=None, flip_t=None, title="MOTUS DES OMBRES"):
@@ -66,7 +84,7 @@ def _grid(rows, length, first, flip_row=None, flip_t=None, title="MOTUS DES OMBR
                     if local <= 0:
                         _tile(img, box, letter, "empty")
                     elif local < 1:
-                        squash = abs(1 - 2 * local)
+                        squash = round(abs(1 - 2 * local) * 6) / 6
                         _tile(img, box, letter, "empty" if local < 0.5 else state, squash)
                     else:
                         _tile(img, box, letter, state)
