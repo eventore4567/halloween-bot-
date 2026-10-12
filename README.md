@@ -22,7 +22,9 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
   parallaxe** (ciel, collines, cimetière, sol) : le héros court, saute sur le monstre du jeu qui
   explose en bonbons, ou se fait renverser. Le score, le niveau gagné et les succès s'affichent dans la scène.
   Et **pendant** la partie, chaque action est une vidéo 2D : chaque porte de la Maison hantée,
-  chaque tombe creusée à la Chasse, l'ouverture du coffre du jour.
+  chaque tombe creusée à la Chasse, l'ouverture du coffre du jour, chaque manche de `/duel` (les deux
+  monstres se chargent, le perdant s'envole), le départ et le retour des expéditions, et la chute
+  du Roi Citrouille.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,
   coffre et chaudron qui « s'ouvrent » et « bouillonnent ».
@@ -61,6 +63,8 @@ collectionner), **30 jeux** et **42 succès** à débloquer.
 ![Cinématique de fin de partie](docs/apercu-cinematique.gif)
 
 ![Vidéo d'action](docs/apercu-action.gif)
+
+![Duel en vidéo](docs/apercu-duel.gif)
 
 ![Le Film de ta Nuit](docs/apercu-film.gif)
 
@@ -127,11 +131,11 @@ Dans le salon choisi par les organisateurs, quand le serveur est actif :
 
 | Commande | Rôle |
 |---|---|
-| `/admin salon` | Salon des apparitions |
-| `/admin apparitions` | Activer/désactiver, fréquence (tous les N messages, max 1 toutes les 4 min) |
-| `/admin lancer` | Lancer tout de suite un sac, un quiz éclair ou le boss |
-| `/admin bonbons` | Ajouter / retirer des bonbons à un membre |
-| `/admin emojis` | Re-synchroniser les emojis personnalisés |
+| `/reglages salon-evenements` | **À faire en premier** : le salon où apparaissent les sacs de bonbons, les quiz éclair et le Roi Citrouille |
+| `/reglages frequence-evenements` | Activer/désactiver, fréquence (tous les N messages, max 1 toutes les 4 min) |
+| `/reglages lancer-evenement` | Lancer tout de suite un sac, un quiz éclair ou le boss |
+| `/reglages modifier-bonbons` | Ajouter / retirer des bonbons à un membre |
+| `/reglages recharger-emojis` | Renvoyer les emojis du bot sur Discord |
 
 ![Profil](docs/apercu-profil.png)
 
@@ -151,7 +155,7 @@ Dans le salon choisi par les organisateurs, quand le serveur est actif :
 4. Au premier démarrage, le bot envoie ses emojis (environ 1 minute), puis tout
    s'affiche avec les emojis personnalisés. En attendant, des emojis classiques
    sont utilisés automatiquement.
-5. Sur ton serveur : `/admin salon` pour activer les apparitions, puis `/jeux` !
+5. Sur ton serveur : `/reglages salon-evenements #ton-salon` pour choisir où apparaissent les événements, puis `/jeux` !
 
 Variables optionnelles : `DATA_DIR` (dossier de la base, `/data` par défaut s'il existe),
 `DATABASE_PATH`, `BOT_TIMEZONE` (par défaut `Europe/Paris`, pour la remise à zéro de minuit).
