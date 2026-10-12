@@ -1,4 +1,4 @@
-"""/succes — the 39 achievements, with progress bars for the locked ones."""
+"""/succes — the 41 achievements, with progress bars for the locked ones."""
 from __future__ import annotations
 
 import discord
@@ -74,7 +74,7 @@ class Trophies(commands.Cog):
     async def open(self, interaction, edit=False):
         await TrophyView(self.bot, interaction).start(interaction, edit)
 
-    @app_commands.command(name="succes", description="🏆 Tes 39 succès et ta progression")
+    @app_commands.command(name="succes", description="🏆 Tes 41 succès et ta progression")
     @app_commands.guild_only()
     async def succes(self, interaction: discord.Interaction):
         await self.open(interaction)

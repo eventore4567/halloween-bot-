@@ -182,3 +182,82 @@ class Connect4Test(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PetTest(Base):
+    def test_logic(self):
+        from halloween.content import pet as P
+        p = P.new_pet("ghost", "Bouh", now=1000.0)
+        P.decay(p, now=1000.0 + 10 * 3600)
+        self.assertAlmostEqual(p["hunger"], 80 - 40)
+        self.assertAlmostEqual(p["joy"], 80 - 30)
+        P.decay(p, now=1000.0 + 100 * 3600)
+        self.assertEqual((p["hunger"], p["joy"]), (0.0, 0.0))
+        self.assertIn("estomac", P.mood_text(p))
+        gained = P.add_xp(p, sum(P.xp_for(lvl) for lvl in range(1, 12)))
+        self.assertEqual((gained, p["level"]), (11, 12))
+        self.assertEqual(P.stage(12), (2, "Adulte"))
+        self.assertEqual(P.stage(4), (0, "Bébé"))
+        self.assertGreater(P.loot_amount(dict(p, hunger=100, joy=100)), P.loot_amount(p))
+
+    def test_flow(self):
+        from halloween.cogs import pet as cog
+
+        async def go():
+            u = 9541
+            self.store.add_candies(999, u, 500, "t", boost=False)
+            with mock.patch.object(cog, "pet_gif", lambda *a, **k: b"GIF"):
+                v = cog.PetView(self.bot, self.i(u))
+                self.assertEqual(v.banner_key, "pet")
+                self.show(v)
+                await v._adopt(self.i(u, data={"values": ["werewolf"]}))
+                self.assertEqual(v.pet["species"], "werewolf")
+                self.show(v)
+                v.pet["hunger"] = 10
+                await v._feed(self.i(u))
+                self.assertEqual(round(v.pet["hunger"]), 45)
+                await v._play(self.i(u))
+                await v._caress(self.i(u))
+                await v._loot(self.i(u))
+                self.assertIn("virée nocturne", v.flash)
+                await v.rename(self.i(u), "  Croc   le  Terrible ")
+                self.assertEqual(v.pet["name"], "Croc le Terrible")
+                self.show(v)
+                again = cog.PetView(self.bot, self.i(u))  # saved in the store
+                self.assertEqual(again.pet["name"], "Croc le Terrible")
+                self.assertTrue(len(await again.extra_files()) == 1)
+        self.run_async(go())
+
+
+class RouletteTest(Base):
+    def test_flow(self):
+        from halloween.cogs import roulette as cog
+
+        async def go():
+            u = 9551
+            self.store.add_candies(999, u, 1000, "t", boost=False)
+            v = cog.RouletteView(self.bot, self.i(u), True)
+            v.poison = 5
+            self.show(v)
+            await v._set_bet(100)(self.i(u))
+            await v._begin(self.i(u))
+            self.assertEqual(v.state, "play")
+            for i in range(2):
+                await v._drink(i)(self.i(u))
+                self.show(v)
+            self.assertEqual(v.pot(), 150)
+            await v._cash(self.i(u))
+            self.assertEqual((v.state, v.reward.candies), ("cashed", 150))
+            self.show(v)
+            w = cog.RouletteView(self.bot, self.i(u), True)
+            w.poison = 0
+            await w._begin(self.i(u))
+            await w._drink(0)(self.i(u))
+            self.assertEqual((w.state, w.reward.candies), ("poisoned", 0))
+            self.show(w)
+        self.run_async(go())
+
+    def test_ladder_is_close_to_fair(self):
+        from halloween.cogs.roulette import LADDER
+        for k, m in enumerate(LADDER, 1):
+            self.assertLessEqual((6 - k) / 6 * m, 1.01)

@@ -79,6 +79,7 @@ LIMITS = {
     "hilo": 6,
     "maze": 4,
     "connect4": 5,
+    "roulette": 8,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -228,6 +229,8 @@ ACHIEVEMENTS = [
     ("versus_5", "Roi des défis", "Gagner 5 défis en direct (/defi)", "crown", "versus_win", 5, 500),
     ("maze_5", "Fil d'Ariane", "S'échapper 5 fois du Labyrinthe hanté", "key", "maze_escape", 5, 450),
     ("c4_5", "Stratège des citrouilles", "Gagner 5 parties de Puissance 4", "pumpkin_lit", "c4_win", 5, 450),
+    ("pet_12", "Dresseur de l'au-delà", "Faire grandir son familier jusqu'au niveau 12", "heart", "pet_level", 12, 500),
+    ("roulette_5", "Estomac d'acier", "Boire 5 fioles saines à la Roulette des potions", "potion_green", "roulette_best", 5, 400),
 ]
 
 

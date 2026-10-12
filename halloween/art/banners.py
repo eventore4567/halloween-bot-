@@ -58,7 +58,9 @@ THEMES: dict[str, Theme] = {
     "hilo": Theme("PLUS OU MOINS", "LA CARTE SUIVANTE ?", N.CYAN, N.YELLOW, "star", "skull", N.PINK),
     "maze": Theme("LABYRINTHE HANTÉ", "LA CLÉ · LA PORTE · LE FANTÔME", N.PURPLE, N.CYAN, "key", "ghost", N.GREEN),
     "connect4": Theme("PUISSANCE 4 MAUDIT", "ALIGNE QUATRE CITROUILLES", N.ORANGE, N.GREEN, "pumpkin_lit", "potion_green", N.CYAN),
-    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 39 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
+    "pet": Theme("FAMILIER HANTÉ", "ADOPTE · NOURRIS · FAIS ÉVOLUER", N.PINK, N.CYAN, "bat", "heart", N.PURPLE),
+    "roulette": Theme("ROULETTE DES POTIONS", "UNE FIOLE SUR SIX EST EMPOISONNÉE", N.GREEN, N.PINK, "potion_green", "skull", N.YELLOW),
+    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 41 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
 W2, H2 = 760, 300
