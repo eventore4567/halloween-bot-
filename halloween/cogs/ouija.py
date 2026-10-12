@@ -22,7 +22,7 @@ ROUNDS = [
     (["Fantôme", "Vampire", "Sorcière", "Chaudron", "Squelette", "Araignée", "Cimetière", "Chauve-souris",
       "Loup-garou", "Cercueil", "Potion", "Gargouille", "Revenant", "Chandelle"], 470, 70, "normal"),
     (["Citrouille", "Malédiction", "Épouvantail", "Nécromancien", "Ensorcelé", "Frankenstein", "Envoûtement",
-      "Sortilège", "Possession", "Banshee", "Catacombes", "Exorciste", "Poltergeist", "Halloween"], 520, 120,
+      "Sortilège", "Possession", "Banshee", "Catacombes", "Exorciste", "Poltergeist", "Halloween"], 400, 120,
      "reverse"),
 ]
 PERFECT_BONUS = 60
