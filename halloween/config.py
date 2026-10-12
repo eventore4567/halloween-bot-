@@ -200,6 +200,9 @@ ACHIEVEMENTS = [
     ("cards_24", "Collection complète", "Posséder les 24 cartes", "crown", "cards", 24, 500),
     ("jackpot", "Jackpot !", "Toucher le jackpot de la roue", "wheel", "jackpot", 1, 200),
     ("gift_1", "Cœur sur la main", "Offrir des bonbons", "heart", "gifts", 1, 100),
+    ("calendar_10", "Fidèle d'octobre", "Ouvrir 10 cases du calendrier", "gift", "calendar", 10, 400),
+    ("pumpkin_1000", "Jardinier hanté", "Donner 1 000 bonbons à la citrouille géante", "pumpkin_lit", "pumpkin_fed",
+     1000, 300),
     ("daily_7", "Fidèle à la nuit", "7 jours de coffre d'affilée", "chest", "streak", 7, 400),
     ("level_10", "Monstre confirmé", "Atteindre le niveau 10", "star", "level", 10, 500),
     ("level_25", "Liche ancienne", "Atteindre le niveau 25", "gem", "level", 25, 1500),
@@ -227,3 +230,42 @@ def show_safe_amount(correct_answers: int) -> int:
         if correct_answers >= rung:
             kept = SHOW_LADDER[rung - 1]
     return kept
+
+
+# --------------------------------------------------------------------------
+# October calendar (one box per day, 1 → 31 October)
+# --------------------------------------------------------------------------
+def calendar_reward(day: int) -> dict:
+    """What box ``day`` of October contains."""
+    if day == 31:
+        return dict(candies=1500, xp=150, item="booster", legendary=True, emoji="crown", label="LE GRAND JACKPOT")
+    if day == 13:
+        return dict(candies=0, xp=40, cursed=True, emoji="skull_fire", label="La case maudite")
+    if day % 7 == 0:
+        return dict(candies=80 + 12 * day, xp=30, item="booster", emoji="gift", label="Bonbons + booster")
+    if day % 5 == 0:
+        return dict(candies=80 + 12 * day, xp=30, item="ticket", emoji="wheel", label="Bonbons + ticket de roue")
+    return dict(candies=60 + 10 * day, xp=15 + day, emoji="candy", label="Sac de bonbons")
+
+
+# --------------------------------------------------------------------------
+# Giant pumpkin (server-wide goal fed with candies)
+# --------------------------------------------------------------------------
+PUMPKIN_STAGES = [
+    (0, "Graine maudite"),
+    (2_000, "Pousse tordue"),
+    (6_000, "Petite citrouille"),
+    (15_000, "Grosse citrouille"),
+    (35_000, "Citrouille géante"),
+    (80_000, "Citrouille colossale"),
+    (150_000, "CITROUILLE MONSTRUEUSE"),
+]
+PUMPKIN_FEEDS = [50, 200, 500]
+
+
+def pumpkin_stage(total: int) -> int:
+    stage = 0
+    for i, (threshold, _) in enumerate(PUMPKIN_STAGES):
+        if total >= threshold:
+            stage = i
+    return stage

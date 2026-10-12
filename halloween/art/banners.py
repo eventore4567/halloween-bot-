@@ -53,7 +53,7 @@ THEMES: dict[str, Theme] = {
     "ritual": Theme("LE RITUEL", "RÉPÈTE LA FORMULE MAUDITE", N.PINK, N.CYAN, "book", "candle", N.PURPLE),
     "reflex": Theme("RÉFLEXE", "CLIQUE DÈS QU'IL APPARAÎT", N.CYAN, N.YELLOW, "ghost", "lightning", N.RED),
     "curse": Theme("MAUVAIS SORT", "VOLE LES BONBONS DES AUTRES", N.RED, N.PURPLE, "skull", "shield", N.GREEN),
-    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 27 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
+    "trophies": Theme("SUCCÈS", "DÉBLOQUE LES 29 TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),
 }
 
 # Per-frame brightness of the title / subtitle / frame: a buzzing sign that sometimes stutters.
