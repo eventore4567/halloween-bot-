@@ -12,9 +12,10 @@ collectionner), **19 jeux** et **29 succès** à débloquer.
 
 - **Un seul format de panneau** (Components V2) : bannière animée → titre → sections →
   boutons → pied de page. Chaque jeu a sa couleur, tout le bot a la même allure.
-- **Style néon unique** : chaque jeu a son enseigne lumineuse (titre en tubes néon,
-  cadre, monstres dessinés en néon), qui clignote, grésille, crache des étincelles,
-  avec du brouillard qui défile. Le même style habille la carte de profil, le podium,
+- **Scènes animées uniques** : chaque jeu a sa « ruelle hantée » sous la pluie : une
+  enseigne néon dont les lettres grésillent une à une, son reflet dans les flaques, des
+  éclairs sur le mur, un fantôme qui traverse la rue et des yeux qui clignent dans le noir.
+  Le titre du panneau est au-dessus de la scène, pas dans un bandeau. Le même style habille la carte de profil, le podium,
   la roue et la course de balais.
 - **Animé partout** : bannières GIF, emojis animés, comptes à rebours en direct,
   roue qui tourne réellement, course de sorcières animée, cartes qui se retournent,

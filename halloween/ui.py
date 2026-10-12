@@ -90,10 +90,11 @@ class Panel:
         head = f"{top}\n## {title}"
         content = head + ("\n" + body if body else "")
         if thumb:
-            self.children.append(discord.ui.Section(discord.ui.TextDisplay(content),
-                                                    accessory=discord.ui.Thumbnail(media=thumb)))
+            item = discord.ui.Section(discord.ui.TextDisplay(content), accessory=discord.ui.Thumbnail(media=thumb))
         else:
-            self.children.append(discord.ui.TextDisplay(content))
+            item = discord.ui.TextDisplay(content)
+        item._nh_title = True
+        self.children.append(item)
         return self
 
     def text(self, content: str, thumb: str | None = None, accessory: discord.ui.Item | None = None):
@@ -130,10 +131,14 @@ class Panel:
 
     def container(self) -> discord.ui.Container:
         children = list(self.children)
+        # Signature layout: the title comes first, the animated scene right under it.
+        if (len(children) > 1 and isinstance(children[0], discord.ui.MediaGallery)
+                and getattr(children[1], "_nh_title", False)):
+            children[0], children[1] = children[1], children[0]
         hud = getattr(self, "hud", None)
         if hud is not None:
-            at = 1 if children and isinstance(children[0], discord.ui.MediaGallery) else 0
-            children.insert(at, hud)
+            gallery = next((i for i, c in enumerate(children[:2]) if isinstance(c, discord.ui.MediaGallery)), None)
+            children.insert(gallery + 1 if gallery is not None else 0, hud)
         return discord.ui.Container(*children)
 
 
