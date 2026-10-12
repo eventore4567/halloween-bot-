@@ -66,7 +66,7 @@ class ProfileView(GameView):
         cells = [("skull", "Frisson", "quiz"), ("house", "Maison", "house"), ("witch", "Course", "race"),
                  ("cauldron", "Formule", "cauldron"), ("eye", "Mémoire", "memory"), ("ghost", "Chasse", "hunt"),
                  ("bone", "Pendu", "hangman"), ("candle", "Rituel", "ritual"), ("lightning", "Réflexe", "reflex"),
-                 ("crystal", "Ouija", "ouija")]
+                 ("crystal", "Ouija", "ouija"), ("pumpkin", "Bonneteau", "shell")]
         out = []
         for icon, name, key in cells:
             left = s.remaining(g, u, key)

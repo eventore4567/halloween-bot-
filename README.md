@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **20 jeux** et **31 succès** à débloquer.
+collectionner), **21 jeux** et **32 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -37,6 +37,8 @@ collectionner), **20 jeux** et **31 succès** à débloquer.
 
 ![La Planche Ouija](docs/apercu-ouija.gif)
 
+![Le Bonneteau](docs/apercu-bonneteau.gif)
+
 ![Emojis](docs/apercu-emojis.png)
 
 ## 🕹️ Les jeux
@@ -53,6 +55,7 @@ collectionner), **20 jeux** et **31 succès** à débloquer.
 | `/course` | **Course de balais** : parie sur une des 4 sorcières, la course est un **GIF animé**, gain ×3,6 |
 | `/rituel` | **Le Rituel** : mémorise la formule maudite qui s'efface, répète-la, elle s'allonge à chaque manche |
 | `/ouija` | **La Planche Ouija** : une vidéo où l'esprit épelle un mot lettre par lettre (la 3ᵉ manche à l'envers !), retrouve-le parmi 4 |
+| `/bonneteau` | **Le Bonneteau des Citrouilles** : un bonbon sous 3 citrouilles néon qui se mélangent en vidéo, de plus en plus vite. Suis-le ! |
 | `/reflexe` | **Réflexe du fantôme** : clique dès que le bouton passe au vert, 3 manches chronométrées |
 | `/memoire` | **Mémoire d'outre-tombe** : 8 paires sur une grille de 16 boutons |
 | `/chasse` | **Chasse aux fantômes** : creuse des tombes, double ton butin… évite les 3 Faucheuses |
@@ -63,7 +66,7 @@ collectionner), **20 jeux** et **31 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **31 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **32 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |

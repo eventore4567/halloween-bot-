@@ -186,7 +186,7 @@ class NewGamesTest(unittest.TestCase):
     def test_achievement_keys_are_measurable(self):
         known = {"quiz_right", "quiz_best_streak", "memory_win", "hunt_best", "hangman_win", "house_escape", "crypt",
                  "duel_win", "boss_win", "drops", "potions", "boosters", "cards", "jackpot", "gifts", "streak",
-                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed", "ouija_best", "ouija_words"}
+                 "level", "earned", "exp_win", "show_top", "calendar", "pumpkin_fed", "ouija_best", "ouija_words", "shell_best"}
         keys = [a[0] for a in config.ACHIEVEMENTS]
         self.assertEqual(len(keys), len(set(keys)))
         for a in config.ACHIEVEMENTS:
@@ -347,3 +347,62 @@ class OuijaTest(unittest.TestCase):
         v = self._play(8102, wrong_at=2)
         self.assertEqual(v.correct, 1)
         self.assertEqual(self.store.stats(999, 8102).get("ouija_words"), 1)
+
+
+class ShellTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        install_fake_emojis()
+        cls.bot = make_bot()
+        cls.store = cls.bot.store
+
+    def test_swaps_track_the_candy(self):
+        from halloween.art import shell as art
+        from halloween.cogs import shell
+        rnd = random.Random(3)
+        swaps = shell.make_swaps(9, rnd)
+        self.assertTrue(all(a != b for a, b in swaps))
+        self.assertTrue(all({*x} != {*y} for x, y in zip(swaps, swaps[1:])))
+        slot = 2
+        for a, b in swaps:
+            slot = b if slot == a else a if slot == b else slot
+        frames, durations, end = art.shuffle_frames(2, swaps, 2)
+        self.assertEqual(end, slot)
+        self.assertEqual(len(frames), len(durations))
+        self.assertTrue(art.reveal_png(end, (end + 1) % 3).startswith(b"\x89PNG"))
+        self.assertEqual(shell.shell_reward(3), 35 + 70 + 130 + shell.PERFECT_BONUS)
+
+    def _play(self, uid, wrong_at=None):
+        from halloween.cogs import shell
+
+        async def go():
+            with mock.patch.object(shell.ShellView, "_arm", lambda self, d, t: None), \
+                    mock.patch.object(shell.art, "shuffle_gif", lambda c, s, st: (b"GIF", 1.0, 1)), \
+                    mock.patch.object(shell.art, "still_png", lambda: b"PNG"), \
+                    mock.patch.object(shell.art, "reveal_png", lambda c, ch: b"PNG"):
+                i = lambda: FakeInteraction(user=FakeUser(uid, "Lynx"), client=self.bot)  # noqa: E731
+                v = shell.ShellView(self.bot, i(), True)
+                v.render()
+                check_layout(v)
+                await v._start(i())
+                while v.state == "shuffle":
+                    v.render()
+                    check_layout(v)
+                    await v._ask(v.token)
+                    v.render()
+                    check_layout(v)
+                    await v._pick(0 if v.round == wrong_at else v.slot)(i())
+                self.assertEqual(v.state, "end")
+                v.render()
+                check_layout(v)
+                return v
+        return asyncio.run(go())
+
+    def test_perfect_game(self):
+        v = self._play(8201)
+        self.assertEqual(v.correct, 3)
+        self.assertIn("ach:shell_perfect", self.store.owned(999, 8201))
+
+    def test_wrong_pick_ends(self):
+        v = self._play(8202, wrong_at=1)
+        self.assertEqual((v.correct, v.reward.candies), (0, 0))

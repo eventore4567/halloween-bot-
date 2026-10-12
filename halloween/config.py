@@ -73,6 +73,7 @@ LIMITS = {
     "ritual": 6,
     "reflex": 8,
     "ouija": 5,
+    "shell": 6,
     "gift_out": 2000,  # max candies a member can give per day
 }
 WHEEL_COOLDOWN = 4 * 3600
@@ -214,6 +215,7 @@ ACHIEVEMENTS = [
     ("formula_10", "Grand alchimiste", "Déchiffrer 10 formules", "potion_purple", "potions", 10, 400),
     ("ouija_perfect", "Médium", "Réussir une séance Ouija parfaite", "crystal", "ouija_best", 3, 300),
     ("ouija_25", "Voix de l'au-delà", "Trouver 25 mots à la planche Ouija", "candle", "ouija_words", 25, 450),
+    ("shell_perfect", "Œil de lynx", "Gagner les 3 manches du Bonneteau", "pumpkin_lit", "shell_best", 3, 300),
 ]
 
 
