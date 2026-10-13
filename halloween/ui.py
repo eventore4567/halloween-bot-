@@ -428,12 +428,20 @@ class _PinnedPatterns(dict):
         return super().pop(key, *default)
 
 
-def register_navigation(bot):
-    bot.add_dynamic_items(NavButton)
+def register_dynamic(bot, cls):
+    """Register a DynamicItem whose buttons live on many messages: its pattern is never dropped."""
+    bot.add_dynamic_items(cls)
     store = getattr(getattr(bot, "_connection", None), "_view_store", None)
     if store is not None and hasattr(store, "_dynamic_items"):
-        pattern = NavButton.__discord_ui_compiled_template__
-        store._dynamic_items = _PinnedPatterns({pattern}, store._dynamic_items)
+        pattern = cls.__discord_ui_compiled_template__
+        if isinstance(store._dynamic_items, _PinnedPatterns):
+            store._dynamic_items.pinned.add(pattern)
+        else:
+            store._dynamic_items = _PinnedPatterns({pattern}, store._dynamic_items)
+
+
+def register_navigation(bot):
+    register_dynamic(bot, NavButton)
 
 
 def nav(game: str, owner: int, label: str, emoji: str, style="secondary") -> NavButton:

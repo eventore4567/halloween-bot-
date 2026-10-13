@@ -238,6 +238,10 @@ ACHIEVEMENTS = [
     ("run_25", "Plus rapide que la mort", "Atteindre la chapelle à La Grande Fuite (25 obstacles)", "crown", "run_best", 25, 800),
     ("traitor_5", "Flair infaillible", "Gagner 5 parties du Traître (/traitre)", "eye", "traitor_win", 5, 500),
     ("vampire_win", "Prince des ténèbres", "Gagner une partie du Traître en vampire", "vampire", "vampire_win", 1, 400),
+    ("curse_5", "Porteur de peste", "Refiler 5 fois la Malédiction contagieuse", "skull_fire", "curse_passed", 5, 400),
+    ("treasure_1", "Chasseur de trésor", "Résoudre les 4 énigmes d'une Chasse au trésor (/tresor)", "chest", "treasure_found", 1, 400),
+    ("treasure_win", "Premier sur le trésor", "Arriver 1er à une Chasse au trésor", "crown", "treasure_win", 1, 800),
+    ("series_8", "Fidèle spectateur", "Voter à 8 épisodes de la Série hantée", "book", "series_votes", 8, 500),
     ("trades_3", "Marchand d'âmes", "Conclure 3 échanges de cartes (/echange)", "gift", "trades", 3, 400),
 ]
 
