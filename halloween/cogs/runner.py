@@ -88,8 +88,8 @@ class RunView(GameView):
                    f"chapelle à **{GOAL * art.METERS} m**\n"
                    f"-# ▲ Sauter : tombes, fosses, crânes en feu · ▼ Glisser : chauves-souris, araignées, "
                    f"cercueils · ✊ Frapper : zombies, citrouilles, momies"
-                   + (" · **les boutons se mélangent !**" if self.passed >= SHUFFLE_FROM else ""))
-            p.row(*[button(ACTIONS[a], None, "primary", self._act(a)) for a in self.order])
+                   + (" · **les boutons se mélangent !**" if self.passed + 1 >= SHUFFLE_FROM else ""))
+            p.row(*[button(ACTIONS[a], None, "primary", self._act(a, self.index)) for a in self.order])
             p.row(button(f"Encaisser {config.fmt(self.bag)} bonbons", "candy_bag", "success", self._cash,
                          disabled=self.passed == 0))
             p.footer(self.footer("Plus tu cours loin, plus chaque obstacle rapporte"))
@@ -140,10 +140,15 @@ class RunView(GameView):
             await self._step(None, None)
 
     # ---------------------------------------------------------------- actions
-    def _act(self, action):
+    @property
+    def index(self) -> int:
+        """Number of the obstacle on screen (0-based): every obstacle is either cleared or costs a life."""
+        return self.passed + LIVES - self.lives
+
+    def _act(self, action, index):
         async def cb(interaction):
             async with self.lock:
-                if self.state != "play":
+                if self.state != "play" or index != self.index:  # a click meant for an obstacle already gone
                     return await interaction.response.defer()
                 late = time.time() > self.deadline
                 await interaction.response.defer()
@@ -168,7 +173,7 @@ class RunView(GameView):
         if self.passed >= GOAL:
             return await self._end("escaped", interaction)
         self.obstacle = next_obstacle(kind)
-        if self.passed >= SHUFFLE_FROM:
+        if self.passed + 1 >= SHUFFLE_FROM:  # the obstacle about to be shown
             random.shuffle(self.order)
         try:
             data = await asyncio.to_thread(art.step_clip, kind, action, ok, self.obstacle, lives_before, self.lives,
@@ -195,6 +200,7 @@ class RunView(GameView):
 
     def _pay(self, how: str):
         self.state = how
+        self.scene_won = how != "caught"  # caught keeps a quarter of the bag, but it is still a loss
         if self._timer:
             self._timer.cancel()
         self.turn += 1
