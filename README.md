@@ -119,7 +119,7 @@ collectionner), **31 jeux** et **45 succès** à débloquer.
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
 | `/succes` | **45 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
-| `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels |
+| `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels, record de La Grande Fuite |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |
 | `/aide` | Guide du joueur |
 

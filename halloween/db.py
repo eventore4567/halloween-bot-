@@ -418,6 +418,8 @@ class Store:
                 "ORDER BY v DESC, user_id",
         "duel": "SELECT user_id, value AS v FROM stats WHERE guild_id=? AND key='duel_win' AND value>0 "
                 "ORDER BY v DESC, user_id",
+        "fuite": "SELECT user_id, value AS v FROM stats WHERE guild_id=? AND key='run_best' AND value>0 "
+                 "ORDER BY v DESC, user_id",
     }
 
     def board(self, g, kind, limit=10):

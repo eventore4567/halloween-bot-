@@ -178,11 +178,13 @@ class RunView(GameView):
         self._set_deadline()
         files = [image_file(data, ACTION)] if data else None
         self._action = ACTION if data else getattr(self, "_action", None)
-        if interaction is not None:
-            await self.refresh(interaction, attachments=files)
-        else:
-            await self.push(attachments=files)
-        self._arm()
+        try:
+            if interaction is not None:
+                await self.refresh(interaction, attachments=files)
+            else:
+                await self.push(attachments=files)
+        finally:
+            self._arm()  # even if Discord refused the edit, the chase goes on
 
     async def _cash(self, interaction):
         async with self.lock:
@@ -208,8 +210,15 @@ class RunView(GameView):
             amount, xp = self.bag // 4, 5 + self.passed
             self.flash = (f"{E.reaper} Rattrapé après **{meters} m** : elle te laisse un quart du sac."
                           if self.bag else f"{E.reaper} Rattrapé après **{meters} m**.")
-        self.reward = grant(self.store, self.guild_id, self.owner_id, amount, xp, "fuite",
+        g, u = self.guild_id, self.owner_id
+        top = self.store.board(g, "fuite", 1)
+        mine = self.store.stats(g, u).get("run_best", 0)
+        self.reward = grant(self.store, g, u, amount, xp, "fuite",
                             stats={"run_obstacles": self.passed}, best={"run_best": self.passed})
+        if self.passed and (not top or self.passed > top[0][1]):
+            self.flash += f"\n{E.trophy} **NOUVEAU RECORD DU SERVEUR : {self.passed} obstacles !** (`/classement`)"
+        elif self.passed > mine:
+            self.flash += f"\n{E.star} Nouveau record perso : **{self.passed}** obstacles !"
         self.finish()
 
     async def _end(self, how, interaction):

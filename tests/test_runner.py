@@ -97,6 +97,8 @@ class RunnerTest(unittest.TestCase):
             self.assertGreaterEqual(w.reward.candies, w.bag + self.mod.CHAPEL_BONUS)
             self.assertEqual(self.store.stats(w.guild_id, 9703)["run_best"], self.mod.GOAL)
             self.assertIn("run_25", [a[0] for a in w.reward.achievements])
+            self.assertIn("NOUVEAU RECORD DU SERVEUR", w.flash)
+            self.assertEqual(self.store.board(w.guild_id, "fuite", 1), [(9703, self.mod.GOAL)])
         asyncio.run(go())
 
     def test_end_plays_cutscene(self):
