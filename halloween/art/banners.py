@@ -61,6 +61,7 @@ THEMES: dict[str, Theme] = {
     "connect4": Theme("PUISSANCE 4 MAUDIT", "ALIGNE QUATRE CITROUILLES", N.ORANGE, N.GREEN, "pumpkin_lit", "potion_green", N.CYAN),
     "pet": Theme("FAMILIER HANTÉ", "ADOPTE · NOURRIS · FAIS ÉVOLUER", N.PINK, N.CYAN, "bat", "heart", N.PURPLE),
     "roulette": Theme("ROULETTE DES POTIONS", "UNE FIOLE SUR SIX EST EMPOISONNÉE", N.GREEN, N.PINK, "potion_green", "skull", N.YELLOW),
+    "traitre": Theme("LE TRAÎTRE", "DES VAMPIRES SE CACHENT PARMI VOUS", N.RED, N.PURPLE, "vampire", "eye", N.ORANGE),
     "fuite": Theme("LA GRANDE FUITE", "SAUTE · GLISSE · FRAPPE · COURS", N.RED, N.CYAN, "pumpkin_lit", "reaper", N.ORANGE),
     "escape": Theme("ESCAPE GAME", "3 SALLES · 10 MINUTES · EN ÉQUIPE", N.CYAN, N.ORANGE, "lock", "key", N.PURPLE),
     "trophies": Theme("SUCCÈS", f"DÉBLOQUE LES {len(config.ACHIEVEMENTS)} TROPHÉES", N.YELLOW, N.CYAN, "trophy", "medal1", N.PURPLE),

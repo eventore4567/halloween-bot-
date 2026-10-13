@@ -236,6 +236,8 @@ ACHIEVEMENTS = [
     ("escape_3", "Maître de l'évasion", "S'échapper 3 fois de la crypte en équipe (/escape)", "key", "escape_win", 3, 500),
     ("run_10", "Jambes de feu", "Franchir 10 obstacles d'affilée à La Grande Fuite", "reaper", "run_best", 10, 350),
     ("run_25", "Plus rapide que la mort", "Atteindre la chapelle à La Grande Fuite (25 obstacles)", "crown", "run_best", 25, 800),
+    ("traitor_5", "Flair infaillible", "Gagner 5 parties du Traître (/traitre)", "eye", "traitor_win", 5, 500),
+    ("vampire_win", "Prince des ténèbres", "Gagner une partie du Traître en vampire", "vampire", "vampire_win", 1, 400),
     ("trades_3", "Marchand d'âmes", "Conclure 3 échanges de cartes (/echange)", "gift", "trades", 3, 400),
 ]
 
