@@ -34,6 +34,7 @@ GAMES = [
     ("fuite", "La Grande Fuite", "reaper", "Runner 2D : saute, glisse, frappe, la Faucheuse te suit"),
     ("pet", "Familier hanté", "bat", "Adopte un monstre, nourris-le, fais-le évoluer"),
     ("roulette", "Roulette des potions", "potion_green", "Une fiole sur six est empoisonnée"),
+    ("traitre", "Le Traître", "vampire", "4 à 12 joueurs : démasquez les vampires cachés parmi vous"),
     ("escape", "Escape Game", "lock", "En équipe : 3 salles, indices secrets, 10 minutes"),
     ("film", "Le Film de ta Nuit", "eye", "Ta saison d'Halloween en film animé"),
     ("connect4", "Puissance 4 maudit", "pumpkin_lit", "Aligne 4 citrouilles contre la Sorcière"),
@@ -52,7 +53,7 @@ GAME = {key: (name, icon, desc) for key, name, icon, desc in GAMES}
 COMMAND = {"quiz": "quiz", "ouija": "ouija", "shell": "bonneteau", "motus": "motus", "hangman": "pendu",
            "slots": "machine", "roulette": "roulette", "hilo": "plusoumoins", "race": "course", "wheel": "roue",
            "hunt": "chasse", "memory": "memoire", "ritual": "rituel", "reflex": "reflexe", "maze": "labyrinthe", "fuite": "fuite",
-           "cauldron": "formule", "escape": "escape", "house": "maison", "manor": "expedition", "cards": "cartes",
+           "cauldron": "formule", "escape": "escape", "traitre": "traitre", "house": "maison", "manor": "expedition", "cards": "cartes",
            "connect4": "puissance4", "pet": "familier", "defis": "defis", "daily": "quotidien",
            "calendar": "calendrier", "giant": "citrouille", "film": "film", "profile": "profil",
            "trophies": "succes", "top": "classement", "shop": "boutique"}
@@ -62,7 +63,7 @@ CATEGORIES = [
     ("quiz", "Quiz & vidéo", "skull", ["quiz", "ouija", "shell", "motus", "hangman"]),
     ("luck", "Hasard & mises", "dice", ["slots", "roulette", "hilo", "race", "wheel", "hunt"]),
     ("brain", "Mémoire & réflexes", "eye", ["fuite", "memory", "ritual", "reflex", "maze", "cauldron"]),
-    ("adventure", "Aventure & collection", "key", ["escape", "house", "manor", "cards", "connect4"]),
+    ("adventure", "Aventure & collection", "key", ["traitre", "escape", "house", "manor", "cards", "connect4"]),
     ("night", "Rendez-vous de la nuit", "moon", ["pet", "defis", "daily", "calendar", "giant"]),
     ("me", "Ma progression", "trophy", ["film", "profile", "trophies", "top", "shop"]),
 ]

@@ -62,7 +62,7 @@ def _signposts() -> Image.Image:
 def menu_frames():
     letters_title = "NUIT HANTÉE"
     logo = _neon_layer((W, H), letters_title, (W // 2, 62), neon.fit_text(letters_title, 64, 560), tuple(neon.ORANGE), "mm")
-    sub = _neon_layer((W, H), "31 JEUX · 6 MONDES · 1 NUIT", (W // 2, 116), 20, tuple(neon.PURPLE), "mm")
+    sub = _neon_layer((W, H), "32 JEUX · 6 MONDES · 1 NUIT", (W // 2, 116), 20, tuple(neon.PURPLE), "mm")
     frame_m = neon.rounded_frame_mask((W, H), (110, 14, W - 110, 146), 24, 4)
     frame = neon.glow(frame_m, neon.PINK, 5)
     hill_layer = hills(285, H, FLOOR)

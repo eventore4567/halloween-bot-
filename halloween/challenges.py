@@ -60,7 +60,7 @@ ALL_DONE_BONUS = 200  # + one wheel ticket when the 3 daily challenges are claim
 
 # Reasons of `grant` that mean "one game was played".
 GAME_REASONS = {"grand-frisson", "maison", "course", "rituel", "reflexe", "ouija", "bonneteau", "memoire", "pendu",
-                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition", "fuite"}
+                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition", "fuite", "traitre"}
 
 
 def week_key(day: str | None = None) -> str:
