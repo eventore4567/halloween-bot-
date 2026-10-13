@@ -16,6 +16,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from .. import config
 from ..art import traitor as art
 from ..content import traitor as T
 from ..emojis import E
@@ -31,6 +32,7 @@ VOTE_TIME = 60
 VERDICT_TIME = 12
 REWARDED_GAMES_PER_DAY = 5
 T_NIGHT_PICK = NIGHT_TIME + 10
+SUMMARY_BUDGET = 2400
 FILES = {"night": "nuit.gif", "day": "aube.gif", "verdict": "verdict.gif", "over": "fin.gif"}
 
 
@@ -116,6 +118,7 @@ class TraitorView(discord.ui.LayoutView):
         self.message = None
         self.token = 0
         self.avatars: dict[int, bytes | None] = {}
+        self.ending = False
         self.render()
 
     # ---------------------------------------------------------------- helpers
@@ -217,7 +220,11 @@ class TraitorView(discord.ui.LayoutView):
             p.row(sel)
             p.row(button("Mon rôle", "eye", "secondary", self._my_role))
         elif self.state == "verdict":
-            p.title("Le verdict", icon="fire", body=f"{flash}{E.hourglass} La nuit tombe {relative(self.deadline)}…")
+            if self.ending:
+                p.title("Le dénouement", icon="crown",
+                        body=f"{flash}{E.hourglass} Le sort du village est scellé… résultat {relative(self.deadline)} !")
+            else:
+                p.title("Le verdict", icon="fire", body=f"{flash}{E.hourglass} La nuit tombe {relative(self.deadline)}…")
             p.text(status)
             p.row(button("Mon rôle", "eye", "secondary", self._my_role))
         else:  # over
@@ -309,8 +316,8 @@ class TraitorView(discord.ui.LayoutView):
         g = self.game
         g.begin_night()
         self.state = "night"
-        self.deadline = time.time() + NIGHT_TIME
         files = await self.scene("night", art.night_gif, g.night, random.randrange(10**6))
+        self.deadline = time.time() + NIGHT_TIME  # counted from when the scene is ready, like the timer
         self.later(NIGHT_TIME, self.end_night)
         await self.update(interaction, attachments=files)
 
@@ -331,7 +338,7 @@ class TraitorView(discord.ui.LayoutView):
         avatar = await self.avatar(victim) if victim is not None else None
         files = await self.scene("day", art.dawn_gif, name, avatar, saved, g.night, random.randrange(10**6))
         if g.winner():
-            return await self.finish(files)
+            return await self.stage_end(files)
         self.state = "day"
         g.ready.clear()
         self.deadline = time.time() + DAY_TIME
@@ -412,10 +419,21 @@ class TraitorView(discord.ui.LayoutView):
             files = await self.scene("verdict", art.banish_gif, self.name(out), await self.avatar(out), role["name"],
                                      role["emoji"], guilty, random.randrange(10**6))
         if g.winner():
-            return await self.finish(None, interaction, prefix=self.flash)
+            return await self.stage_end(files, interaction)
         self.state = "verdict"
         self.deadline = time.time() + VERDICT_TIME
         self.later(VERDICT_TIME, self.start_night)
+        await self.update(interaction, attachments=files)
+
+    async def stage_end(self, files, interaction=None):
+        """Show the decisive scene (the last bite or banishment) for a moment, then the winners."""
+        prefix = self.flash
+        if not files:
+            return await self.finish(None, interaction, prefix=prefix)
+        self.state = "verdict"
+        self.ending = True
+        self.deadline = time.time() + VERDICT_TIME
+        self.later(VERDICT_TIME, lambda: self.finish(prefix=prefix))
         await self.update(interaction, attachments=files)
 
     # ------------------------------------------------------------------ roles
@@ -452,6 +470,7 @@ class TraitorView(discord.ui.LayoutView):
         self.lines = ["**Les rôles :** " + ", ".join(
             f"{self.name(u)} ({T.ROLES[g.role(u)]['name']})" for u in g.players)]
         n = len(g.players)
+        full, short = [], []
         for u in g.players:
             won = u in winners
             paid = self.store.bump(self.guild_id, u, "traitor_reward", limit=REWARDED_GAMES_PER_DAY)
@@ -463,7 +482,12 @@ class TraitorView(discord.ui.LayoutView):
             candies = (win_reward(n) if won else 40) if paid else 0
             r = grant(self.store, self.guild_id, u, candies, (35 if won else 12) if paid else 0, "traitre",
                       stats=stats)
-            self.lines.append(f"{self.mention(u)} {r.line() or ('—' if paid else '(récompenses du jour déjà reçues)')}")
+            full.append(f"{self.mention(u)} {r.line() or ('—' if paid else '(récompenses du jour déjà reçues)')}")
+            extra = (f" · {E.star} niveau {r.new_level}" if getattr(r, "leveled", False) else "") \
+                + (f" · {E.trophy} {len(r.achievements)} succès" if r.achievements else "")
+            short.append(f"{self.mention(u)} +{config.fmt(r.candies)} {E.candy}{extra}")
+        # 12 players levelling up at once would overflow the 4 000 characters of a message: keep it short then
+        self.lines += full if len("\n".join(full)) <= SUMMARY_BUDGET else short
         await self.update(interaction, attachments=end or files)
 
 

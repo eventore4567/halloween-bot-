@@ -291,8 +291,10 @@ def end_gif(winner: str, people: list[tuple[str, bytes | None, str]], seed: int 
     village = winner == "village"
     color = neon.GREEN if village else neon.RED
     title = "LE VILLAGE TRIOMPHE !" if village else "LES VAMPIRES RÈGNENT SUR BRUMEVAL"
-    shown = people[:6]
-    size = 96 if len(shown) <= 4 else 80
+    shown = people
+    rows = 1 if len(shown) <= 6 else 2
+    per_row = math.ceil(len(shown) / rows)
+    size = 96 if len(shown) <= 4 else 80 if rows == 1 else 60
     portraits = [_portrait(av, color, icon).resize((size + 36, size + 36), Image.LANCZOS) for _, av, icon in shown]
     confetti = [(rnd.uniform(0, W), rnd.uniform(-H, 0), rnd.uniform(4, 9),
                  rnd.choice([neon.PINK, neon.YELLOW, neon.CYAN, neon.GREEN, neon.ORANGE])) for _ in range(50)]
@@ -306,17 +308,20 @@ def end_gif(winner: str, people: list[tuple[str, bytes | None, str]], seed: int 
         _village(img, 0.8 if village else 0.05, seed)
         img.alpha_composite(_shade(90))
         _title(img, title, 40, color, 38, f / 4)
-        step = (W - 80) / max(1, len(portraits))
         for i, p in enumerate(portraits):
-            k = min(1.0, max(0.0, (f - 3 - i * 1.5) / 4))
+            row, col = divmod(i, per_row)
+            in_row = min(per_row, len(portraits) - row * per_row)
+            step = (W - 80) / in_row
+            k = min(1.0, max(0.0, (f - 3 - i * 1.0) / 4))
             if k <= 0:
                 continue
-            x = 40 + step * (i + 0.5)
-            y = 170 + (1 - k) * 120 - 10 * abs(math.sin(f * 0.5 + i))
+            x = 40 + step * (col + 0.5)
+            base = 170 if rows == 1 else 128 + 104 * row
+            y = base + (1 - k) * 120 - 6 * abs(math.sin(f * 0.5 + i))
             img.alpha_composite(neon.dim(p, k), (round(x - p.width / 2), round(y - p.height / 2)))
             name = shown[i][0].upper()[:12]
-            img.alpha_composite(_text(name, round(x), round(y + p.height / 2 + 6),
-                                      neon.fit_text(name, 15, int(step) - 6), tuple(neon.WHITE)))
+            img.alpha_composite(_text(name, round(x), round(y + p.height / 2 + 4),
+                                      neon.fit_text(name, 15 if rows == 1 else 13, int(step) - 6), tuple(neon.WHITE)))
         if village:
             over = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             od = ImageDraw.Draw(over)

@@ -86,7 +86,8 @@ class ScenesTest(unittest.TestCase):
         for data in (art.night_gif(1, 1), art.dawn_gif("A", None, False, 1, 1), art.dawn_gif("B", None, True, 2, 1),
                      art.dawn_gif(None, None, False, 3, 1),
                      art.banish_gif("C", None, "Médium", "crystal", False, 1),
-                     art.end_gif("vampires", [("D", None, "vampire"), ("E", None, "vampire")], 1)):
+                     art.end_gif("vampires", [("D", None, "vampire"), ("E", None, "vampire")], 1),
+                     art.end_gif("village", [(f"V{k}", None, "pumpkin") for k in range(9)], 1)):
             gif = Image.open(BytesIO(data))
             self.assertEqual(gif.size, (art.W, art.H))
             self.assertGreater(gif.n_frames, 10)
@@ -159,7 +160,10 @@ class FlowTest(unittest.TestCase):
                         await v._vote(self.i(by_uid[uid], data={"values": [str(suspect)]}))
                     if v.state == "verdict":
                         check_layout(v)
-                        await v.start_night()
+                        if v.ending:  # the decisive banishment is shown first, then the winners
+                            await v.finish(prefix=v.flash)
+                        else:
+                            await v.start_night()
                 self.assertEqual(v.state, "over")
                 self.assertEqual(g.winner(), "village")
                 check_layout(v)
@@ -167,6 +171,55 @@ class FlowTest(unittest.TestCase):
                     won = g.team(uid) == "village"
                     self.assertEqual(self.store.stats(999, uid).get("traitor_win", 0), 1 if won else 0)
         asyncio.run(go())
+
+    def test_night_deadline_counts_from_the_scene(self):
+        mod = self.mod
+        users = [FakeUser(8700 + k, f"J{k}") for k in range(4)]
+
+        async def slow_scene(self_, kind, make, *args):
+            await asyncio.sleep(0)
+            mod.time.time = lambda base=mod.time.time(): base + 30  # rendering took 30 s
+            return None
+
+        async def go():
+            real = mod.time.time
+            try:
+                with mock.patch.object(mod.TraitorView, "later", lambda self, s, fn: None), \
+                        mock.patch.object(mod.TraitorView, "scene", slow_scene):
+                    v = mod.TraitorView(self.bot, 999, None, users[0])
+                    for u in users[1:]:
+                        await v._join(self.i(u))
+                    start = real()
+                    await v._start(self.i(users[0]))
+                    self.assertGreaterEqual(v.deadline - start, mod.NIGHT_TIME + 29)
+            finally:
+                mod.time.time = real
+        asyncio.run(go())
+
+    def test_big_game_summary_fits(self):
+        mod = self.mod
+        users = [FakeUser(8600 + k, f"Un nom de joueur assez long {k}") for k in range(12)]
+
+        async def go():
+            with mock.patch.object(mod.TraitorView, "later", lambda self, s, fn: None), \
+                    mock.patch.object(mod.art, "end_gif", stub), mock.patch.object(mod.art, "night_gif", stub):
+                v = mod.TraitorView(self.bot, 998, None, users[0])
+                for u in users[1:]:
+                    await v._join(self.i(u))
+                await v._start(self.i(users[0]))
+                g = v.game
+                for x in g.vampires():
+                    g.alive.remove(x)
+                long_line = "x" * 400
+                with mock.patch.object(mod, "grant", lambda *a, **k: mock.Mock(
+                        line=lambda: long_line, candies=10, leveled=True, new_level=5, achievements=[1])):
+                    await v.finish()
+                check_layout(v)
+        asyncio.run(go())
+
+    def test_traitor_counts_as_a_game(self):
+        from halloween import challenges
+        self.assertIn("traitre", challenges.GAME_REASONS)
 
     def test_lobby_cancelled_without_players(self):
         mod = self.mod
