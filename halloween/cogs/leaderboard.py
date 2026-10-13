@@ -22,6 +22,7 @@ BOARDS = {
     "expedition": dict(name="Chefs d'expédition", emoji="key", unit="missions", fmt=config.fmt),
     "cards": dict(name="Collectionneurs", emoji="gift", unit="cartes", fmt=str),
     "duel": dict(name="Duellistes", emoji="vampire", unit="victoires", fmt=config.fmt),
+    "fuite": dict(name="Record de La Grande Fuite", emoji="reaper", unit="obstacles", fmt=str),
 }
 
 _cache: dict[int, tuple[float, str, bytes | None]] = {}

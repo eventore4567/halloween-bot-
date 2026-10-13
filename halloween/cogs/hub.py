@@ -31,6 +31,7 @@ GAMES = [
     ("hilo", "Plus ou Moins", "star", "Devine la carte suivante, fais grossir le pot"),
     ("reflex", "Réflexe du fantôme", "lightning", "Clique dès qu'il apparaît"),
     ("maze", "Labyrinthe hanté", "key", "Trouve la clé et la sortie, le fantôme te traque"),
+    ("fuite", "La Grande Fuite", "reaper", "Runner 2D : saute, glisse, frappe, la Faucheuse te suit"),
     ("pet", "Familier hanté", "bat", "Adopte un monstre, nourris-le, fais-le évoluer"),
     ("roulette", "Roulette des potions", "potion_green", "Une fiole sur six est empoisonnée"),
     ("escape", "Escape Game", "lock", "En équipe : 3 salles, indices secrets, 10 minutes"),
@@ -50,7 +51,7 @@ GAME = {key: (name, icon, desc) for key, name, icon, desc in GAMES}
 # Every game also has its own slash command.
 COMMAND = {"quiz": "quiz", "ouija": "ouija", "shell": "bonneteau", "motus": "motus", "hangman": "pendu",
            "slots": "machine", "roulette": "roulette", "hilo": "plusoumoins", "race": "course", "wheel": "roue",
-           "hunt": "chasse", "memory": "memoire", "ritual": "rituel", "reflex": "reflexe", "maze": "labyrinthe",
+           "hunt": "chasse", "memory": "memoire", "ritual": "rituel", "reflex": "reflexe", "maze": "labyrinthe", "fuite": "fuite",
            "cauldron": "formule", "escape": "escape", "house": "maison", "manor": "expedition", "cards": "cartes",
            "connect4": "puissance4", "pet": "familier", "defis": "defis", "daily": "quotidien",
            "calendar": "calendrier", "giant": "citrouille", "film": "film", "profile": "profil",
@@ -60,7 +61,7 @@ COMMAND = {"quiz": "quiz", "ouija": "ouija", "shell": "bonneteau", "motus": "mot
 CATEGORIES = [
     ("quiz", "Quiz & vidéo", "skull", ["quiz", "ouija", "shell", "motus", "hangman"]),
     ("luck", "Hasard & mises", "dice", ["slots", "roulette", "hilo", "race", "wheel", "hunt"]),
-    ("brain", "Mémoire & réflexes", "eye", ["memory", "ritual", "reflex", "maze", "cauldron"]),
+    ("brain", "Mémoire & réflexes", "eye", ["fuite", "memory", "ritual", "reflex", "maze", "cauldron"]),
     ("adventure", "Aventure & collection", "key", ["escape", "house", "manor", "cards", "connect4"]),
     ("night", "Rendez-vous de la nuit", "moon", ["pet", "defis", "daily", "calendar", "giant"]),
     ("me", "Ma progression", "trophy", ["film", "profile", "trophies", "top", "shop"]),
@@ -76,6 +77,7 @@ TIPS = [
     "Ne rate pas un jour de coffre : la série monte jusqu'à 7 jours.",
     "Défie un ami avec /duel et mise tes bonbons !",
     "Garde l'œil sur le salon des apparitions : le premier qui clique gagne.",
+    "À La Grande Fuite, regarde la hauteur de l'obstacle : en bas on saute, en haut on glisse, un monstre on le frappe.",
 ]
 
 
@@ -154,7 +156,7 @@ class HubView(GameView):
             f"Chaque partie donne de l'XP. Chaque niveau rapporte un bonus de bonbons et un nouveau titre.\n"
             f"### {E.hourglass} Parties par jour\n"
             f"Grand Frisson **{L['quiz']}** émissions · Maison **{L['house']}** · Course **{L['race']}** · Mémoire **{L['memory']}** · "
-            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · Labyrinthe **{L['maze']}** · Puissance 4 **{L['connect4']}** · Roulette **{L['roulette']}** · Escape **{L['escape']}** · "
+            f"Chasse **{L['hunt']}** · Pendu **{L['hangman']}** · Rituel **{L['ritual']}** · Ouija **{L['ouija']}** · Bonneteau **{L['shell']}** · Machine **{L['slots']}** · Motus **{L['motus']}** · Plus ou Moins **{L['hilo']}** · Réflexe **{L['reflex']}** · Labyrinthe **{L['maze']}** · Fuite **{L['fuite']}** · Puissance 4 **{L['connect4']}** · Roulette **{L['roulette']}** · Escape **{L['escape']}** · "
             f"Formule **{L['cauldron']}** · Roue toutes les **4 h**. Une nouvelle nuit commence à minuit.\n"
             f"### {E.potion_gold} Effets\n"
             f"Le **Philtre de fortune** double tes gains, le **Philtre de sagesse** double ton XP, "

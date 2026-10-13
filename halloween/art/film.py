@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import math
 import random
-from io import BytesIO
 
 from PIL import Image, ImageDraw
 
 from . import neon
+from .canvas import encode_gif
 from .cards import _neon_layer
 from .versus import _portrait
 
@@ -141,17 +141,8 @@ def film_frames(info: dict, seed: int = 0):
 
 
 def _encode(frames, durations) -> bytes:
-    """One palette shared by the whole movie, built from a frame of every scene."""
-    rgb = [f.convert("RGB") for f in frames]
-    keys = rgb[5::9] or rgb[:1]
-    mosaic = Image.new("RGB", (W, H * len(keys)))
-    for i, f in enumerate(keys):
-        mosaic.paste(f, (0, H * i))
-    pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in rgb]
-    buf = BytesIO()
-    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=durations, loop=0, optimize=True)
-    return buf.getvalue()
+    """One palette shared by the whole movie (no flicker between scenes)."""
+    return encode_gif(frames, durations, loop=0)
 
 
 def film_gif(info: dict, seed: int = 0) -> tuple[bytes, float]:

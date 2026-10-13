@@ -58,14 +58,20 @@ MONSTERS = {"ghost", "bat", "vampire", "werewolf", "skull", "skull_fire", "reape
             "witch", "zombie", "mummy", "demon", "eye", "frog", "hunter"}
 
 
-def cutscene_for(key: str, reward, seed: int = 0, name: str = "") -> bytes:
-    """2D cutscene for the end of a game: the hero beats the game's monster (or gets knocked out)."""
+def cutscene_for(key: str, reward, seed: int = 0, name: str = "", won: bool | None = None) -> bytes:
+    """2D cutscene for the end of a game: the hero beats the game's monster (or gets knocked out).
+
+    ``won`` defaults to "the game paid candies"; a game that pays something even on a loss passes it.
+    """
     theme = banners.THEMES.get(key) or banners.THEMES["hub"]
     monster = next((i for i in (theme.right, theme.left) if i in MONSTERS), "ghost")
     color = theme.color2 if monster == theme.right else theme.color
-    won = reward.candies > 0
+    if won is None:
+        won = reward.candies > 0
     sub = ""
-    if getattr(reward, "leveled", False):
+    if not won and reward.candies > 0:
+        sub = f"{config.fmt(reward.candies)} BONBONS SAUVÉS"
+    elif getattr(reward, "leveled", False):
         sub = f"NIVEAU {reward.new_level} !"
     elif reward.achievements:
         sub = f"SUCCÈS : {reward.achievements[0][1].upper()}"
@@ -247,7 +253,7 @@ class GameView(discord.ui.LayoutView):
             return attachments
         try:
             data = await asyncio.to_thread(cutscene_for, self.banner_key, self.reward, random.randrange(10**6),
-                                           self.user.display_name)
+                                           self.user.display_name, getattr(self, "scene_won", None))
         except Exception:  # noqa: BLE001 - a cutscene must never break the game
             LOG.exception("cutscene failed")
             return attachments

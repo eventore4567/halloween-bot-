@@ -12,6 +12,7 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 FONT_DIR = Path(__file__).resolve().parents[2] / "assets" / "fonts"
@@ -311,26 +312,63 @@ def ease(t):
     return 0.5 - 0.5 * math.cos(math.pi * t)
 
 
-def banner_gif_bytes(frames, duration=90) -> bytes:
-    """Opaque GIF with one shared palette (no flicker, small files)."""
-    frames = [f.convert("RGB") for f in frames]
-    # Build the palette from a mosaic of several frames so moving parts get colours too.
-    w, h = frames[0].size
-    picks = frames[::2][:10]
-    # The running strip at the bottom (hero, monster) is small but moving: weigh it more in the palette.
-    strips = [f.crop((0, int(h * 0.7), w, h)) for f in picks]
-    sh = strips[0].height
-    mosaic = Image.new("RGB", (w, h * len(picks) + sh * len(strips) * 3))
-    for i, f in enumerate(picks):
-        mosaic.paste(f, (0, h * i))
-    y = h * len(picks)
-    for _ in range(3):
-        for s in strips:
-            mosaic.paste(s, (0, y))
-            y += sh
-    pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in frames]
+def best_palette(frames, colors: int = 255, sample: int = 16000, iters: int = 5, weight=None) -> Image.Image:
+    """One palette for a whole animation, tuned for neon on a dark background.
+
+    Pixels are sampled from frames spread over the whole clip (so colours that
+    only show up for a moment still get a slot), bright pixels are over-sampled
+    (glows and outlines matter more than the near-black sky), and a few k-means
+    rounds move the median-cut colours to where the pixels really are.
+    ``weight`` is an optional (x0, y0, x1, y1) box sampled twice as much.
+    """
+    rgb = [f.convert("RGB") for f in frames]
+    step = max(1, len(rgb) // 24)
+    picks = rgb[::step] + [rgb[-1]]
+    chunks = [np.asarray(f.reduce(2)).reshape(-1, 3) for f in picks]
+    if weight:
+        chunks += [np.asarray(f.crop(weight).reduce(2)).reshape(-1, 3) for f in picks]
+    px = np.concatenate(chunks).astype(np.float32)
+    rng = np.random.default_rng(1)
+    lum = px.max(1)
+    bright, dark = px[lum > 50], px[lum <= 50]
+    nb = min(len(bright), int(sample * 0.7))
+    nd = min(len(dark), sample - nb)
+    pts = np.concatenate([bright[rng.choice(len(bright), nb, replace=False)],
+                          dark[rng.choice(len(dark), nd, replace=False)]])
+    width = 200
+    rows = max(1, len(pts) // width)
+    seed_img = Image.fromarray(pts[:rows * width].reshape(rows, width, 3).astype(np.uint8), "RGB")
+    seed = seed_img.quantize(colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    centers = np.array(seed.getpalette()[: colors * 3], dtype=np.float32).reshape(-1, 3)
+    norms = (pts * pts).sum(1)[:, None]
+    for _ in range(iters):
+        nearest = (norms - 2 * pts @ centers.T + (centers * centers).sum(1)[None]).argmin(1)
+        count = np.bincount(nearest, minlength=len(centers))
+        for ch in range(3):
+            total = np.bincount(nearest, weights=pts[:, ch], minlength=len(centers))
+            centers[:, ch] = np.where(count > 0, total / np.maximum(count, 1), centers[:, ch])
+    pal = Image.new("P", (1, 1))
+    flat = np.clip(np.round(centers), 0, 255).astype(np.uint8).reshape(-1).tolist()
+    pal.putpalette(flat + [0, 0, 0] * (256 - len(centers)))
+    return pal
+
+
+def encode_gif(frames, durations, loop: int | None = None, weight=None, **kwargs) -> bytes:
+    """Opaque animated GIF with the shared :func:`best_palette` (no flicker, faithful neon)."""
+    rgb = [f.convert("RGB") for f in frames]
+    pal = best_palette(rgb, weight=weight)
+    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in rgb]
     buf = BytesIO()
-    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=duration,
-                loop=0, optimize=True, disposal=1)
+    if loop is not None:
+        kwargs["loop"] = loop
+    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=durations, optimize=True, **kwargs)
     return buf.getvalue()
+
+
+def banner_gif_bytes(frames, duration=90) -> bytes:
+    """Looping opaque GIF with one shared palette (no flicker).
+
+    The running strip at the bottom (hero, monster) is small but moving: it is weighted more in the palette.
+    """
+    w, h = frames[0].size
+    return encode_gif(frames, duration, loop=0, weight=(0, int(h * 0.7), w, h), disposal=1)

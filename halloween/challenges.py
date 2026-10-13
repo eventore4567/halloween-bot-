@@ -24,6 +24,7 @@ class Quest:
     reward: int
     icon: str
     game: str | None = None  # opener key, for the "play" buttons
+    since: str | None = None  # first day it can be drawn: adding a quest never reshuffles a day already started
 
 
 DAILY = [
@@ -41,6 +42,8 @@ DAILY = [
     Quest("d_slots", "Joue 5 fois à la Machine hantée", "play:machine", 5, 120, "gem", "slots"),
     Quest("d_motus", "Trouve 1 mot au Motus des ombres", "stat:motus_win", 1, 160, "book", "motus"),
     Quest("d_hilo", "Donne 5 bonnes réponses à Plus ou Moins", "stat:hilo_right", 5, 130, "star", "hilo"),
+    Quest("d_fuite", "Franchis 12 obstacles à La Grande Fuite", "stat:run_obstacles", 12, 140, "reaper", "fuite",
+          since="2026-10-14"),
     Quest("d_candies", "Gagne 600 bonbons aujourd'hui", "candies", 600, 150, "candy_bag", None),
     Quest("d_games", "Joue 6 parties, tous jeux confondus", "play:any", 6, 140, "dice", "hub"),
 ]
@@ -57,7 +60,7 @@ ALL_DONE_BONUS = 200  # + one wheel ticket when the 3 daily challenges are claim
 
 # Reasons of `grant` that mean "one game was played".
 GAME_REASONS = {"grand-frisson", "maison", "course", "rituel", "reflexe", "ouija", "bonneteau", "memoire", "pendu",
-                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition"}
+                "chasse", "formule", "roue", "machine", "motus", "plusoumoins", "duel", "expedition", "fuite"}
 
 
 def week_key(day: str | None = None) -> str:
@@ -73,7 +76,9 @@ def next_monday_ts() -> int:
 
 
 def daily_quests(g: int, u: int, day: str | None = None) -> list[Quest]:
-    return random.Random(f"{g}:{u}:{day or config.today()}").sample(DAILY, DAILY_COUNT)
+    day = day or config.today()
+    pool = [q for q in DAILY if q.since is None or day >= q.since]
+    return random.Random(f"{g}:{u}:{day}").sample(pool, DAILY_COUNT)
 
 
 def weekly_quests(g: int, u: int, week: str | None = None) -> list[Quest]:

@@ -8,11 +8,11 @@ from __future__ import annotations
 import math
 import random
 from functools import lru_cache
-from io import BytesIO
 
 from PIL import Image, ImageDraw
 
 from . import neon
+from .canvas import encode_gif
 from .cards import _neon_layer
 
 W, H = 680, 300
@@ -118,7 +118,8 @@ def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
     """Pumpkin-head hero in a tunic and a long cape, drawn as a filled neon sprite.
 
     ``phase`` 0..7 animates the run cycle (knees bend, arms swing, the cape flaps).
-    Poses: run, jump, fall, idle, cheer (arms up), hit (recoils backwards).
+    Poses: run, jump, fall, idle, cheer (arms up), hit (recoils backwards),
+    slide (low, legs first, leaning back) and strike (lunge with a punch forward).
     The feet stand 18 px above the bottom of the image (see :func:`place`).
     """
     k = 2  # drawn at twice the size, then reduced: smooth lines
@@ -134,8 +135,11 @@ def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
     foot_y = big[1] - pad * k
     thigh = shin = 14 * u
     bob = 3 * u * abs(math.cos(p)) if pose == "run" else 0
-    lean = {"run": 0.16, "jump": 0.05, "fall": -0.45, "idle": 0.0, "cheer": 0.0, "hit": -0.3}.get(pose, 0)
+    lean = {"run": 0.16, "jump": 0.05, "fall": -0.45, "idle": 0.0, "cheer": 0.0, "hit": -0.3, "slide": -0.75,
+            "strike": 0.3}.get(pose, 0)
     hip = (cx, foot_y - thigh - shin + 2 * u - bob - (4 * u if pose == "jump" else 0))
+    if pose == "slide":  # sitting low, the legs stretched forward
+        hip = (cx - 6 * u, foot_y - 9 * u)
     top = (hip[0] + 26 * u * math.sin(lean), hip[1] - 26 * u * math.cos(lean))
     lw = max(3, int(4.5 * u))
     thin = max(2, int(3 * u))
@@ -165,6 +169,12 @@ def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
     elif pose in ("fall", "hit"):
         leg(1.2, -0.3)
         leg(0.7, -0.6)
+    elif pose == "slide":
+        leg(1.45, 0.05)
+        leg(1.0, -0.9)
+    elif pose == "strike":
+        leg(0.7, -0.35)
+        leg(-0.6, -0.25)
     else:
         leg(0.12, -0.05)
         leg(-0.12, -0.05)
@@ -184,6 +194,10 @@ def hero(phase: int, size: int = 64, pose: str = "run") -> Image.Image:
         arms = [(2.7, 0.3), (-2.7, -0.3)]
     elif pose in ("fall", "hit"):
         arms = [(2.3, -0.6), (-2.0, 0.6)]
+    elif pose == "slide":
+        arms = [(-2.0, 0.4), (2.2, -0.5)]
+    elif pose == "strike":
+        arms = [(1.62, 0.0), (-0.9, 0.7)]
     else:
         arms = [(0.25, 0.3), (-0.25, 0.3)]
     for a, bend in arms:
@@ -230,16 +244,7 @@ def place(img, sprite, x, foot_y):
 
 # --------------------------------------------------------------------------- cutscene
 def _gif(frames, durations) -> bytes:
-    rgb = [f.convert("RGB") for f in frames]
-    keys = [rgb[0], rgb[len(rgb) // 2], rgb[-1]]
-    mosaic = Image.new("RGB", (W, H * len(keys)))
-    for i, f in enumerate(keys):
-        mosaic.paste(f, (0, H * i))
-    pal = mosaic.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    out = [f.quantize(palette=pal, dither=Image.Dither.NONE) for f in rgb]
-    buf = BytesIO()
-    out[0].save(buf, format="GIF", save_all=True, append_images=out[1:], duration=durations, optimize=True)
-    return buf.getvalue()
+    return encode_gif(frames, durations)
 
 
 def cutscene_frames(monster: str, color: tuple, won: bool, candies: int = 0, headline: str = "",
