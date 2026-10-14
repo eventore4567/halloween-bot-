@@ -87,6 +87,7 @@ class FlowTest(unittest.TestCase):
         self.cog.cache.pop(81, None)
         self.cog.where.pop(81, None)
         self.cog.activity.pop(81, None)
+        self.cog.last_count.clear()
         self.store.meta_del("haunt:81")
         self.clock = itertools.count(10**9, 5)  # every message 5 s after the previous one
 
@@ -137,6 +138,55 @@ class FlowTest(unittest.TestCase):
             self.assertIsNone(self.cog.state(81)["room"])
             self.assertEqual(await self.cog.step(self.guild), "waiting")  # it rests before coming back
         self.run_flow(go())
+
+    def test_late_messages_do_not_count(self):
+        async def go():
+            before = self.store.stats(81, self.users[0].id).get("exorcisms", 0)
+            await self.cog.haunt(self.guild, self.dead)
+            self.cog.state(81)["deadline"] = 0  # time is up, the tick has not run yet
+            for u in self.users[:3]:
+                for _ in range(4):
+                    await self.say(u, self.dead)
+            st = self.cog.state(81)
+            self.assertIsNone(st["room"])  # it escaped instead of being exorcised
+            self.assertEqual(st.get("exorcisms", 0), 0)
+            self.assertEqual(self.store.stats(81, self.users[0].id).get("exorcisms", 0), before)
+        self.run_flow(go())
+
+    def test_organiser_cannot_haunt_private_rooms(self):
+        async def go():
+            self.assertFalse(await self.cog.haunt(self.guild, self.staff))
+            self.assertFalse(await self.cog.haunt(self.guild, self.events))
+            self.assertIsNone(self.cog.state(81).get("room"))
+            self.assertTrue(await self.cog.haunt(self.guild, self.general))
+        self.run_flow(go())
+
+    def test_haunted_floor_survives_clipping(self):
+        cats = [FakeCategory(f"Cat {k}", k) for k in range(8)]
+        chans = [FakeChannel(500 + k, f"salon-{k}", cats[k], 0) for k in range(8)]
+        guild = FakeGuild(82, chans)
+        self.cog.cache.pop(82, None)
+        self.store.meta_del("haunt:82")
+        users = [FakeUser(8200 + k, f"P{k}") for k in range(3)]
+
+        async def go():
+            for k in range(7):  # every floor is busy except the last one
+                for u in users:
+                    await self.cog.on_message(FakeMessage(guild, u, chans[k]))
+            st = self.cog.state(82)
+            st["room"] = chans[7].id
+            floors = await self.cog.floors(guild)
+            self.assertEqual(len(floors), 6)
+            self.assertIn(chans[7].id, [r.cid for f in floors for r in f.rooms])
+            self.assertIsNotNone(art.ghost_xy(floors, chans[7].id))
+            self.assertEqual([f.name for f in floors], sorted([f.name for f in floors], key=lambda n: int(n[-1])))
+        self.run_flow(go())
+
+    def test_avatar_cache_is_bounded(self):
+        self.cog.avatars.clear()
+        self.cog.avatars.update({k: (0.0, b"x" * 10) for k in range(250)})  # fetched long ago
+        asyncio.run(self.cog.avatar(self.users[0]))
+        self.assertLessEqual(len(self.cog.avatars), 2)
 
     def test_castle_map_command(self):
         async def go():

@@ -111,6 +111,8 @@ class Haunting(commands.Cog):
         u = message.author.id
         if now - self.last_count.get((g, u), 0) < MIN_GAP:
             return
+        if now > st.get("deadline", 0):  # too late: the Spectre is leaving, nothing counts any more
+            return await self.escape(message.guild)
         async with self.lock:
             st = self.state(g)
             if st.get("room") != cid:
@@ -136,9 +138,13 @@ class Haunting(commands.Cog):
 
     # -------------------------------------------------------------- the map
     async def avatar(self, member) -> bytes | None:
+        now = time.time()
         hit = self.avatars.get(member.id)
-        if hit and time.time() - hit[0] < 3600:
+        if hit and now - hit[0] < 3600:
             return hit[1]
+        if len(self.avatars) > 200:  # forget the avatars fetched more than an hour ago
+            for uid in [u for u, (ts, _) in self.avatars.items() if now - ts >= 3600]:
+                del self.avatars[uid]
         try:
             data = await member.display_avatar.replace(size=64, static_format="png").read()
         except (discord.HTTPException, ValueError, AttributeError):
@@ -170,9 +176,12 @@ class Haunting(commands.Cog):
             floors.append(art.Floor(cat.name if cat else "Hall", [
                 art.Room(c.id, c.name, counts[c.id] / top, c.id in st.get("lit", []), people.get(c.id, []))
                 for c in keep], more=len(chans) - len(keep)))
-        if len(floors) > art.MAX_FLOORS:  # keep the liveliest floors
-            floors.sort(key=lambda f: -sum(r.activity for r in f.rooms))
-            floors = floors[:art.MAX_FLOORS]
+        if len(floors) > art.MAX_FLOORS:  # keep the haunted floor, then the liveliest ones, in their order
+            haunted = st.get("room")
+            ranked = sorted(floors, key=lambda f: (not any(r.cid == haunted for r in f.rooms),
+                                                   -sum(r.activity for r in f.rooms)))
+            keep = {id(f) for f in ranked[:art.MAX_FLOORS]}
+            floors = [f for f in floors if id(f) in keep]
         return floors
 
     # --------------------------------------------------------------- haunting
@@ -184,8 +193,10 @@ class Haunting(commands.Cog):
             st = self.state(g)
             if st.get("room"):
                 return False
+            options = public_rooms(guild, exclude=getattr(events, "id", None))
+            if channel is not None and channel.id not in {c.id for c in options}:
+                return False  # private, NSFW, the events channel or no permission: nobody could chase it there
             if channel is None:
-                options = public_rooms(guild, exclude=getattr(events, "id", None))
                 if not options:
                     return False
                 options.sort(key=lambda c: self.liveliness(g, c.id))

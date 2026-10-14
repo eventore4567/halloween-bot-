@@ -129,7 +129,8 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
         await interaction.response.defer(ephemeral=True)
         ok = await cog.haunt(interaction.guild, salon)
         await interaction.followup.send(f"{E.check} Le Spectre est apparu !" if ok else
-                                        f"{E.cross} Impossible : aucun salon public où je peux écrire.", ephemeral=True)
+                                        f"{E.cross} Impossible : il faut un salon public (ni privé, ni NSFW, ni le salon "
+                                        f"des événements) où je peux écrire et envoyer des images.", ephemeral=True)
 
     @app_commands.command(name="modifier-bonbons", description="Ajouter ou retirer des bonbons à un membre")
     @app_commands.describe(membre="Le membre", montant="Positif pour ajouter, négatif pour retirer")

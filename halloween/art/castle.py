@@ -210,6 +210,8 @@ def ghost_xy(floors: list[Floor], room_id: int | None, t: float = 1.0) -> tuple[
 
 
 def _ghost(img, xy, f, color=neon.WHITE, alpha=1.0):
+    if xy is None:
+        return
     n = max(1, neon.icon_frames("ghost"))
     g = neon.icon_light("ghost", 66, color, f % n)
     if alpha < 1:
