@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **32 jeux** et **51 succès** à débloquer.
+collectionner), **32 jeux** et **52 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -126,7 +126,7 @@ collectionner), **32 jeux** et **51 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **51 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **52 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels, record de La Grande Fuite |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |
@@ -160,6 +160,19 @@ Pas un panneau de plus : ces jeux se jouent **entre les membres, dans le serveur
   l'envers dans le **pseudo du bot sur le serveur**, et une grille de mots mêlés. Le premier qui résout tout gagne 1 500 bonbons,
   puis 800 et 500. Dure 24 h.
 
+### 🏰 La Hantise : ton serveur devient un château hanté
+
+`/chateau` dessine **ton propre serveur** en château hanté : chaque catégorie est un étage, chaque salon une
+pièce avec son vrai nom. Les pièces s'illuminent avec l'**activité réelle** des dernières 24 h, et **l'avatar de
+chaque membre apparaît dans la pièce où il vient de parler** : une carte vivante du serveur.
+
+Quand le serveur est animé, **le Spectre s'installe dans un des salons les plus calmes**. Pour le chasser, il faut
+aller **parler dans ce salon** : 12 messages de 3 personnes différentes en 30 minutes. Chaque exorciste est
+récompensé, et le salon libéré garde une bougie sur la carte. Au fil d'octobre, le serveur rallume son château…
+et ses salons oubliés reprennent vie.
+
+![Le château hanté](docs/apercu-chateau.png)
+
 ### 🔧 Commandes d'organisation (`Gérer le serveur`)
 
 | Commande | Rôle |
@@ -172,6 +185,7 @@ Pas un panneau de plus : ces jeux se jouent **entre les membres, dans le serveur
 | `/reglages lancer-chasse-tresor` | Lancer une Chasse au trésor de 24 h dans tout le serveur |
 | `/reglages lancer-malediction` | Lancer tout de suite la Malédiction contagieuse (sinon elle frappe seule une fois par jour) |
 | `/reglages episode-suivant` | Diffuser tout de suite le prochain épisode de la Série hantée (sinon chaque soir à 21 h) |
+| `/reglages lancer-hantise` | Faire apparaître le Spectre tout de suite (dans un salon choisi ou un salon calme) |
 | `/reglages recharger-emojis` | Renvoyer les emojis du bot sur Discord |
 
 ![Profil](docs/apercu-profil.png)
