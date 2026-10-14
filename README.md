@@ -241,9 +241,17 @@ halloween/
   content/                  questions du quiz, mots du pendu, potions, cartes
   cogs/                     un fichier par jeu
 assets/fonts/               polices libres (OFL / Apache 2.0)
+assets/brand/               photo de profil et bannière du bot (python -m tools.brand_art)
 tests/
 ```
 
 Le jeu utilise uniquement des bonbons virtuels : **aucun argent réel ni mise d'argent**.
 Les polices Luckiest Guy (Apache 2.0), Lilita One, Fredoka et Tilt Neon (SIL OFL)
 sont incluses avec leurs licences dans `assets/fonts/`.
+
+### Photo de profil et bannière (serveur ODB)
+
+`assets/brand/avatar.png` (1024×1024) et `assets/brand/banner.png` (1500×600, format 5:2)
+reprennent le logo ODB (les deux D argentés dos à dos) en version néon d'Halloween.
+À téléverser dans le [portail développeur Discord](https://discord.com/developers/applications) :
+onglet **Bot** → *Icon* et *Banner*. Pour les régénérer : `python -m tools.brand_art`.
