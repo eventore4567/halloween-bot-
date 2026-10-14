@@ -6,7 +6,7 @@ Un bot Halloween **entièrement refait**, avec sa propre identité visuelle : de
 **enseignes au néon animées** qui grésillent sur un vieux mur de briques, un seul format
 de panneau pour tous les jeux, **74 emojis personnalisés** (dont 21 animés) dessinés par
 le bot lui-même, des images générées (carte de profil, podium, roue, course, cartes à
-collectionner), **32 jeux** et **47 succès** à débloquer.
+collectionner), **32 jeux** et **51 succès** à débloquer.
 
 ## ✨ Ce qui rend le bot unique
 
@@ -53,6 +53,12 @@ collectionner), **32 jeux** et **47 succès** à débloquer.
 ![Défi en direct](docs/apercu-defi.gif)
 
 ![Le Traître](docs/apercu-traitre.gif)
+
+![La Série hantée](docs/apercu-serie.gif)
+
+![La Malédiction contagieuse](docs/apercu-malediction.gif)
+
+![La Chasse au trésor](docs/apercu-tresor.png)
 
 ![La Grande Fuite](docs/apercu-fuite.gif)
 
@@ -120,7 +126,7 @@ collectionner), **32 jeux** et **47 succès** à débloquer.
 | `/citrouille` | **La Citrouille Géante** : tout le serveur la nourrit avec ses bonbons, elle grandit en 7 étapes et chaque étape récompense **tous les jardiniers** |
 | `/quotidien` | **Coffre du jour** avec série de 7 jours (booster offert au 7e jour) |
 | `/boutique` | Jokers, boucliers, tickets, potions, amulettes, **titres** et **couleurs de profil** |
-| `/succes` | **47 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
+| `/succes` | **51 succès** avec barres de progression, chacun rapporte un bonus de bonbons |
 | `/profil [membre]` | Carte de chasseur générée en néon, parties restantes, contenu du sac, expédition en cours |
 | `/classement` | **Le Panthéon** : bonbons, total gagné, niveau, bonnes réponses, record du Grand Frisson, expéditions, cartes, duels, record de La Grande Fuite |
 | `/donner` | Offrir des bonbons (2 000 max par jour) |
@@ -135,6 +141,25 @@ Dans le salon choisi par les organisateurs, quand le serveur est actif :
 - **Le Roi Citrouille** : boss collectif ! Ses PV s'adaptent au nombre de joueurs
   actifs, tout le monde frappe ensemble, récompenses selon les dégâts.
 
+### 🌍 Des jeux qui vivent dans tout le serveur
+
+Pas un panneau de plus : ces jeux se jouent **entre les membres, dans le serveur lui-même**.
+
+- **📖 La Série hantée** (`/serie`) : chaque soir à 21 h, un nouvel épisode d'une histoire d'horreur
+  interactive sort dans le salon des événements. **Trois membres actifs du serveur en sont les personnages**
+  (avec leur avatar dans le générique animé), et tout le serveur **vote** pour la suite avec des boutons.
+  Chaque choix change l'épisode suivant et mène à l'une des **4 fins** de la saison. Nouvelle saison, nouveau
+  casting, après chaque finale.
+- **💀 La Malédiction contagieuse** (`/malediction`) : une fois par jour, quand le serveur est actif, la
+  malédiction tombe sur quelqu'un qui vient de parler. Pour s'en débarrasser, il faut **mentionner un autre
+  joueur dans n'importe quel message** : elle saute sur lui (réaction 💀), et une carte animée montre la chaîne
+  de contamination avec les avatars. Celui qui la garde 45 minutes perd des bonbons, tous les autres gagnent ;
+  à 12 maillons, elle se brise et toute la chaîne est récompensée.
+- **🗝️ La Chasse au trésor du serveur** (`/tresor`) : 4 énigmes cachées partout : un message chiffré sur une
+  roue de chiffrement, un **parchemin caché dans un autre salon** (seul un indice dit lequel), un mot écrit à
+  l'envers dans le **pseudo du bot sur le serveur**, et une grille de mots mêlés. Le premier qui résout tout gagne 1 500 bonbons,
+  puis 800 et 500. Dure 24 h.
+
 ### 🔧 Commandes d'organisation (`Gérer le serveur`)
 
 | Commande | Rôle |
@@ -144,6 +169,9 @@ Dans le salon choisi par les organisateurs, quand le serveur est actif :
 | `/reglages lancer-evenement` | Lancer tout de suite un sac, un quiz éclair ou le boss |
 | `/reglages modifier-bonbons` | Ajouter / retirer des bonbons à un membre |
 | `/reglages heure-rappel` | Heure du rappel quotidien (18 h par défaut) |
+| `/reglages lancer-chasse-tresor` | Lancer une Chasse au trésor de 24 h dans tout le serveur |
+| `/reglages lancer-malediction` | Lancer tout de suite la Malédiction contagieuse (sinon elle frappe seule une fois par jour) |
+| `/reglages episode-suivant` | Diffuser tout de suite le prochain épisode de la Série hantée (sinon chaque soir à 21 h) |
 | `/reglages recharger-emojis` | Renvoyer les emojis du bot sur Discord |
 
 ![Profil](docs/apercu-profil.png)

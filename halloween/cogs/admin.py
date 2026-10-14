@@ -1,13 +1,15 @@
 """/reglages — server configuration for organisers (Manage Server permission)."""
 from __future__ import annotations
 
+import random
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from .. import config
 from ..emojis import E, sync_emojis
-from ..ui import Panel, notice
+from ..ui import Panel, fetch_member, notice
 from .reminder import tz_name
 
 
@@ -73,6 +75,50 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
         view = await drops.spawn(interaction.channel, type.value)
         text = f"{E.check} **{type.name}** lancé !" if view else f"{E.cross} Impossible d'écrire dans ce salon."
         await interaction.followup.send(text, ephemeral=True)
+
+    @app_commands.command(name="lancer-malediction", description="Lancer tout de suite la Malédiction contagieuse sur un joueur")
+    @app_commands.describe(membre="Qui reçoit la malédiction (par défaut : un joueur actif au hasard, ou toi)")
+    async def malediction(self, interaction: discord.Interaction, membre: discord.Member | None = None):
+        cog = self.bot.get_cog("Contagion")
+        if cog.state(interaction.guild_id):
+            return await notice(interaction, "Une malédiction est déjà en cours (`/malediction`).")
+        target = membre
+        if target is None:
+            drops = self.drops()
+            seen = list(drops.authors.get(interaction.guild_id, {})) if drops else []
+            random.shuffle(seen)
+            target = interaction.user
+            for uid in seen[:8]:
+                member = await fetch_member(interaction.guild, uid)
+                if cog.eligible(interaction.guild_id, member):
+                    target = member
+                    break
+        if not cog.eligible(interaction.guild_id, target):
+            return await notice(interaction, f"{target.mention} n'a encore jamais joué : la malédiction ne peut pas le toucher.")
+        await interaction.response.defer(ephemeral=True)
+        ok = await cog.start(interaction.guild, target, interaction.channel)
+        await interaction.followup.send(f"{E.check} Malédiction lancée sur {target.mention} !" if ok
+                                        else f"{E.cross} Impossible de lancer la malédiction.", ephemeral=True)
+
+    @app_commands.command(name="lancer-chasse-tresor", description="Lancer une Chasse au trésor de 24 h dans tout le serveur")
+    async def tresor(self, interaction: discord.Interaction):
+        cog = self.bot.get_cog("Treasure")
+        await interaction.response.defer(ephemeral=True)
+        cfg = self.bot.store.guild(interaction.guild_id)
+        channel = (interaction.guild.get_channel(cfg["drop_channel"]) if cfg["drop_channel"] else None) \
+            or interaction.channel  # the configured channel may have been deleted
+        error = await cog.start(interaction.guild, channel)
+        await interaction.followup.send(f"{E.cross} {error}" if error else
+                                        f"{E.check} La Chasse au trésor est lancée dans {channel.mention} !",
+                                        ephemeral=True)
+
+    @app_commands.command(name="episode-suivant", description="Diffuser tout de suite le prochain épisode de la Série hantée")
+    async def episode(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        ok = await self.bot.get_cog("Series").release(interaction.guild)
+        await interaction.followup.send(f"{E.check} Épisode diffusé dans le salon des événements !" if ok else
+                                        f"{E.cross} Règle d'abord le salon avec `/reglages salon-evenements`.",
+                                        ephemeral=True)
 
     @app_commands.command(name="modifier-bonbons", description="Ajouter ou retirer des bonbons à un membre")
     @app_commands.describe(membre="Le membre", montant="Positif pour ajouter, négatif pour retirer")
