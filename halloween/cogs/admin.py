@@ -9,7 +9,7 @@ from discord.ext import commands
 
 from .. import config
 from ..emojis import E, sync_emojis
-from ..ui import Panel, notice
+from ..ui import Panel, fetch_member, notice
 from .reminder import tz_name
 
 
@@ -87,8 +87,12 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
             drops = self.drops()
             seen = list(drops.authors.get(interaction.guild_id, {})) if drops else []
             random.shuffle(seen)
-            target = next((m for m in map(interaction.guild.get_member, seen) if cog.eligible(interaction.guild_id, m)),
-                          interaction.user)
+            target = interaction.user
+            for uid in seen[:8]:
+                member = await fetch_member(interaction.guild, uid)
+                if cog.eligible(interaction.guild_id, member):
+                    target = member
+                    break
         if not cog.eligible(interaction.guild_id, target):
             return await notice(interaction, f"{target.mention} n'a encore jamais joué : la malédiction ne peut pas le toucher.")
         await interaction.response.defer(ephemeral=True)

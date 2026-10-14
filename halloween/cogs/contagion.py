@@ -23,7 +23,7 @@ from .. import config
 from ..art import contagion as art
 from ..emojis import E
 from ..rewards import grant
-from ..ui import NO_PINGS, Panel, image_file, relative
+from ..ui import NO_PINGS, Panel, fetch_member, image_file, relative
 
 LOG = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class Contagion(commands.Cog):
     async def people(self, guild, chain) -> list[tuple[str, bytes | None]]:
         out = []
         for uid in chain:
-            member = guild.get_member(uid) if guild else None
+            member = await fetch_member(guild, uid)
             name = member.display_name if member else "Fantôme"
             avatar = None
             if member is not None:
@@ -266,8 +266,8 @@ class Contagion(commands.Cog):
         if len(recent) < MIN_ACTIVE:
             return False
         random.shuffle(recent)
-        for uid in recent:
-            member = guild.get_member(uid)
+        for uid in recent[:8]:  # a few lookups at most
+            member = await fetch_member(guild, uid)
             if self.eligible(g, member):
                 return await self.start(guild, member, day=day)
         return False

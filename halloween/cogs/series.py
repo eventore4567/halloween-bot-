@@ -24,7 +24,7 @@ from ..art import series as art
 from ..content import series as S
 from ..emojis import E
 from ..rewards import grant
-from ..ui import NO_PINGS, STYLE, Panel, image_file, notice, register_dynamic
+from ..ui import NO_PINGS, STYLE, Panel, fetch_member, image_file, notice, register_dynamic
 
 LOG = logging.getLogger(__name__)
 
@@ -70,11 +70,18 @@ class Series(commands.Cog):
         return self.store.meta_get(key(g))
 
     # ------------------------------------------------------------------ cast
-    def pick_cast(self, guild) -> list[list]:
-        """[uid or None, name] for the hero, the suspect and the victim."""
+    async def pick_cast(self, guild) -> list[list]:
+        """[uid or None, name] for the hero, the suspect and the victim, among the most active players."""
         rows = self.store.board(guild.id, "earned", 25)
-        members = [m for m in (guild.get_member(uid) for uid, _ in rows) if m is not None and not m.bot]
-        chosen = random.sample(members, min(3, len(members)))
+        uids = [uid for uid, _ in rows]
+        random.shuffle(uids)
+        chosen = []
+        for uid in uids[:10]:  # a few lookups at most: members who left are skipped
+            member = await fetch_member(guild, uid)
+            if member is not None and not member.bot:
+                chosen.append(member)
+            if len(chosen) == 3:
+                break
         cast = [[m.id, m.display_name] for m in chosen]
         extras = [x for x in EXTRAS]
         while len(cast) < 3:
@@ -91,7 +98,7 @@ class Series(commands.Cog):
     async def avatars(self, guild, st) -> list[bytes | None]:
         out = []
         for uid, _ in st["cast"]:
-            member = guild.get_member(uid) if uid and guild else None
+            member = await fetch_member(guild, uid)
             data = None
             if member is not None:
                 try:
@@ -132,7 +139,7 @@ class Series(commands.Cog):
                 outcome = self.resolve(st)
                 st["ep"] += 1
             else:  # a new season (or the very first one)
-                st = dict(season=(st["season"] + 1) if st else 1, ep=0, cast=self.pick_cast(guild), totals={})
+                st = dict(season=(st["season"] + 1) if st else 1, ep=0, cast=await self.pick_cast(guild), totals={})
             st["prev"] = outcome
             st["votes"] = {}
             st["day"] = day or config.today()
@@ -188,7 +195,8 @@ class Series(commands.Cog):
             files = []
         view = discord.ui.LayoutView(timeout=None)
         view.add_item(p.container())
-        ping = [guild.get_member(uid) for uid, _ in st["cast"] if uid] if st["ep"] in (0, len(S.EPISODES) - 1) else []
+        ping = [await fetch_member(guild, uid) for uid, _ in st["cast"] if uid] \
+            if st["ep"] in (0, len(S.EPISODES) - 1) else []
         mentions = discord.AllowedMentions(users=[m for m in ping if m]) if ping else NO_PINGS
         content_ping = " ".join(m.mention for m in ping if m)
         try:

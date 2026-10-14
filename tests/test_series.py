@@ -135,9 +135,26 @@ class FlowTest(unittest.TestCase):
 
     def test_cast_falls_back_to_extras(self):
         guild = FakeGuild(67, [])
-        cast = self.cog.pick_cast(guild)
+        cast = asyncio.run(self.cog.pick_cast(guild))
         self.assertEqual([uid for uid, _ in cast], [None, None, None])
         self.assertEqual(self.cog.names(guild, dict(cast=cast))["hero"], self.mod.EXTRAS[0])
+
+    def test_cast_fetches_uncached_members(self):
+        """Without the members intent the cache is empty: the cast is fetched from Discord."""
+        members = [FakeMember(6500 + k, f"Absent{k}") for k in range(4)]
+        for m in members:
+            grant(self.store, 65, m.id, 300, 0, "test")
+
+        class NoCacheGuild(FakeGuild):
+            def get_member(self, uid):
+                return None
+
+            async def fetch_member(self, uid):
+                return self.members[uid]
+
+        guild = NoCacheGuild(65, members)
+        cast = asyncio.run(self.cog.pick_cast(guild))
+        self.assertEqual(len([uid for uid, _ in cast if uid]), 3)
 
     def test_nightly_release(self):
         mod = self.mod

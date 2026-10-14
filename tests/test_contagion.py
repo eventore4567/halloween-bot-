@@ -137,6 +137,22 @@ class ContagionTest(unittest.TestCase):
             self.assertIsNone(self.store.meta_get("contagion_day:74"))  # today's curse can still strike
         asyncio.run(go())
 
+    def test_daily_strike_fetches_uncached_speakers(self):
+        guild, users = self.setup_guild(75, 4)
+        channel = FakeChannel()
+        self.store.guild_set(75, drop_channel=channel.id, drops_on=1)
+        members = dict(guild.members)
+        guild.members = {}  # nothing cached, as without the members intent
+
+        async def fetch_member(uid):
+            return members[uid]
+        guild.fetch_member = fetch_member
+        drops = self.bot.get_cog("Drops")
+        drops.authors[75] = {u.id: time.time() for u in users}
+        late = dt.datetime(2026, 10, 21, 23, 0, tzinfo=config.TZ)
+        with mock.patch.object(self.bot, "get_channel", lambda cid: channel):
+            self.assertTrue(asyncio.run(self.cog.maybe_strike(guild, late)))
+
     def test_daily_strike(self):
         guild, users = self.setup_guild(73, 4)
         channel = FakeChannel()

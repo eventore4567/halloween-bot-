@@ -428,6 +428,20 @@ class _PinnedPatterns(dict):
         return super().pop(key, *default)
 
 
+async def fetch_member(guild, uid: int | None):
+    """A member of ``guild``, from the cache or from Discord (the bot runs without the members intent,
+    so most members are not cached). None when they left or cannot be fetched."""
+    if guild is None or not uid:
+        return None
+    member = guild.get_member(uid)
+    if member is not None:
+        return member
+    try:
+        return await guild.fetch_member(uid)
+    except (discord.HTTPException, AttributeError):
+        return None
+
+
 def register_dynamic(bot, cls):
     """Register a DynamicItem whose buttons live on many messages: its pattern is never dropped."""
     bot.add_dynamic_items(cls)
