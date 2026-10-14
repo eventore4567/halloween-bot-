@@ -120,6 +120,17 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
                                         f"{E.cross} Règle d'abord le salon avec `/reglages salon-evenements`.",
                                         ephemeral=True)
 
+    @app_commands.command(name="lancer-hantise", description="Faire apparaître le Spectre tout de suite (dans ce salon ou un salon calme)")
+    @app_commands.describe(salon="Le salon à hanter (par défaut : un des salons les plus calmes)")
+    async def hantise(self, interaction: discord.Interaction, salon: discord.TextChannel | None = None):
+        cog = self.bot.get_cog("Haunting")
+        if cog.state(interaction.guild_id).get("room"):
+            return await notice(interaction, "Le Spectre hante déjà un salon (`/chateau`).")
+        await interaction.response.defer(ephemeral=True)
+        ok = await cog.haunt(interaction.guild, salon)
+        await interaction.followup.send(f"{E.check} Le Spectre est apparu !" if ok else
+                                        f"{E.cross} Impossible : aucun salon public où je peux écrire.", ephemeral=True)
+
     @app_commands.command(name="modifier-bonbons", description="Ajouter ou retirer des bonbons à un membre")
     @app_commands.describe(membre="Le membre", montant="Positif pour ajouter, négatif pour retirer")
     async def bonbons(self, interaction: discord.Interaction, membre: discord.Member,

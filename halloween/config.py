@@ -242,6 +242,7 @@ ACHIEVEMENTS = [
     ("treasure_1", "Chasseur de trésor", "Résoudre les 4 énigmes d'une Chasse au trésor (/tresor)", "chest", "treasure_found", 1, 400),
     ("treasure_win", "Premier sur le trésor", "Arriver 1er à une Chasse au trésor", "crown", "treasure_win", 1, 800),
     ("series_8", "Fidèle spectateur", "Voter à 8 épisodes de la Série hantée", "book", "series_votes", 8, 500),
+    ("exorcist_5", "Exorciste", "Chasser 5 fois le Spectre de La Hantise (/chateau)", "ghost", "exorcisms", 5, 500),
     ("trades_3", "Marchand d'âmes", "Conclure 3 échanges de cartes (/echange)", "gift", "trades", 3, 400),
 ]
 

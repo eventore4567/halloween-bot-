@@ -38,6 +38,7 @@ GAMES = [
     ("escape", "Escape Game", "lock", "En équipe : 3 salles, indices secrets, 10 minutes"),
     ("film", "Le Film de ta Nuit", "eye", "Ta saison d'Halloween en film animé"),
     ("connect4", "Puissance 4 maudit", "pumpkin_lit", "Aligne 4 citrouilles contre la Sorcière"),
+    ("chateau", "Le Château hanté", "house", "Ton serveur en château : qui est où, où rôde le Spectre"),
     ("defis", "Défis du jour", "scroll", "3 défis par jour, 2 par semaine, gros bonus"),
     ("daily", "Coffre du jour", "chest", "Ta récompense quotidienne + série"),
     ("calendar", "Calendrier d'octobre", "gift", "Une case par jour, jackpot le 31"),
@@ -54,7 +55,7 @@ COMMAND = {"quiz": "quiz", "ouija": "ouija", "shell": "bonneteau", "motus": "mot
            "slots": "machine", "roulette": "roulette", "hilo": "plusoumoins", "race": "course", "wheel": "roue",
            "hunt": "chasse", "memory": "memoire", "ritual": "rituel", "reflex": "reflexe", "maze": "labyrinthe", "fuite": "fuite",
            "cauldron": "formule", "escape": "escape", "traitre": "traitre", "house": "maison", "manor": "expedition", "cards": "cartes",
-           "connect4": "puissance4", "pet": "familier", "defis": "defis", "daily": "quotidien",
+           "connect4": "puissance4", "pet": "familier", "defis": "defis", "chateau": "chateau", "daily": "quotidien",
            "calendar": "calendrier", "giant": "citrouille", "film": "film", "profile": "profil",
            "trophies": "succes", "top": "classement", "shop": "boutique"}
 
@@ -64,7 +65,7 @@ CATEGORIES = [
     ("luck", "Hasard & mises", "dice", ["slots", "roulette", "hilo", "race", "wheel", "hunt"]),
     ("brain", "Mémoire & réflexes", "eye", ["fuite", "memory", "ritual", "reflex", "maze", "cauldron"]),
     ("adventure", "Aventure & collection", "key", ["traitre", "escape", "house", "manor", "cards", "connect4"]),
-    ("night", "Rendez-vous de la nuit", "moon", ["pet", "defis", "daily", "calendar", "giant"]),
+    ("night", "Rendez-vous de la nuit", "moon", ["chateau", "pet", "defis", "daily", "calendar", "giant"]),
     ("me", "Ma progression", "trophy", ["film", "profile", "trophies", "top", "shop"]),
 ]
 CATEGORY = {c[0]: c for c in CATEGORIES}
