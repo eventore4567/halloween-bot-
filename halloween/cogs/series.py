@@ -137,8 +137,10 @@ class Series(commands.Cog):
             st["votes"] = {}
             st["day"] = day or config.today()
             st["channel"] = channel.id
+        if not await self.post(guild, channel, st):
+            return False  # nothing is saved: the same episode is tried again at the next tick
+        async with self.lock:
             self.store.meta_set(key(g), st)
-        await self.post(guild, channel, st)
         return True
 
     def episode_panel(self, guild, st) -> tuple[Panel, dict]:
@@ -167,7 +169,7 @@ class Series(commands.Cog):
                  f"{cast['hero']}, {cast['suspect']} et {cast['victim']} · `/serie` pour le résumé")
         return p, cast
 
-    async def post(self, guild, channel, st):
+    async def post(self, guild, channel, st) -> bool:
         ep = S.EPISODES[st["ep"]]
         p, cast = self.episode_panel(guild, st)
         roles = [(label, cast[role]) for role, label in ROLES]
@@ -190,11 +192,16 @@ class Series(commands.Cog):
         mentions = discord.AllowedMentions(users=[m for m in ping if m]) if ping else NO_PINGS
         content_ping = " ".join(m.mention for m in ping if m)
         try:
-            if content_ping:  # the cast is told they are in the story (episode 1 and finale only)
-                await channel.send(f"{E.book} {content_ping} : vous êtes dans la série !", allowed_mentions=mentions)
             await channel.send(view=view, files=files, allowed_mentions=NO_PINGS)
         except discord.HTTPException as exc:
-            LOG.debug("episode post failed: %s", exc)
+            LOG.warning("episode post failed: %s", exc)
+            return False
+        if content_ping:  # the cast is told they are in the story (episode 1 and finale only)
+            try:
+                await channel.send(f"{E.book} {content_ping} : vous êtes dans la série !", allowed_mentions=mentions)
+            except discord.HTTPException:
+                pass
+        return True
 
     # ------------------------------------------------------------------ vote
     async def vote(self, interaction, season: int, ep: int, k: int):

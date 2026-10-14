@@ -105,9 +105,9 @@ class Contagion(commands.Cog):
             out.append((name, avatar))
         return out
 
-    async def post(self, channel, p: Panel, data: bytes | None, name: str, ping=None):
+    async def post(self, channel, p: Panel, data: bytes | None, name: str, ping=None) -> bool:
         if channel is None:
-            return
+            return False
         files = []
         if data:
             p.children.insert(0, discord.ui.MediaGallery(discord.MediaGalleryItem(media=f"attachment://{name}")))
@@ -115,8 +115,10 @@ class Contagion(commands.Cog):
         mentions = discord.AllowedMentions(users=[ping]) if ping is not None else NO_PINGS
         try:
             await channel.send(view=panel_view(p), files=files, allowed_mentions=mentions)
+            return True
         except discord.HTTPException as exc:
             LOG.debug("contagion post failed: %s", exc)
+            return False
 
     # ----------------------------------------------------------------- start
     async def start(self, guild, holder, channel=None, day: str | None = None) -> bool:
@@ -137,7 +139,13 @@ class Contagion(commands.Cog):
                      f"refilée sont récompensés. À **{MAX_CHAIN} maillons**, elle se brise : tout le monde gagne !")
         p.footer(f"{E.skull_fire} `/malediction` pour voir la chaîne · seuls les joueurs du bot peuvent l'attraper")
         data = await asyncio.to_thread(art.map_png, await self.people(guild, st["chain"]), HOLD_TIME // 60)
-        await self.post(channel or self.channel(g), p, data, PNG_NAME, ping=holder)
+        if not await self.post(channel or self.channel(g), p, data, PNG_NAME, ping=holder):
+            # nobody was told: cancel it rather than punish a holder who never knew
+            async with self.lock(g):
+                self.store.meta_del(key(g))
+                self.store.meta_del(f"contagion_day:{g}")
+                self.holders[g] = None
+            return False
         return True
 
     # ------------------------------------------------------------------ pass
@@ -205,8 +213,9 @@ class Contagion(commands.Cog):
         reward = LINK_REWARD + LINK_STEP * len(chain)
         winners = chain if broken else chain[:-1]
         for uid in winners:
+            passed = uid != chain[-1]  # the last link of a broken chain is rewarded but passed nothing on
             r = grant(self.store, g, uid, reward + (BREAK_BONUS if broken else 0), 15, "malediction",
-                      stats={"curse_passed": 1})
+                      stats={"curse_passed": 1} if passed else None)
             lines.append(f"<@{uid}> {r.line()}")
         if not broken:
             loser = chain[-1]

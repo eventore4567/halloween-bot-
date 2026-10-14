@@ -101,7 +101,8 @@ class Admin(commands.GroupCog, group_name="reglages", group_description="Réglag
         cog = self.bot.get_cog("Treasure")
         await interaction.response.defer(ephemeral=True)
         cfg = self.bot.store.guild(interaction.guild_id)
-        channel = interaction.guild.get_channel(cfg["drop_channel"]) if cfg["drop_channel"] else interaction.channel
+        channel = (interaction.guild.get_channel(cfg["drop_channel"]) if cfg["drop_channel"] else None) \
+            or interaction.channel  # the configured channel may have been deleted
         error = await cog.start(interaction.guild, channel)
         await interaction.followup.send(f"{E.cross} {error}" if error else
                                         f"{E.check} La Chasse au trésor est lancée dans {channel.mention} !",

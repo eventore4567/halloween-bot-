@@ -2,7 +2,7 @@
 
 1. a coded message on a cipher wheel (in /tresor),
 2. a parchment hidden in **another channel** of the server (only a hint says which one),
-3. a word written backwards in the **bot's own status**,
+3. a word written backwards in the **bot's nickname** on the server,
 4. a word-search grid.
 Everybody hunts at once, each at their own pace; the first to solve all four wins
 the big prize, the next ones smaller prizes. Organisers start it with
@@ -35,6 +35,7 @@ PRIZES = [1500, 800, 500]
 FINISH_PRIZE = 200
 STEP_PRIZE = 40
 WRONG_COOLDOWN = 8
+PODIUM_SHOWN = 15  # the final message stays far below Discord's 4 000 characters
 PNG = ["enigme1.png", "parchemin.png", None, "grille.png"]
 
 
@@ -68,6 +69,7 @@ class Treasure(commands.Cog):
         self.store = bot.store
         self.wrong: dict[tuple[int, int], float] = {}
         self.lock = asyncio.Lock()
+        self.start_lock = asyncio.Lock()  # two organisers launching at once must not create two hunts
 
     def state(self, g: int) -> dict | None:
         return self.store.meta_get(key(g))
@@ -75,6 +77,10 @@ class Treasure(commands.Cog):
     # ----------------------------------------------------------------- start
     async def start(self, guild, event_channel) -> str | None:
         """Start a hunt; returns an error message, or None when it started."""
+        async with self.start_lock:
+            return await self._start(guild, event_channel)
+
+    async def _start(self, guild, event_channel) -> str | None:
         g = guild.id
         if self.state(g):
             return "Une chasse au trésor est déjà en cours."
@@ -94,14 +100,14 @@ class Treasure(commands.Cog):
         except discord.HTTPException:
             return "Impossible de cacher le parchemin (permissions)."
         name = spot.name
+        clue_in_nick = await self.set_nick(guild, f"🗝️ {hunt.reversed_word}")
         st = dict(seed=seed, ends=time.time() + DURATION, spot=spot.id, spot_hint=[name[0], len(name)],
-                  progress={}, finishers=[], channel=getattr(event_channel, "id", None))
+                  progress={}, finishers=[], channel=getattr(event_channel, "id", None), nick=clue_in_nick)
         self.store.meta_set(key(g), st)
-        await self.set_status()
         p = Panel("orange")
         p.title("La Chasse au trésor est ouverte !", icon="key",
                 body=f"{E.scroll} **Quatre énigmes** sont cachées partout dans le serveur : un message chiffré, "
-                     f"un parchemin caché dans un **autre salon**, un indice dans le **statut du bot**, une grille "
+                     f"un parchemin caché dans un **autre salon**, un indice dans le **pseudo du bot**, une grille "
                      f"maudite.\n{E.crown} Le premier qui résout les quatre gagne **{config.fmt(PRIZES[0])}** "
                      f"{E.candy}, puis {config.fmt(PRIZES[1])} et {config.fmt(PRIZES[2])} ; chaque énigme résolue "
                      f"rapporte {STEP_PRIZE} {E.candy}.\n{E.hourglass} Fin {relative(st['ends'])}.\n"
@@ -114,17 +120,15 @@ class Treasure(commands.Cog):
                 pass
         return None
 
-    def status_text(self) -> str | None:
-        """The bot's status is shared by every server: it shows the clue of every hunt running."""
-        words = [T.make_hunt(st["seed"]).reversed_word for st in self.store.meta_prefix("treasure:").values()]
-        return ("🗝️ " + " · ".join(words))[:128] if words else None
-
-    async def set_status(self):
+    async def set_nick(self, guild, nick: str | None) -> bool:
+        """The 3rd clue lives in the bot's nickname, which belongs to this server only."""
+        me = getattr(guild, "me", None)
         try:
-            text = self.status_text()
-            await self.bot.change_presence(activity=discord.Game(name=text) if text else None)
-        except Exception:  # noqa: BLE001 - the status is a bonus, never a blocker
-            LOG.debug("presence change failed", exc_info=True)
+            await me.edit(nick=nick)
+            return True
+        except (discord.HTTPException, AttributeError, TypeError):
+            LOG.debug("nickname change failed", exc_info=True)
+            return False
 
     # ----------------------------------------------------------------- views
     def enigma(self, st, hunt, step: int):
@@ -144,8 +148,12 @@ class Treasure(commands.Cog):
                     f"et compte **{n}** caractères. Trouve-le, remets ses lettres dans l'ordre "
                     f"({len(hunt.answers[1])} lettres).")
         elif step == 2:
-            body = (f"Le bot murmure un mot… **regarde son statut** (« Joue à … » sur son profil ou dans la liste "
-                    f"des membres). Le mot y est écrit **à l'envers** ({len(hunt.answers[2])} lettres).")
+            if st.get("nick"):
+                body = (f"Le bot murmure un mot… **regarde son pseudo** sur ce serveur (dans la liste des membres). "
+                        f"Le mot y est écrit **à l'envers** ({len(hunt.answers[2])} lettres).")
+            else:  # the bot could not rename itself: the clue is told here instead
+                body = (f"Le bot murmure, à l'envers : **{hunt.reversed_word}**. Remets-le à l'endroit "
+                        f"({len(hunt.answers[2])} lettres).")
         else:
             p.image(PNG[3])
             body = (f"Le mot final se cache dans la grille : il fait **{hunt.final_len}** lettres et commence par la "
@@ -246,11 +254,15 @@ class Treasure(commands.Cog):
             return False
         self.store.meta_del(key(g))
         hunt = T.make_hunt(st["seed"])
-        await self.set_status()
+        if st.get("nick"):
+            await self.set_nick(guild, None)
         channel = self.bot.get_channel(st["channel"]) if st.get("channel") else None
         if channel is None:
             return True
-        podium = "\n".join(f"{['🥇', '🥈', '🥉'][i] if i < 3 else '•'} <@{u}>" for i, u in enumerate(st["finishers"]))
+        shown = st["finishers"][:PODIUM_SHOWN]
+        podium = "\n".join(f"{['🥇', '🥈', '🥉'][i] if i < 3 else '•'} <@{u}>" for i, u in enumerate(shown))
+        if len(st["finishers"]) > PODIUM_SHOWN:
+            podium += f"\n… et **{len(st['finishers']) - PODIUM_SHOWN}** autres chercheurs ont trouvé le trésor !"
         p = Panel("orange")
         p.title("Fin de la Chasse au trésor", icon="key",
                 body=f"Les réponses étaient : **{'**, **'.join(hunt.answers)}**.\n"
@@ -265,7 +277,6 @@ class Treasure(commands.Cog):
     async def on_ready(self):
         if not self.tick.is_running():
             self.tick.start()
-        await self.set_status()  # the status was lost with the restart
 
     async def cog_unload(self):
         self.tick.cancel()

@@ -6,6 +6,9 @@ import sys
 import unittest
 from unittest import mock
 
+from types import SimpleNamespace
+
+import discord
 from helpers import FakeInteraction, FakeUser, check_layout, install_fake_emojis, make_bot
 
 from halloween import config
@@ -17,8 +20,11 @@ class FakeChannel:
     def __init__(self):
         self.id = 777
         self.sent = []
+        self.fail = False
 
     async def send(self, content=None, **kwargs):
+        if self.fail:
+            raise discord.HTTPException(SimpleNamespace(status=500, reason="Server Error"), "boom")
         self.sent.append(dict(kwargs, content=content))
 
 
@@ -78,9 +84,9 @@ class FlowTest(unittest.TestCase):
                 st = self.cog.state(66)
                 self.assertEqual((st["season"], st["ep"]), (1, 0))
                 self.assertTrue(all(uid in guild.members for uid, _ in st["cast"]))
-                self.assertIn("vous êtes dans la série", channel.sent[0]["content"])  # the cast is pinged once
+                self.assertIn("vous êtes dans la série", channel.sent[1]["content"])  # the cast is pinged once
                 for ep in range(len(S.EPISODES) - 1):
-                    view = channel.sent[-1]["view"]
+                    view = next(m["view"] for m in reversed(channel.sent) if m.get("view"))
                     check_layout(view)
                     ids = re.findall(r"nh:sv:\d+:\d+:\d", str(view.to_components()))
                     self.assertEqual(len(ids), 3)
@@ -98,15 +104,33 @@ class FlowTest(unittest.TestCase):
                     late.guild = guild
                     await self.cog.vote(late, 1, ep + 1, 0)  # a vote for the wrong episode is refused
                     await self.cog.release(guild, channel)
-                    self.assertIn("Précédemment", str(channel.sent[-1]["view"].to_components()))
+                    last = next(m["view"] for m in reversed(channel.sent) if m.get("view"))
+                    self.assertIn("Précédemment", str(last.to_components()))
                 st = self.cog.state(66)
                 self.assertEqual(st["ep"], len(S.EPISODES) - 1)
                 self.assertEqual(S.ending(st["totals"]), "savoir")
-                self.assertIn(S.ENDINGS["savoir"][0], str(channel.sent[-1]["view"].to_components()))
+                last = next(m["view"] for m in reversed(channel.sent) if m.get("view"))
+                self.assertIn(S.ENDINGS["savoir"][0], str(last.to_components()))
                 self.assertEqual(self.store.stats(66, members[2].id)["series_votes"], len(S.EPISODES) - 1)
                 await self.cog.release(guild, channel)  # a new season
                 st = self.cog.state(66)
                 self.assertEqual((st["season"], st["ep"], st["totals"]), (2, 0, {}))
+        asyncio.run(go())
+
+    def test_failed_send_retries_the_same_episode(self):
+        mod = self.mod
+        guild = FakeGuild(69, [])
+        channel = FakeChannel()
+
+        async def go():
+            with mock.patch.object(mod.art, "episode_gif", lambda *a: b"GIF89a"):
+                await self.cog.release(guild, channel)
+                channel.fail = True
+                self.assertFalse(await self.cog.release(guild, channel))
+                self.assertEqual(self.cog.state(69)["ep"], 0)  # nothing skipped
+                channel.fail = False
+                self.assertTrue(await self.cog.release(guild, channel))
+                self.assertEqual(self.cog.state(69)["ep"], 1)
         asyncio.run(go())
 
     def test_cast_falls_back_to_extras(self):

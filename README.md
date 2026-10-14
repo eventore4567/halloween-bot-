@@ -157,7 +157,7 @@ Pas un panneau de plus : ces jeux se jouent **entre les membres, dans le serveur
   à 12 maillons, elle se brise et toute la chaîne est récompensée.
 - **🗝️ La Chasse au trésor du serveur** (`/tresor`) : 4 énigmes cachées partout : un message chiffré sur une
   roue de chiffrement, un **parchemin caché dans un autre salon** (seul un indice dit lequel), un mot écrit à
-  l'envers dans le **statut du bot**, et une grille de mots mêlés. Le premier qui résout tout gagne 1 500 bonbons,
+  l'envers dans le **pseudo du bot sur le serveur**, et une grille de mots mêlés. Le premier qui résout tout gagne 1 500 bonbons,
   puis 800 et 500. Dure 24 h.
 
 ### 🔧 Commandes d'organisation (`Gérer le serveur`)

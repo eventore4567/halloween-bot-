@@ -67,16 +67,16 @@ def _anagram(word: str, rnd) -> str:
 
 def make_hunt(seed: int) -> Hunt:
     rnd = random.Random(seed)
-    w1, w2, w3 = rnd.sample([w for w in WORDS if 5 <= len(w) <= 10], 3)
-    # the final word: its first letter is the last letter of answer 3, its length is unique in the grid
-    finals = [w for w in WORDS if w[0] == w3[-1] and 5 <= len(w) <= GRID and w not in (w1, w2, w3)]
-    if not finals:
-        finals = [w for w in WORDS if 5 <= len(w) <= GRID and w not in (w1, w2, w3)]
-        w3_last = None
-    else:
-        w3_last = w3[-1]
-    w4 = rnd.choice(finals)
-    first = w3_last or w4[0]
+    pool = [w for w in WORDS if 5 <= len(w) <= 10]
+    w1, w2 = rnd.sample(pool, 2)
+
+    def finals(w3):
+        return [w for w in WORDS if w[0] == w3[-1] and 5 <= len(w) <= GRID and w not in (w1, w2, w3)]
+
+    # answer 3 is drawn among the words that leave a final word starting with its last letter
+    w3 = rnd.choice([w for w in pool if w not in (w1, w2) and finals(w)])
+    w4 = rnd.choice(finals(w3))
+    first = w3[-1]
     while True:
         grid = [["."] * GRID for _ in range(GRID)]
         if not _place(grid, w4, rnd):

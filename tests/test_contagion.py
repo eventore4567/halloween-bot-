@@ -7,6 +7,9 @@ import unittest
 from io import BytesIO
 from unittest import mock
 
+from types import SimpleNamespace
+
+import discord
 from helpers import FakeUser, check_layout, install_fake_emojis, make_bot
 from PIL import Image
 
@@ -15,11 +18,14 @@ from halloween.rewards import grant
 
 
 class FakeChannel:
-    def __init__(self):
+    def __init__(self, fail=False):
         self.id = 4242
         self.sent = []
+        self.fail = fail
 
     async def send(self, **kwargs):
+        if self.fail:
+            raise discord.Forbidden(SimpleNamespace(status=403, reason="Forbidden"), "missing access")
         self.sent.append(kwargs)
 
 
@@ -115,9 +121,21 @@ class ContagionTest(unittest.TestCase):
                     await self.cog.on_message(FakeMessage(guild, a, [b]))
             self.assertIsNone(self.cog.state(72))
             self.assertGreater(self.store.candies(72, users[-1].id), before)  # even the last one wins
+            self.assertNotIn("curse_passed", self.store.stats(72, users[-1].id))  # but passed nothing on
+            self.assertEqual(self.store.stats(72, users[0].id)["curse_passed"], 1)
             self.assertIn("brisée", str(channel.sent[-1]["view"].to_components()))
         with mock.patch.object(self.bot, "get_channel", lambda cid: channel):
             asyncio.run(go())
+
+    def test_unannounced_curse_is_cancelled(self):
+        guild, users = self.setup_guild(74, 2)
+
+        async def go():
+            self.assertFalse(await self.cog.start(guild, users[0], FakeChannel(fail=True)))
+            self.assertIsNone(self.cog.state(74))
+            self.assertIsNone(self.cog.holder(74))
+            self.assertIsNone(self.store.meta_get("contagion_day:74"))  # today's curse can still strike
+        asyncio.run(go())
 
     def test_daily_strike(self):
         guild, users = self.setup_guild(73, 4)
