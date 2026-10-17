@@ -1,0 +1,21 @@
+name: BloxHub checks
+
+on:
+  push:
+    branches: [main]
+    paths: ['BloxHub/**', '.github/workflows/bloxhub.yml']
+  pull_request:
+    paths: ['BloxHub/**', '.github/workflows/bloxhub.yml']
+
+jobs:
+  luau:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Luau
+        run: |
+          curl -sSL -o luau.zip https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          mkdir -p "$HOME/luau" && unzip -o luau.zip -d "$HOME/luau"
+          echo "$HOME/luau" >> "$GITHUB_PATH"
+      - name: Compile and run BloxHub tests
+        run: sh BloxHub/tests/run.sh
